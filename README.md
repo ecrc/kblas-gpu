@@ -1,2 +1,2 @@
-# KBLAS-GPU
-Select BLAS optimized routines for NVIDIA GPU's
+# kblas-gpu
+Subset of BLAS routines optimized for NVIDIA GPUs

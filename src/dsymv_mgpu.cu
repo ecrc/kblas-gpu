@@ -1,0 +1,363 @@
+ /**
+ -- (C) Copyright 2013 King Abdullah University of Science and Technology
+  Authors:
+  Ahmad Abdelfattah (ahmad.ahmad@kaust.edu.sa)
+  David Keyes (david.keyes@kaust.edu.sa)
+  Hatem Ltaief (hatem.ltaief@kaust.edu.sa)
+
+  Redistribution  and  use  in  source and binary forms, with or without
+  modification,  are  permitted  provided  that the following conditions
+  are met:
+
+  * Redistributions  of  source  code  must  retain  the above copyright
+    notice,  this  list  of  conditions  and  the  following  disclaimer.
+  * Redistributions  in  binary  form must reproduce the above copyright
+    notice,  this list of conditions and the following disclaimer in the
+    documentation  and/or other materials provided with the distribution.
+  * Neither  the  name of the King Abdullah University of Science and
+    Technology nor the names of its contributors may be used to endorse 
+    or promote products derived from this software without specific prior 
+    written permission.
+
+  THIS  SOFTWARE  IS  PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  ``AS IS''  AND  ANY  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A  PARTICULAR  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL,  EXEMPLARY,  OR  CONSEQUENTIAL  DAMAGES  (INCLUDING,  BUT NOT
+  LIMITED  TO,  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA,  OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY  OF  LIABILITY,  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF  THIS  SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+**/
+
+#include "syhemv_mgpu_core.cuh"
+#include "syhemv_mgpu_offset_core.cuh"
+#include "defs.h"
+
+#if(SM >= 30)
+
+#define dsymv_upper_bs	(32)
+#define dsymv_upper_ty	(4)
+
+#define dsymv_lower_bs	(32)
+#define dsymv_lower_ty	(2)
+
+#else
+
+#define dsymv_upper_bs	(64)
+#define dsymv_upper_ty	(8)
+
+#define dsymv_lower_bs	(64)
+#define dsymv_lower_ty	(8)
+
+#endif
+
+int kblas_dsymv_mgpu_driver( char uplo, int m, 
+							double alpha, double *dA, int lda, 
+							double *dX, int incx, 
+							double  beta, double *dY, int incy, 
+							int ngpus, int gpu_gid, 
+							cudaStream_t stream = 0)
+{
+	// handle the case when incx and/or incy is -ve
+	if(incx < 0) dX -= (m-1) * incx;
+	if(incy < 0) dY -= (m-1) * incy;
+	
+	if(uplo == 'U' || uplo == 'u')
+	{
+		/** configuration params **/
+		/** 
+		* If you change the configuration parameters, 
+		* you must revise the case statement of the upper case
+		* to make sure it covers all the possible cases
+		**/
+		const int dsymv_bs = dsymv_upper_bs;
+		const int thread_x = dsymv_bs;
+		const int thread_y = dsymv_upper_ty;
+		const int elements_per_thread = (dsymv_bs/(2*thread_y)) ;
+		const int dsymv_upper_by = 2*ngpus; 
+		/** end configuration params **/
+		int mod = m % dsymv_bs;
+		int nstripes = m / dsymv_bs + (mod != 0);
+		int blocks = nstripes/ngpus; 
+		if(gpu_gid < (nstripes%ngpus) ) blocks += 1;
+		dim3 dimBlock(thread_x, thread_y);
+		dim3 dimGrid(blocks,1);
+		dim3 dimGrid_(blocks, dsymv_upper_by); 
+		
+		//if (mod == 0) mod = dsymv_bs;
+		if(mod == 0)
+		{
+		  syhemvu_mgpu_special_d<double, dsymv_bs, thread_x, thread_y, elements_per_thread><<<dimGrid, dimBlock, 0, stream>>> ( m, alpha, dA, lda, dX, incx, beta, dY, incy, gpu_gid, ngpus, nstripes);
+		  syhemvu_mgpu_special_nd<double, dsymv_bs, thread_x, thread_y, elements_per_thread><<<dimGrid_, dimBlock, 0, stream>>> ( m, alpha, dA, lda, dX, incx, beta, dY, incy, gpu_gid, ngpus, nstripes);
+		}
+		else
+		{
+			syhemvu_mgpu_generic_d<double, dsymv_bs, thread_x, thread_y, elements_per_thread><<<dimGrid, dimBlock, 0, stream>>>( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, gpu_gid, ngpus, nstripes);
+			// for the non-diagonal part choose between a templatized irregular part or a variable one
+			const int irregular_part = mod % elements_per_thread;
+			if(0)
+			{}
+			else	
+			{	// Templatized irregular_part
+				
+				/**
+				 * The upper case kernel for irregular dimensions has an extra template parameter.
+				 * This parameter must be among the values listed in the switch-case statement below.
+				 * The possible values are in the range 0 - (elements_per_thread-1)
+				 * Make sure these values are updated whenever you change the configuration parameters.  
+				 **/
+				switch(irregular_part)
+				{
+					case  0: syhemvu_mgpu_generic_nd<double, dsymv_bs, thread_x, thread_y, elements_per_thread,  0><<<dimGrid_, dimBlock, 0, stream>>>( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, gpu_gid, ngpus, nstripes); break;
+					case  1: syhemvu_mgpu_generic_nd<double, dsymv_bs, thread_x, thread_y, elements_per_thread,  1><<<dimGrid_, dimBlock, 0, stream>>>( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, gpu_gid, ngpus, nstripes); break;
+					case  2: syhemvu_mgpu_generic_nd<double, dsymv_bs, thread_x, thread_y, elements_per_thread,  2><<<dimGrid_, dimBlock, 0, stream>>>( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, gpu_gid, ngpus, nstripes); break;
+					case  3: syhemvu_mgpu_generic_nd<double, dsymv_bs, thread_x, thread_y, elements_per_thread,  3><<<dimGrid_, dimBlock, 0, stream>>>( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, gpu_gid, ngpus, nstripes); break;
+					case  4: syhemvu_mgpu_generic_nd<double, dsymv_bs, thread_x, thread_y, elements_per_thread,  4><<<dimGrid_, dimBlock, 0, stream>>>( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, gpu_gid, ngpus, nstripes); break;
+					case  5: syhemvu_mgpu_generic_nd<double, dsymv_bs, thread_x, thread_y, elements_per_thread,  5><<<dimGrid_, dimBlock, 0, stream>>>( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, gpu_gid, ngpus, nstripes); break;
+					case  6: syhemvu_mgpu_generic_nd<double, dsymv_bs, thread_x, thread_y, elements_per_thread,  6><<<dimGrid_, dimBlock, 0, stream>>>( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, gpu_gid, ngpus, nstripes); break;
+					case  7: syhemvu_mgpu_generic_nd<double, dsymv_bs, thread_x, thread_y, elements_per_thread,  7><<<dimGrid_, dimBlock, 0, stream>>>( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, gpu_gid, ngpus, nstripes); break;
+					case  8: syhemvu_mgpu_generic_nd<double, dsymv_bs, thread_x, thread_y, elements_per_thread,  8><<<dimGrid_, dimBlock, 0, stream>>>( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, gpu_gid, ngpus, nstripes); break;
+					// return error otherwise:
+					default: printf("DSYMV-UPPER ERROR: improper template parameter. Please read the inline documentation for this function. \n"); return -1;
+				}
+			}
+		}		
+	}
+	else if(uplo == 'L' || uplo == 'l')
+	{
+		/** configuration params **/
+		const int dsymv_bs = dsymv_lower_bs;
+		const int thread_x = dsymv_bs;
+		const int thread_y = dsymv_lower_ty;
+		const int elements_per_thread = (dsymv_bs/(2*thread_y)) ;
+		const int dsymv_lower_by = 2*ngpus; 	// design rule, feel free to change it
+		/** end configuration params **/
+		
+		int mod = m % dsymv_bs;
+		int nstripes = m / dsymv_bs + (mod != 0);
+		int blocks = nstripes/ngpus; 
+		if(gpu_gid < (nstripes%ngpus) ) blocks += 1;
+		dim3 dimBlock(thread_x, thread_y);
+		dim3 dimGrid(blocks,1);
+		dim3 dimGrid_(blocks, dsymv_lower_by);
+
+		if(mod == 0)
+		{
+			syhemvl_mgpu_special_d<double, dsymv_bs, thread_x, thread_y, elements_per_thread><<<dimGrid, dimBlock, 0, stream>>> ( m, alpha, dA, lda, dX, incx, beta, dY, incy, gpu_gid, ngpus, nstripes);
+			syhemvl_mgpu_special_nd<double, dsymv_bs, thread_x, thread_y, elements_per_thread><<<dimGrid_, dimBlock, 0, stream>>> ( m, alpha, dA, lda, dX, incx, beta, dY, incy, gpu_gid, ngpus, nstripes);
+		}
+		else
+		{
+		  	syhemvl_mgpu_generic_d<double, dsymv_bs, thread_x, thread_y, elements_per_thread><<<dimGrid, dimBlock, 0, stream>>> ( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, gpu_gid, ngpus, nstripes);
+			syhemvl_mgpu_generic_nd<double, dsymv_bs, thread_x, thread_y, elements_per_thread><<<dimGrid_, dimBlock, 0, stream>>> ( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, gpu_gid, ngpus, nstripes);
+		}
+	}
+	else{printf("Upper/Lower mode %c is not supported \n", uplo); return -1;}	
+	return 0;
+}
+
+/*************************************************************************************/
+int kblas_dsymv_mgpu_driver_offset( char uplo, int m, 
+							double alpha, double *dA, int lda, 
+							double *dX, int incx, 
+							double  beta, double *dY, int incy, 
+							int ngpus, int gpu_gid,
+							int offset, 
+							cudaStream_t stream = 0)
+{
+	// handle the case when incx and/or incy is -ve
+	if(incx < 0) dX -= (m-1) * incx;
+	if(incy < 0) dY -= (m-1) * incy;
+	
+	if(uplo == 'U' || uplo == 'u')
+	{
+		/** configuration params **/
+		const int dsymv_bs = dsymv_upper_bs;
+		const int thread_x = dsymv_bs;
+		const int thread_y = dsymv_upper_ty;
+		const int elements_per_thread = (dsymv_bs/(2*thread_y)) ;
+		const int dsymv_upper_by = 2*ngpus; 	// design rule, feel free to change it
+		/** end configuration params **/
+		
+		/** offset necessary calculation **/
+		int offset_ = offset % dsymv_bs;
+		int total_blocks_skipped = offset / dsymv_bs; 
+		int my_skipped_blocks = total_blocks_skipped/ngpus; 
+		if(gpu_gid < (total_blocks_skipped%ngpus)) my_skipped_blocks += 1;
+		int ref_gpu = total_blocks_skipped%ngpus; 
+		int new_gpu_gid = (gpu_gid - ref_gpu + ngpus) % ngpus;
+		// Advance pointers accordingly
+		dA += my_skipped_blocks * dsymv_bs * lda;
+		dA += total_blocks_skipped * dsymv_bs; 
+		dX += total_blocks_skipped * dsymv_bs * incx;
+		dY += total_blocks_skipped * dsymv_bs * incy;
+		m  -= total_blocks_skipped * dsymv_bs;
+		/** end offset necessary calculation **/
+		
+		int mod = m % dsymv_bs;
+		int nstripes = m / dsymv_bs + (mod != 0);
+		int blocks = nstripes/ngpus; 
+		if(new_gpu_gid < (nstripes%ngpus) ) blocks += 1;
+		dim3 dimBlock(thread_x, thread_y);
+		dim3 dimGrid(blocks,1);
+		dim3 dimGrid_(blocks, dsymv_upper_by);
+		
+		if(mod == 0)
+		{
+			syhemvu_mgpu_special_d_offset<double, dsymv_bs, thread_x, thread_y, elements_per_thread><<<dimGrid, dimBlock, 0, stream>>> ( m, alpha, dA, lda, dX, incx, beta, dY, incy, new_gpu_gid, ngpus, nstripes, offset_);
+			syhemvu_mgpu_special_nd_offset<double, dsymv_bs, thread_x, thread_y, elements_per_thread><<<dimGrid_, dimBlock, 0, stream>>> ( m, alpha, dA, lda, dX, incx, beta, dY, incy, new_gpu_gid, ngpus, nstripes, offset_);
+		}
+		else
+		{
+			syhemvu_mgpu_generic_d_offset<double, dsymv_bs, thread_x, thread_y, elements_per_thread><<<dimGrid, dimBlock, 0, stream>>> ( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, new_gpu_gid, ngpus, nstripes, offset_);
+			const int irregular_part = mod % elements_per_thread;
+			/**
+			 * The upper case kernel for irregular dimensions has an extra template parameter.
+			 * This parameter must be among the values listed in the switch-case statement below.
+			 * The possible values are in the range 0 - (elements_per_thread-1)
+			 * Make sure these values are updated whenever you change the configuration parameters.  
+			 **/
+			switch(irregular_part)
+			{
+				case  0: syhemvu_mgpu_generic_nd_offset<double, dsymv_bs, thread_x, thread_y, elements_per_thread,  0><<<dimGrid_, dimBlock, 0, stream>>>( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, new_gpu_gid, ngpus, nstripes, offset_); break;
+				case  1: syhemvu_mgpu_generic_nd_offset<double, dsymv_bs, thread_x, thread_y, elements_per_thread,  1><<<dimGrid_, dimBlock, 0, stream>>>( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, new_gpu_gid, ngpus, nstripes, offset_); break;
+				case  2: syhemvu_mgpu_generic_nd_offset<double, dsymv_bs, thread_x, thread_y, elements_per_thread,  2><<<dimGrid_, dimBlock, 0, stream>>>( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, new_gpu_gid, ngpus, nstripes, offset_); break;
+				case  3: syhemvu_mgpu_generic_nd_offset<double, dsymv_bs, thread_x, thread_y, elements_per_thread,  3><<<dimGrid_, dimBlock, 0, stream>>>( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, new_gpu_gid, ngpus, nstripes, offset_); break;
+				case  4: syhemvu_mgpu_generic_nd_offset<double, dsymv_bs, thread_x, thread_y, elements_per_thread,  4><<<dimGrid_, dimBlock, 0, stream>>>( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, new_gpu_gid, ngpus, nstripes, offset_); break;
+				case  5: syhemvu_mgpu_generic_nd_offset<double, dsymv_bs, thread_x, thread_y, elements_per_thread,  5><<<dimGrid_, dimBlock, 0, stream>>>( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, new_gpu_gid, ngpus, nstripes, offset_); break;
+				case  6: syhemvu_mgpu_generic_nd_offset<double, dsymv_bs, thread_x, thread_y, elements_per_thread,  6><<<dimGrid_, dimBlock, 0, stream>>>( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, new_gpu_gid, ngpus, nstripes, offset_); break;
+				case  7: syhemvu_mgpu_generic_nd_offset<double, dsymv_bs, thread_x, thread_y, elements_per_thread,  7><<<dimGrid_, dimBlock, 0, stream>>>( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, new_gpu_gid, ngpus, nstripes, offset_); break;
+				case  8: syhemvu_mgpu_generic_nd_offset<double, dsymv_bs, thread_x, thread_y, elements_per_thread,  8><<<dimGrid_, dimBlock, 0, stream>>>( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, new_gpu_gid, ngpus, nstripes, offset_); break;
+				// return error otherwise:
+				default: printf("DSYMV-UPPER ERROR: improper template parameter. Please read the inline documentation for this function. \n"); return -1;
+			}
+		}
+		
+	}
+	else if(uplo == 'L' || uplo == 'l')
+	{
+		/** configuration params **/
+		const int dsymv_bs = dsymv_lower_bs;
+		const int thread_x = dsymv_bs;
+		const int thread_y = dsymv_lower_ty;
+		const int elements_per_thread = (dsymv_bs/(2*thread_y)) ;
+		const int dsymv_lower_by = 2*ngpus; 	// design rule, feel free to change it
+		/** end configuration params **/
+		
+		/** offset necessary calculation **/
+		int offset_ = offset % dsymv_bs;
+		int total_blocks_skipped = offset / dsymv_bs; 
+		int my_skipped_blocks = total_blocks_skipped/ngpus; 
+		if(gpu_gid < (total_blocks_skipped%ngpus)) my_skipped_blocks += 1;
+		int ref_gpu = total_blocks_skipped%ngpus; 
+		int new_gpu_gid = (gpu_gid - ref_gpu + ngpus) % ngpus;
+		// Advance pointers accordingly
+		dA += my_skipped_blocks * dsymv_bs * lda;
+		dA += total_blocks_skipped * dsymv_bs; 
+		dX += total_blocks_skipped * dsymv_bs * incx;
+		dY += total_blocks_skipped * dsymv_bs * incy;
+		m  -= total_blocks_skipped * dsymv_bs;
+		/** end offset necessary calculation **/
+		
+		int mod = m % dsymv_bs;
+		int nstripes = m / dsymv_bs + (mod != 0);
+		int blocks = nstripes/ngpus; 
+		if(new_gpu_gid < (nstripes%ngpus) ) blocks += 1;
+		dim3 dimBlock(thread_x, thread_y);
+		dim3 dimGrid(blocks,1);
+		dim3 dimGrid_(blocks, dsymv_lower_by);
+		
+		if(mod == 0)
+		{
+			syhemvl_mgpu_special_d_offset<double, dsymv_bs, thread_x, thread_y, elements_per_thread><<<dimGrid, dimBlock, 0, stream>>> ( m, alpha, dA, lda, dX, incx, beta, dY, incy, new_gpu_gid, ngpus, nstripes, offset_);
+			syhemvl_mgpu_special_nd_offset<double, dsymv_bs, thread_x, thread_y, elements_per_thread><<<dimGrid_, dimBlock, 0, stream>>> ( m, alpha, dA, lda, dX, incx, beta, dY, incy, new_gpu_gid, ngpus, nstripes, offset_);
+		}
+		else
+		{
+		  	syhemvl_mgpu_generic_d_offset<double, dsymv_bs, thread_x, thread_y, elements_per_thread><<<dimGrid, dimBlock, 0, stream>>> ( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, new_gpu_gid, ngpus, nstripes, offset_);
+			syhemvl_mgpu_generic_nd_offset<double, dsymv_bs, thread_x, thread_y, elements_per_thread><<<dimGrid_, dimBlock, 0, stream>>> ( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, new_gpu_gid, ngpus, nstripes, offset_);
+		}
+	}
+	else{printf("Upper/Lower mode %c is not supported \n", uplo); return -1;}	
+	return 0;
+}
+
+/*************************************************************************************/
+extern "C"
+int kblas_dsymv_mgpu( char uplo, int m, 
+							double alpha, double **dA, int lda, 
+							double **dX, int incx, 
+							double  beta, double **dY, int incy, 
+							int ngpus, 
+							int offset)
+{
+    const int ngpus_local = ngpus;
+	if(offset == 0)
+	{
+		for(int i = 0; i < ngpus_local; i++)
+		{
+			cudaSetDevice(gpu_lid[i]);
+			kblas_dsymv_mgpu_driver(uplo, m, alpha, dA[i], lda, dX[i], incx, beta, dY[i], incy, ngpus, gpu_gid[i]);
+		}
+	}
+	else
+	{
+		for(int i = 0; i < ngpus_local; i++)
+		{
+			cudaSetDevice(gpu_lid[i]);
+			kblas_dsymv_mgpu_driver_offset(uplo, m, alpha, dA[i], lda, dX[i], incx, beta, dY[i], incy, ngpus, gpu_gid[i], offset);
+		}
+	}
+	
+	// wait for gpus to finish
+	for(int i = 0; i < ngpus_local; i++)
+	{
+		cudaSetDevice(gpu_lid[i]);
+		cudaDeviceSynchronize();
+	}
+	return 0;
+}
+/*************************************************************************************/
+extern "C"
+int kblas_dsymv_mgpu_async( char uplo, int m, 
+							double alpha, double **dA, int lda, 
+							double **dX, int incx, 
+							double  beta, double **dY, int incy, 
+							int ngpus,
+							int offset, 
+							cudaStream_t stream[MAX_NGPUS][MAX_STREAMS])
+{
+    const int ngpus_local = ngpus;
+	if(offset == 0)
+	{
+		for(int i = 0; i < ngpus_local; i++)
+		{
+			cudaSetDevice(gpu_lid[i]);
+			kblas_dsymv_mgpu_driver(uplo, m, alpha, dA[i], lda, dX[i], incx, beta, dY[i], incy, ngpus, gpu_gid[i], stream[i][0]);
+		}
+	}
+	else
+	{
+		for(int i = 0; i < ngpus_local; i++)
+		{
+			cudaSetDevice(gpu_lid[i]);
+			kblas_dsymv_mgpu_driver_offset(uplo, m, alpha, dA[i], lda, dX[i], incx, beta, dY[i], incy, ngpus, gpu_gid[i], offset, stream[i][0]);
+		}
+	}
+	return 0;
+}
+/*************************************************************************************/
+
+extern "C"
+int get_dsymv_mgpu_bs(char uplo)
+{
+    if(uplo == 'l' || uplo == 'L')
+        return dsymv_lower_bs;
+    else if (uplo == 'u' || uplo == 'U')
+        return dsymv_upper_bs;
+    else
+        {printf("Error ..  input %c is not supported for symv \n", uplo); return -1;}
+}

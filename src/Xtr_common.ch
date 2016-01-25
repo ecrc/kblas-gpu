@@ -19,7 +19,7 @@
   * or promote products derived from this software without specific prior
   * written permission.
   * 
-  T *HIS  SOFTWARE  IS  PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  THIS  SOFTWARE  IS  PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
   ``AS IS''  AND  ANY  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
   LIMITED  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
   A  PARTICULAR  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
@@ -34,15 +34,12 @@
 
 //==============================================================================================
 
-#ifdef SUPPORT_CUBLAS
 // ----------------------------------------
 // C++ function is overloaded for different error types,
 // which depends on error types being enums to be differentiable.
 //inline
 int _kblas_error( cudaError_t err, const char* func, const char* file, int line );
 int _kblas_error( cublasStatus_t err, const char* func, const char* file, int line );
-
-#endif
 
 //int _kblas_error( int stat, const char* func, const char* file, int line );
 #define check_error( err ) \
@@ -54,24 +51,22 @@ int CLOSEST_REG_SIZE(int n);
 
 //==============================================================================================
 
-#ifdef SUPPORT_CUBLAS
 void cublasXgemm(char transa, char transb, int m, int n, int k,
                  float alpha, const float *A, int lda,
-                               const float *B, int ldb,
-                 float beta,         float *C, int ldc );
+                              const float *B, int ldb,
+                 float beta,        float *C, int ldc );
 void cublasXgemm(char transa, char transb, int m, int n, int k,
                  double alpha, const double *A, int lda,
-                                const double *B, int ldb,
-                 double beta,         double *C, int ldc);
+                               const double *B, int ldb,
+                 double beta,        double *C, int ldc);
 void cublasXgemm(char transa, char transb, int m, int n, int k,
                  cuComplex alpha, const cuComplex *A, int lda,
                                   const cuComplex *B, int ldb,
-                 cuComplex beta,         cuComplex *C, int ldc);
+                 cuComplex beta,        cuComplex *C, int ldc);
 void cublasXgemm(char transa, char transb, int m, int n, int k,
                  cuDoubleComplex alpha, const cuDoubleComplex *A, int lda,
                                         const cuDoubleComplex *B, int ldb,
-                 cuDoubleComplex beta,         cuDoubleComplex *C, int ldc);
-#endif
+                 cuDoubleComplex beta,        cuDoubleComplex *C, int ldc);
 
 
 

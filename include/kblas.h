@@ -39,9 +39,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-  
-#ifdef SUPPORT_BLAS2
   
 // scal
 int kblas_cscal(int n, cuFloatComplex alpha, cuFloatComplex *x, int incx);
@@ -297,11 +294,7 @@ int get_dgemv_mgpu_bs(char trans);
 int get_cgemv_mgpu_bs(char trans);
 int get_zgemv_mgpu_bs(char trans);
 
-#endif //SUPPORT_BLAS2
-
 //============================================================================
-  
-#ifdef SUPPORT_BLAS3
   
 #define KBLAS_Lower 'L'
 #define KBLAS_Upper 'U'
@@ -313,108 +306,58 @@ int get_zgemv_mgpu_bs(char trans);
 #define KBLAS_NonUnit 'N'
 #define KBLAS_MaxGPUs 8
 
-#if (defined SUPPORT_CUBLAS) && !(defined SUPPORT_MKL)
-
-#define kblas_strmm kblas_cublas_strmm
-#define kblas_dtrmm kblas_cublas_dtrmm
-#define kblas_ctrmm kblas_cublas_ctrmm
-#define kblas_ztrmm kblas_cublas_ztrmm
-  
-#elif !(defined SUPPORT_CUBLAS) && (defined SUPPORT_MKL)
-
-#define kblas_strmm kblas_mkl_strmm
-#define kblas_dtrmm kblas_mkl_dtrmm
-#define kblas_ctrmm kblas_mkl_ctrmm
-#define kblas_ztrmm kblas_mkl_ztrmm
-
-#endif//(defined SUPPORT_CUBLAS) && (defined SUPPORT_MKL)
-  
-  
-#ifdef SUPPORT_MKL
-  //MKL API
-  int kblas_mkl_strmm(
-                      char side, char uplo, char trans, char diag,
-                      int m, int n,
-                      float alpha, const float *A, int incA,
-                      float *B, int incB);
-  
-  int kblas_mkl_dtrmm(
-                      char side, char uplo, char trans, char diag,
-                      int m, int n,
-                      double alpha, const double *A, int incA,
-                      double *B, int incB);
-  
-  int kblas_mkl_ctrmm(
-                      char side, char uplo, char trans, char diag,
-                      int m, int n,
-                      MKL_Complex8 alpha, const MKL_Complex8 *A, int incA,
-                      MKL_Complex8 *B, int incB);
-  
-  int kblas_mkl_ztrmm(
-                      char side, char uplo, char trans, char diag,
-                      int m, int n,
-                      MKL_Complex16 alpha, const MKL_Complex16 *A, int incA,
-                      MKL_Complex16 *B, int incB);
-  
-#endif//SUPPORT_MKL
-  
-#ifdef SUPPORT_CUBLAS
   //cuBLAS API
-  int kblas_cublas_strmm(
+  int kblas_strmm(
       char side, char uplo, char trans, char diag,
       int m, int n,
       float alpha, const float *A, int incA,
-                          float *B, int incB);
+                         float *B, int incB);
   
-  int kblas_cublas_dtrmm(
+  int kblas_dtrmm(
       char side, char uplo, char trans, char diag,
       int m, int n,
       double alpha, const double *A, int incA,
-                            double *B, int incB);
+                          double *B, int incB);
   
-  int kblas_cublas_ctrmm(
+  int kblas_ctrmm(
       char side, char uplo, char trans, char diag,
       int m, int n,
       cuComplex alpha, const cuComplex *A, int incA,
-                              cuComplex *B, int incB);
+                             cuComplex *B, int incB);
   
-  int kblas_cublas_ztrmm(
+  int kblas_ztrmm(
       char side, char uplo, char trans, char diag,
       int m, int n,
       cuDoubleComplex alpha, const cuDoubleComplex *A, int incA,
-                                    cuDoubleComplex *B, int incB);
+                                   cuDoubleComplex *B, int incB);
 
   int kblas_strmm_async(
     char side, char uplo, char trans, char diag,
     int m, int n,
     float alpha, const float *A, int incA,
-                        float *B, int incB,
+                       float *B, int incB,
     cudaStream_t    stream);
 
   int kblas_dtrmm_async(
     char side, char uplo, char trans, char diag,
     int m, int n,
     double alpha, const double *A, int incA,
-                          double *B, int incB,
+                        double *B, int incB,
     cudaStream_t    stream);
 
   int kblas_ctrmm_async(
     char side, char uplo, char trans, char diag,
     int m, int n,
     cuComplex alpha, const cuComplex *A, int incA,
-                            cuComplex *B, int incB,
+                           cuComplex *B, int incB,
     cudaStream_t    stream);
 
   int kblas_ztrmm_async(
     char side, char uplo, char trans, char diag,
     int m, int n,
     cuDoubleComplex alpha, const cuDoubleComplex *A, int incA,
-                                  cuDoubleComplex *B, int incB,
+                                 cuDoubleComplex *B, int incB,
     cudaStream_t    stream);
-#endif //SUPPORT_CUBLAS
-
-  
-#endif //SUPPORT_BLAS3
 
 #ifdef __cplusplus
 }

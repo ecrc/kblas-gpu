@@ -19,7 +19,7 @@
   * or promote products derived from this software without specific prior
   * written permission.
   * 
-  T *HIS  SOFTWARE  IS  PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  THIS  SOFTWARE  IS  PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
   ``AS IS''  AND  ANY  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
   LIMITED  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
   A  PARTICULAR  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
@@ -40,7 +40,6 @@
 #include "operators.h"
 
 //==============================================================================================
-#ifdef SUPPORT_CUBLAS
 
 void cublasXtrmm( char side, char uplo, char transa, char diag,
                  int m, int n,
@@ -451,7 +450,5 @@ int kblas_cublas_ztrmm(
 }
 
 }
-
-#endif// SUPPORT_CUBLAS
 
 

@@ -19,7 +19,7 @@
   * or promote products derived from this software without specific prior
   * written permission.
   * 
-  T *HIS  SOFTWARE  IS  PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  THIS  SOFTWARE  IS  PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
   ``AS IS''  AND  ANY  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
   LIMITED  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
   A  PARTICULAR  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
@@ -144,7 +144,6 @@ int kblasXtrmm(
       }
       //Left / Lower / [Conj]Trans
       else{//transa == KBLAS_Trans
-#ifdef SUPPORT_CUBLAS
         if(kblas_trmm_use_custom){
           if(SIMPLE_SIZE_CUSTOM(m)){
             if(!trmm_custom(side, uplo, transa, diag,
@@ -157,7 +156,6 @@ int kblasXtrmm(
           }
         }
         else//kblas_trmm_use_custom
-#endif //SUPPORT_CUBLAS
         {
           if(SIMPLE_SIZE(m)){
             Xtrmm(side, uplo, transa, diag,

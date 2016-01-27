@@ -30,59 +30,61 @@ KBLAS2_CU_SRC=	$(SCAL_SRC)          \
 
 KBLAS3_CU_SRC= Xtrmm.cu Xtr_common.cu
 
-ALL_OBJ=$(KBLAS2_CU_SRC:.cu=.cu_o) $(KBLAS3_CU_SRC:.cu=.cu_o)
-
 OBJ_DIR=./obj
+#ALL_OBJ=$(KBLAS2_CU_SRC:.cu=.cu_o) $(KBLAS3_CU_SRC:.cu=.cu_o)
+ALL_OBJ = $(patsubst %.cu,$(OBJ_DIR)/%.cu_o,$(KBLAS2_CU_SRC))
+ALL_OBJ+= $(patsubst %.cu,$(OBJ_DIR)/%.cu_o,$(KBLAS3_CU_SRC))
+
 INC=-I${KBLAS_ROOT}/include
 INC+= -I${_CUDA_ROOT_}/include
 
-%scal.cu_o: %scal.cu scal_core.cuh
+$(OBJ_DIR)/%scal.cu_o: %scal.cu scal_core.cuh
 	$(NVCC) $(NVOPTS) $(NVOPTS_2) $(INC) -c $< -o $@ 
 
-%symv.cu_o: %symv.cu syhemv_core.cuh
+$(OBJ_DIR)/%symv.cu_o: %symv.cu syhemv_core.cuh
 	$(NVCC) $(NVOPTS) $(NVOPTS_2) $(INC) -c $< -o $@ 
 
-%symv_offset.cu_o: %symv_offset.cu syhemv_offset_core.cuh
+$(OBJ_DIR)/%symv_offset.cu_o: %symv_offset.cu syhemv_offset_core.cuh
 	$(NVCC) $(NVOPTS) $(NVOPTS_2) $(INC) -c $< -o $@ 
 
-%hemv.cu_o: %hemv.cu syhemv_core.cuh
+$(OBJ_DIR)/%hemv.cu_o: %hemv.cu syhemv_core.cuh
 	$(NVCC) $(NVOPTS) $(NVOPTS_2) $(INC) -c $< -o $@ 
 
-%hemv_offset.cu_o: %hemv_offset.cu syhemv_offset_core.cuh
+$(OBJ_DIR)/%hemv_offset.cu_o: %hemv_offset.cu syhemv_offset_core.cuh
 	$(NVCC) $(NVOPTS) $(NVOPTS_2) $(INC) -c $< -o $@ 
 
-%gemv.cu_o: %gemv.cu gemv_core.cuh
+$(OBJ_DIR)/%gemv.cu_o: %gemv.cu gemv_core.cuh
 	$(NVCC) $(NVOPTS) $(NVOPTS_2) $(INC) -c $< -o $@ 
 
-%gemv2.cu_o: %gemv2.cu gemv2_core.cuh
+$(OBJ_DIR)/%gemv2.cu_o: %gemv2.cu gemv2_core.cuh
 	$(NVCC) $(NVOPTS) $(NVOPTS_2) $(INC) -c $< -o $@ 
 
-%gemv_offset.cu_o: %gemv_offset.cu gemv_offset_core.cuh
+$(OBJ_DIR)/%gemv_offset.cu_o: %gemv_offset.cu gemv_offset_core.cuh
 	$(NVCC) $(NVOPTS) $(NVOPTS_2) $(INC) -c $< -o $@ 
 
-%gemv2_offset.cu_o: %gemv2_offset.cu gemv2_offset_core.cuh
+$(OBJ_DIR)/%gemv2_offset.cu_o: %gemv2_offset.cu gemv2_offset_core.cuh
 	$(NVCC) $(NVOPTS) $(NVOPTS_2) $(INC) -c $< -o $@ 
 
-%symv_mgpu.cu_o: %symv_mgpu.cu syhemv_mgpu_core.cuh syhemv_mgpu_offset_core.cuh 
+$(OBJ_DIR)/%symv_mgpu.cu_o: %symv_mgpu.cu syhemv_mgpu_core.cuh syhemv_mgpu_offset_core.cuh 
 	$(NVCC) $(NVOPTS) $(NVOPTS_2) $(INC) -c $< -o $@ 
 
-%hemv_mgpu.cu_o: %hemv_mgpu.cu syhemv_mgpu_core.cuh syhemv_mgpu_offset_core.cuh 
+$(OBJ_DIR)/%hemv_mgpu.cu_o: %hemv_mgpu.cu syhemv_mgpu_core.cuh syhemv_mgpu_offset_core.cuh 
 	$(NVCC) $(NVOPTS) $(NVOPTS_2) $(INC) -c $< -o $@ 
 
-%gemv_mgpu.cu_o: %gemv_mgpu.cu gemv_mgpu_core.cuh gemv_mgpu_offset_core.cuh 
+$(OBJ_DIR)/%gemv_mgpu.cu_o: %gemv_mgpu.cu gemv_mgpu_core.cuh gemv_mgpu_offset_core.cuh 
 	$(NVCC) $(NVOPTS) $(NVOPTS_2) $(INC) -c $< -o $@
 
-%gemm_mgpu.cu_o: %gemm_mgpu.cu gemm_aux.cuh
+$(OBJ_DIR)/%gemm_mgpu.cu_o: %gemm_mgpu.cu gemm_aux.cuh
 	$(NVCC) $(NVOPTS) $(NVOPTS_2) $(INC) -c $< -o $@
 
-%_control.cu_o: %_control.cu
+$(OBJ_DIR)/%_control.cu_o: %_control.cu
 	$(NVCC) $(NVOPTS) $(NVOPTS_2) $(INC) -c $< -o $@
 
 
-%tr_common.cu_o: %tr_common.cu %tr_common.ch
+$(OBJ_DIR)/%tr_common.cu_o: %tr_common.cu %tr_common.ch
 	$(NVCC) $(NVOPTS) $(NVOPTS_3) $(INC) -c $< -o $@
 
-%trmm.cu_o: %trmm.cu %trmm.hxx %tr_common.ch
+$(OBJ_DIR)/%trmm.cu_o: %trmm.cu %trmm.hxx %tr_common.ch
 	$(NVCC) $(NVOPTS) $(NVOPTS_3) $(INC) -c $< -o $@
 
 KBLAS_DIR=$(KBLAS_ROOT)/lib
@@ -98,5 +100,5 @@ $(LIBKBLAS): $(ALL_OBJ)
 #rm -f ${KBLAS_ROOT}/testing/*.o
 	
 clean:
-	rm -f *.cu_o
+	rm -f $(OBJ_DIR)/*.cu_o
 

@@ -65,7 +65,14 @@ __host__ __device__ T make_one()
 	return a;
 }
 
-__device__ static __inline__ float 	conjugate(float x){return x;}
+__device__ static __inline__ float FMA(float a, float b, float c){return fmaf(a,b,c);}
+__device__ static __inline__ double FMA(double a, double b, double c){return fma(a,b,c);}
+__device__ static __inline__ cuFloatComplex FMA(cuFloatComplex a, cuFloatComplex b, cuFloatComplex c){
+  return make_cuFloatComplex( fmaf(a.x, b.x, fmaf(-a.y, b.y, c.x)), fmaf(a.y, b.x, fmaf(a.x, b.y, c.y)) );}
+__device__ static __inline__ cuDoubleComplex FMA(cuDoubleComplex a, cuDoubleComplex b, cuDoubleComplex
+c){  return make_cuDoubleComplex( fma(a.x, b.x, fma(-a.y, b.y, c.x)), fma(a.y, b.x, fma(a.x, b.y, c.y)) );}
+
+__device__ static __inline__ float      conjugate(float x){return x;}
 __device__ static __inline__ double conjugate(double x){return x;}
 __device__ static __inline__ cuFloatComplex 	conjugate(cuFloatComplex x){return cuConjf(x);}
 __device__ static __inline__ cuDoubleComplex 	conjugate(cuDoubleComplex x){return cuConj(x);}

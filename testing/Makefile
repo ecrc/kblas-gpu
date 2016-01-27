@@ -79,7 +79,7 @@ test_%trmm.o: test_%trmm.c test_trmm.ch $(INC_SRC) $(KBLAS_LIB)
 	$(CXX) $(COPTS) $(INCLUDES) -c $< -o $@
 
 %.o: %.c $(INC_SRC) $(KBLAS_LIB)
-	$(CC) $(COPTS) $(CFLAGS) $(INCLUDES) -c $< -o $@
+	$(CC) $(COPTS) $(INCLUDES) -c $< -o $@
 
 test_%trmm: test_%trmm.o
 	$(CXX) $< -o $@ $(LIB_PATH) $(LIB)

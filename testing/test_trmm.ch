@@ -253,11 +253,11 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
         
         cudaEventRecord(start, 0);
-        kblasXtrmm(cublas_handle,
-                   side, uplo, trans, diag,
-                   M, N,
-                   &alpha, d_A, ldda,
-                           d_B, lddb);
+        check_error( kblasXtrmm(cublas_handle,
+                                side, uplo, trans, diag,
+                                M, N,
+                                &alpha, d_A, ldda,
+                                        d_B, lddb) );
         cudaEventRecord(stop, 0);
         cudaEventSynchronize(stop);
         cudaEventElapsedTime(&time, start, stop);
@@ -275,11 +275,11 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
           check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
 
           cudaEventRecord(start, 0);
-          cublasXtrmm(cublas_handle,
-                      side, uplo, trans, diag,
-                      M, N,
-                      &alpha, d_A, ldda,
-                              d_B, lddb);
+          check_error( cublasXtrmm( cublas_handle,
+                                    side, uplo, trans, diag,
+                                    M, N,
+                                    &alpha, d_A, ldda,
+                                            d_B, lddb) );
           cudaEventRecord(stop, 0);
           cudaEventSynchronize(stop);
           cudaEventElapsedTime(&time, start, stop);

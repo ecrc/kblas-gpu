@@ -104,16 +104,16 @@ cublasStatus_t cublasXtrmm (cublasHandle_t handle,
 
 
 //==============================================================================================
-int kblas_trmm_ib_custom = 128;
-int kblas_trmm_ib_cublas = 128;
-bool kblas_trmm_use_custom = 0;
-#define SIMPLE_SIZE_CUSTOM(n) ( ((n)<32) || ((n) % 32 == 0 && (n) <= kblas_trmm_ib_custom) )
-#define SIMPLE_SIZE(n) ( (n) <= kblas_trmm_ib_cublas )
-//==============================================================================================
 #define WARP 32
 #define WARP1 33
 #define tx threadIdx.x
 #define ty threadIdx.y
+//==============================================================================================
+int kblas_trmm_ib_custom = 128;
+int kblas_trmm_ib_cublas = 128;
+bool kblas_trmm_use_custom = 0;
+//#define SIMPLE_SIZE_CUSTOM(n) ( ((n)<32) || ((n) % 32 == 0 && (n) <= kblas_trmm_ib_custom) )
+#define SIMPLE_SIZE(n) ( ((n) < WARP) || ( ((n) % WARP == 0) && ( (n) <= kblas_trmm_ib_cublas ) ) )
 //==============================================================================================
 __device__ __inline__ float shfl(float x, int lane, int ws = 32)
 {
@@ -138,7 +138,7 @@ __device__ __inline__ cuDoubleComplex shfl(cuDoubleComplex x, int lane, int ws =
   return make_cuDoubleComplex( shfl(x.x, lane, ws), shfl(x.y, lane, ws) );
 }
 //==============================================================================================
-template<typename T, int WARPS_PER_BLOCK, int B_COLS_PER_WARP/*TODO*/, bool LEFT, bool LOWER, bool TRANS, bool UNIT/*TODO*/, bool CONJG>
+/*template<typename T, int WARPS_PER_BLOCK, int B_COLS_PER_WARP, bool LEFT, bool LOWER, bool TRANS, bool UNIT, bool CONJG>
 __global__ void //__launch_bounds__(256)
 trmm_mul32_sb(int M, int N, T alpha, const T* A, int incA, T* B, int incB, int mb){
   
@@ -149,10 +149,10 @@ trmm_mul32_sb(int M, int N, T alpha, const T* A, int incA, T* B, int incB, int m
   T rB, rBj, s, a[4], b[4], *sAA;
   int c, j, r, l;
   const int A_COL_PER_WARP = WARP / WARPS_PER_BLOCK;
-  if(LEFT){/*TODO*/
+  if(LEFT){/ *TODO* /
     B += blockIdx.x * WARPS_PER_BLOCK * incB;
     const bool forward = (LEFT && (LOWER == TRANS)) || (!LEFT && (LOWER != TRANS));
-    const bool active = true/*TODO*/;
+    const bool active = true/ *TODO* /;
 
 
     for( c = (forward ? 0 : mb-1); (forward && (c < mb)) || (!forward && (c > -1)); c += (forward ? 1 : -1))
@@ -244,6 +244,288 @@ trmm_mul32_sb(int M, int N, T alpha, const T* A, int incA, T* B, int incB, int m
         //B[txyiB + WARP * c] = s;
     }
   }
+}*/
+//==============================================================================================
+template<typename T, int WARPS_PER_BLOCK, int B_COLS_PER_WARP, bool LEFT, bool LOWER, bool TRANS, bool UNIT, bool CONJG>
+__global__ void //__launch_bounds__(256)
+trmm_mul32_L(int M, int N, T alpha, const T* A, int incA, T* B, int incB, int mb){
+  
+  int txyw = tx + ty*WARP1/*, tyxw = ty + tx*WARP1*/, txyiA = tx + ty*incA, txyiB = tx + ty*incB;
+  
+  //setup shared memory
+  __shared__ T sA[WARP * WARP1];//strided to avoid bank conflict
+  T rB[B_COLS_PER_WARP], rBj[B_COLS_PER_WARP], s[B_COLS_PER_WARP], a[4], b[4], *sAA;
+  int c, j, r, l, i;
+  const int A_COL_PER_WARP = WARP / WARPS_PER_BLOCK;
+  if(LEFT){/*TODO*/
+    B += blockIdx.x * (WARPS_PER_BLOCK * B_COLS_PER_WARP) * incB;
+    const bool forward = (LEFT && (LOWER == TRANS)) || (!LEFT && (LOWER != TRANS));
+    int active_col = 0;//an inactive warp will still contribute to data fetching but not to computation
+    
+    #pragma unroll
+    for(l = 0; l < B_COLS_PER_WARP; l++)
+      active_col += ((blockIdx.x * (WARPS_PER_BLOCK * B_COLS_PER_WARP) + ty + l * WARPS_PER_BLOCK) < N);
+
+    for( c = (forward ? 0 : mb-1); (forward && (c < mb)) || (!forward && (c > -1)); c += (forward ? 1 : -1))
+    {
+      #pragma unroll
+      for(l = 0; l < B_COLS_PER_WARP; l++)
+        s[l] = make_zero<T>();
+      //load A(c,c) from global to shared mem
+      #pragma unroll
+      for(l = 0; l < A_COL_PER_WARP; l++)
+        sA[txyw + l * WARPS_PER_BLOCK * WARP1] = A[txyiA + WARP * c * (incA+1) + l * WARPS_PER_BLOCK * incA];
+      
+      //load B(c) into registers
+      #pragma unroll
+      for(l = 0; l < B_COLS_PER_WARP; l++)
+        if(active_col > l)
+          rB[l] = B[txyiB + WARP * c + l * WARPS_PER_BLOCK * incB];
+      
+      __syncthreads();
+
+      //perform trmm on shared mem
+      if(active_col > 0){
+        if(LOWER == TRANS){
+          #pragma unroll
+          for(j = 0; j < WARP; j++){
+            #pragma unroll
+            for(l = 0; l < B_COLS_PER_WARP; l++)
+                rBj[l] = shfl(rB[l], j);
+            if(j >= tx){
+              a[0] = CONJG ? conjugate(sA[j + tx * WARP1]) : sA[j + tx * WARP1];
+              #pragma unroll
+              for(l = 0; l < B_COLS_PER_WARP; l++)
+                  s[l] = FMA( a[0], rBj[l], s[l]);
+            }
+          }
+        }else{
+          #pragma unroll
+          for(j = WARP-1; j > -1; j--){
+            if(j == tx){
+              #pragma unroll
+              for(l = 0; l < B_COLS_PER_WARP; l++)
+                  s[l] = rB[l];
+              if(!UNIT){
+                a[0] = CONJG ? conjugate(sA[tx + j * WARP1]) : sA[tx + j * WARP1];
+                #pragma unroll
+                for(l = 0; l < B_COLS_PER_WARP; l++)
+                    s[l] *= a[0];
+              }
+            }
+            #pragma unroll
+            for(l = 0; l < B_COLS_PER_WARP; l++)
+                rBj[l] = shfl(rB[l], j);
+            if(j < tx){
+              a[0] = CONJG ? conjugate(sA[tx + j * WARP1]) : sA[tx + j * WARP1];
+              #pragma unroll
+              for(l = 0; l < B_COLS_PER_WARP; l++)
+                  s[l] = FMA( a[0], rBj[l], s[l]);
+            }
+          }
+        }
+      }
+      __syncthreads();
+
+      for(r = (forward ? c+1 : 0); (forward && (r < mb)) || (!forward && (r < c)); r++){
+        #pragma unroll
+        for(l = 0; l < A_COL_PER_WARP; l++){
+          if(TRANS)//load A(r,c)
+            //sA[tyxw + l * WARPS_PER_BLOCK] = A[txyiA + WARP * (r + c * incA) + l * WARPS_PER_BLOCK * incA];
+            sA[txyw + l * WARPS_PER_BLOCK * WARP1] = A[txyiA + WARP * (r + c * incA) + l * WARPS_PER_BLOCK * incA];
+          else//load A(c,r)
+            sA[txyw + l * WARPS_PER_BLOCK * WARP1] = A[txyiA + WARP * (c + r * incA) + l * WARPS_PER_BLOCK * incA];
+        }
+        //load B(r)
+        #pragma unroll
+        for(l = 0; l < B_COLS_PER_WARP; l++)
+          if(active_col > l)
+            rB[l] = B[txyiB + WARP * r + l * WARPS_PER_BLOCK * incB];
+        __syncthreads();
+
+        //gemm A(r,c)|A(c,r) & B(r) onto B(c) held at s
+        if(active_col > 0){
+          if(TRANS)
+            sAA = sA + tx*WARP1;
+          else
+            sAA = sA + tx;
+          #pragma unroll
+          for(j = 0; j < WARP; j+=4){
+            if(TRANS){
+              #pragma unroll
+              for(i = 0; i < 4; i++)
+                //a[i] = CONJG ? conjugate(sAA[(j + i) * WARP1]) : sAA[(j + i) * WARP1];
+                a[i] = CONJG ? conjugate(sAA[j + i]) : sAA[j + i];
+            }
+            else{
+              #pragma unroll
+              for(i = 0; i < 4; i++)
+                a[i] = sAA[(j + i) * WARP1];
+            }
+
+            #pragma unroll
+            for(l = 0; l < B_COLS_PER_WARP; l++){
+                #pragma unroll
+                for(i = 0; i < 4; i++)
+                  b[i] = shfl(rB[l], j + i);
+                #pragma unroll
+                for(i = 0; i < 4; i++)
+                  s[l] = FMA( a[i], b[i], s[l] );
+            }
+          }
+        }
+        __syncthreads();
+      }
+      //store back B(c) to global mem
+      #pragma unroll
+      for(l = 0; l < B_COLS_PER_WARP; l++){
+        if(active_col > l){
+          B[txyiB + WARP * c + l * WARPS_PER_BLOCK * incB] = alpha * s[l];
+        }
+      }
+    }
+  }
+}
+//==============================================================================================
+template<typename T, int WARPS_PER_BLOCK, int B_COLS_PER_WARP, bool LEFT, bool LOWER, bool TRANS, bool UNIT, bool CONJG>
+__global__ void //__launch_bounds__(256)
+trmm_mul32_R(int M, int N, T alpha, const T* A, int incA, T* B, int incB, int mb){
+  
+  int txyw = tx + ty*WARP1/*, tyxw = ty + tx*WARP1*/, txyiA = tx + ty*incA, txyiB = tx + ty*incB;
+  
+  //setup shared memory
+  __shared__ T sA[WARP * WARP1];//strided to avoid bank conflict
+  T rB[B_COLS_PER_WARP], rBj[B_COLS_PER_WARP], s[B_COLS_PER_WARP], a[4], b[4], *sAA;
+  int c, j, r, l, i;
+  const int A_COL_PER_WARP = WARP / WARPS_PER_BLOCK;
+  {
+    B += blockIdx.x * (WARPS_PER_BLOCK * B_COLS_PER_WARP);
+    const bool forward = (LEFT && (LOWER == TRANS)) || (!LEFT && (LOWER != TRANS));
+    int active_col = 0;//an inactive warp will still contribute to data fetching but not to computation
+    
+    #pragma unroll
+    for(l = 0; l < B_COLS_PER_WARP; l++)
+      active_col += ((blockIdx.x * (WARPS_PER_BLOCK * B_COLS_PER_WARP) + ty + l * WARPS_PER_BLOCK) < N);
+
+    for( c = (forward ? 0 : mb-1); (forward && (c < mb)) || (!forward && (c > -1)); c += (forward ? 1 : -1))
+    {
+      #pragma unroll
+      for(l = 0; l < B_COLS_PER_WARP; l++)
+        s[l] = make_zero<T>();
+      //load A(c,c) from global to shared mem
+      #pragma unroll
+      for(l = 0; l < A_COL_PER_WARP; l++)
+        sA[txyw + l * WARPS_PER_BLOCK * WARP1] = A[txyiA + WARP * c * (incA+1) + l * WARPS_PER_BLOCK * incA];
+      
+      //load B(c) into registers
+      #pragma unroll
+      for(l = 0; l < B_COLS_PER_WARP; l++)
+        if(active_col > l)
+          rB[l] = B[txyiB + WARP * c + l * WARPS_PER_BLOCK * incB];
+      
+      __syncthreads();
+
+      //perform trmm on shared mem
+      if(active_col > 0){
+        if(LOWER == TRANS){
+          #pragma unroll
+          for(j = 0; j < WARP; j++){
+            #pragma unroll
+            for(l = 0; l < B_COLS_PER_WARP; l++)
+                rBj[l] = shfl(rB[l], j);
+            if(j >= tx){
+              a[0] = CONJG ? conjugate(sA[j + tx * WARP1]) : sA[j + tx * WARP1];
+              #pragma unroll
+              for(l = 0; l < B_COLS_PER_WARP; l++)
+                  s[l] = FMA( a[0], rBj[l], s[l]);
+            }
+          }
+        }else{
+          #pragma unroll
+          for(j = WARP-1; j > -1; j--){
+            if(j == tx){
+              #pragma unroll
+              for(l = 0; l < B_COLS_PER_WARP; l++)
+                  s[l] = rB[l];
+              if(!UNIT){
+                a[0] = CONJG ? conjugate(sA[tx + j * WARP1]) : sA[tx + j * WARP1];
+                #pragma unroll
+                for(l = 0; l < B_COLS_PER_WARP; l++)
+                    s[l] *= a[0];
+              }
+            }
+            #pragma unroll
+            for(l = 0; l < B_COLS_PER_WARP; l++)
+                rBj[l] = shfl(rB[l], j);
+            if(j < tx){
+              a[0] = CONJG ? conjugate(sA[tx + j * WARP1]) : sA[tx + j * WARP1];
+              #pragma unroll
+              for(l = 0; l < B_COLS_PER_WARP; l++)
+                  s[l] = FMA( a[0], rBj[l], s[l]);
+            }
+          }
+        }
+      }
+      __syncthreads();
+
+      for(r = (forward ? c+1 : 0); (forward && (r < mb)) || (!forward && (r < c)); r++){
+        #pragma unroll
+        for(l = 0; l < A_COL_PER_WARP; l++){
+          if(TRANS)//load A(r,c)
+            //sA[tyxw + l * WARPS_PER_BLOCK] = A[txyiA + WARP * (r + c * incA) + l * WARPS_PER_BLOCK * incA];
+            sA[txyw + l * WARPS_PER_BLOCK * WARP1] = A[txyiA + WARP * (r + c * incA) + l * WARPS_PER_BLOCK * incA];
+          else//load A(c,r)
+            sA[txyw + l * WARPS_PER_BLOCK * WARP1] = A[txyiA + WARP * (c + r * incA) + l * WARPS_PER_BLOCK * incA];
+        }
+        //load B(r)
+        #pragma unroll
+        for(l = 0; l < B_COLS_PER_WARP; l++)
+          if(active_col > l)
+            rB[l] = B[txyiB + WARP * r + l * WARPS_PER_BLOCK * incB];
+        __syncthreads();
+
+        //gemm A(r,c)|A(c,r) & B(r) onto B(c) held at s
+        if(active_col > 0){
+          if(TRANS)
+            sAA = sA + tx*WARP1;
+          else
+            sAA = sA + tx;
+          #pragma unroll
+          for(j = 0; j < WARP; j+=4){
+            if(TRANS){
+              #pragma unroll
+              for(i = 0; i < 4; i++)
+                //a[i] = CONJG ? conjugate(sAA[(j + i) * WARP1]) : sAA[(j + i) * WARP1];
+                a[i] = CONJG ? conjugate(sAA[j + i]) : sAA[j + i];
+            }
+            else{
+              #pragma unroll
+              for(i = 0; i < 4; i++)
+                a[i] = sAA[(j + i) * WARP1];
+            }
+
+            #pragma unroll
+            for(l = 0; l < B_COLS_PER_WARP; l++){
+                #pragma unroll
+                for(i = 0; i < 4; i++)
+                  b[i] = shfl(rB[l], j + i);
+                #pragma unroll
+                for(i = 0; i < 4; i++)
+                  s[l] = FMA( a[i], b[i], s[l] );
+            }
+          }
+        }
+        __syncthreads();
+      }
+      //store back B(c) to global mem
+      #pragma unroll
+      for(l = 0; l < B_COLS_PER_WARP; l++){
+        if(active_col > l){
+          B[txyiB + WARP * c + l * WARPS_PER_BLOCK * incB] = alpha * s[l];
+        }
+      }
+    }
+  }
 }
 //==============================================================================================
 template<class T>
@@ -253,40 +535,35 @@ cublasStatus_t Xtrmm(cublasHandle_t handle,
                      int m, int n,
                      const T *alpha, const T *A, int incA,
                                            T *B, int incB){
-  return cublasXtrmm(handle,
-                     side, uplo, trans, diag,
-                     m, n,
-                     alpha, A, incA,
-                            B, incB );
-}
-cublasStatus_t Xtrmm(cublasHandle_t handle,
-                     cublasSideMode_t side, cublasFillMode_t uplo,
-                     cublasOperation_t trans, cublasDiagType_t diag,
-                     int m, int n,
-                     const double *alpha, const double *A, int incA,
-                                                double *B, int incB){
-
-  typedef void (*trmm_kernels_type)(int M, int N, double alpha, const double* A, int incA, double* B, int incB, int mb);
-
-  #define WARPS_PER_BLOCK 8
-  #define B_COLS_PER_WARP 1
-  
-  trmm_kernels_type trmm_kernels[4] = {// T, WARPS_PER_BLOCK, B_COLS_PER_WARP, LEFT, LOWER, TRANS, UNIT, CONJG
-    trmm_mul32_sb<double, WARPS_PER_BLOCK, B_COLS_PER_WARP, true,  true, false, false, false>,
-    trmm_mul32_sb<double, WARPS_PER_BLOCK, B_COLS_PER_WARP, true,  true,  true, false, false>,
-    trmm_mul32_sb<double, WARPS_PER_BLOCK, B_COLS_PER_WARP, true, false, false, false, false>,
-    trmm_mul32_sb<double, WARPS_PER_BLOCK, B_COLS_PER_WARP, true, false,  true, false, false>
-  };
-  
-  cudaStream_t curStream;
-  cublasStatus_t status;
-  if(!kblas_trmm_use_custom){
+  //handle small sizes with cublas
+  if(  (!kblas_trmm_use_custom)
+    || (side == CUBLAS_SIDE_LEFT && m < WARP)
+    || (side == CUBLAS_SIDE_RIGHT && n < WARP)){
     return cublasXtrmm(handle,
                        side, uplo, trans, diag,
                        m, n,
                        alpha, A, incA,
                               B, incB );
   }
+  
+  typedef void (*trmm_kernels_type)(int M, int N, T alpha, const T* A, int incA, T* B, int incB, int mb);
+
+  #define WARPS_PER_BLOCK 8
+  #define B_COLS_PER_WARP 1
+  
+  trmm_kernels_type trmm_kernels[8] = {// T, WARPS_PER_BLOCK, B_COLS_PER_WARP, LEFT, LOWER, TRANS, UNIT, CONJG
+    trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, true,  true, false, false, false>,
+    trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, true,  true,  true, false, false>,
+    trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, true, false, false, false, false>,
+    trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, true, false,  true, false, false>,
+    trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, true,  true, false, false, false>,
+    trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, true,  true,  true, false, false>,
+    trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, true, false, false, false, false>,
+    trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, true, false,  true, false, false>
+  };
+  
+  cudaStream_t curStream;
+  cublasStatus_t status;
 
   if((status = cublasGetStream( handle, &curStream )) != CUBLAS_STATUS_SUCCESS ) return status;
   
@@ -298,14 +575,19 @@ cublasStatus_t Xtrmm(cublasHandle_t handle,
                               B, incB );
   }else
   if(side == CUBLAS_SIDE_LEFT){
-    if(m % WARP == 0 && n % WARPS_PER_BLOCK == 0)
+    if( ((side == CUBLAS_SIDE_LEFT) && (m % WARP == 0)) || ((side == CUBLAS_SIDE_RIGHT) && (n % WARP == 0)) )
     {
-      int func_idx = 2*(uplo == CUBLAS_FILL_MODE_UPPER) + (trans != CUBLAS_OP_N);
-      dim3 dimBlock( WARP, WARPS_PER_BLOCK );
-      trmm_kernels[func_idx]<<< dim3( n / WARPS_PER_BLOCK, 1), dimBlock, 0, curStream>>> (m, n, *alpha, A, incA, B, incB, m / WARP);
+      int func_idx = 4*(side == CUBLAS_SIDE_RIGHT) + 2*(uplo == CUBLAS_FILL_MODE_UPPER) + (trans != CUBLAS_OP_N);
+      dim3 blockDim( WARP, WARPS_PER_BLOCK );
+      dim3 gridDim( n / (WARPS_PER_BLOCK * B_COLS_PER_WARP) + (n % (WARPS_PER_BLOCK * B_COLS_PER_WARP) > 0), 1);
+      int mb = (side == CUBLAS_SIDE_LEFT) * m / WARP + (side == CUBLAS_SIDE_RIGHT) * n / WARP;
+      trmm_kernels[func_idx]<<< gridDim, blockDim, 0, curStream>>> (m, n, *alpha, A, incA, B, incB, mb);
       if(!_kblas_error( (cudaGetLastError()), __func__, __FILE__, __LINE__ ))
         return CUBLAS_STATUS_EXECUTION_FAILED;
-    }else{/*TODO*/}
+    }else{
+      //error: we should not reach this case
+      return CUBLAS_STATUS_INTERNAL_ERROR;
+    }
   }
   return CUBLAS_STATUS_SUCCESS;
 }

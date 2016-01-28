@@ -63,7 +63,7 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle,
       m1 = CLOSEST_REG_SIZE(m);
       m2 = m-m1;
     }
-    cublasOperation_t Trans = CUBLAS_OP_T, noTrans = CUBLAS_OP_N;
+    cublasOperation_t noTrans = CUBLAS_OP_N;//Trans = CUBLAS_OP_T,
     
     if(uplo == CUBLAS_FILL_MODE_UPPER){
 

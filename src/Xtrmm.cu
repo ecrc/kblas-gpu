@@ -34,9 +34,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <set>
-#include <cublas.h>
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <cuda_runtime_api.h>
+#include "cublas_v2.h"
 #include "kblas.h"
-#include "Xtr_common.cuh"
+#include "Xtr_common.ch"
 #include "operators.h"
 
 //==============================================================================================
@@ -49,9 +52,10 @@ cublasStatus_t cublasXtrmm(cublasHandle_t handle,
                            const float *A, int lda,
                                  float *B, int ldb){
   return cublasStrmm(handle,
-                     side, uplo, transa, diag,
+                     side, uplo, trans, diag,
                      m, n,
                      alpha, A, lda,
+                            B, ldb,
                             B, ldb );
 }
 
@@ -63,9 +67,10 @@ cublasStatus_t cublasXtrmm(cublasHandle_t handle,
                            const double *A, int lda,
                                  double *B, int ldb){
   return cublasDtrmm(handle,
-                     side, uplo, transa, diag,
+                     side, uplo, trans, diag,
                      m, n,
                      alpha, A, lda,
+                            B, ldb,
                             B, ldb );
 }
 cublasStatus_t cublasXtrmm (cublasHandle_t handle,
@@ -76,9 +81,10 @@ cublasStatus_t cublasXtrmm (cublasHandle_t handle,
                             const cuComplex *A, int lda,
                                   cuComplex *B, int ldb){
   return cublasCtrmm(handle,
-                     side, uplo, transa, diag,
+                     side, uplo, trans, diag,
                      m, n,
                      alpha, A, lda,
+                            B, ldb,
                             B, ldb );
 }
 cublasStatus_t cublasXtrmm (cublasHandle_t handle,
@@ -88,22 +94,21 @@ cublasStatus_t cublasXtrmm (cublasHandle_t handle,
                             const cuDoubleComplex *alpha,
                             const cuDoubleComplex *A, int lda,
                                   cuDoubleComplex *B, int ldb){
-  return cublasCtrmm(handle,
-                     side, uplo, transa, diag,
+  return cublasZtrmm(handle,
+                     side, uplo, trans, diag,
                      m, n,
                      alpha, A, lda,
+                            B, ldb,
                             B, ldb );
 }
 
-#define Xgemm cublasXgemm
-#define Xtrmm cublasXtrmm
 
 //==============================================================================================
 int kblas_trmm_ib_custom = 128;
 int kblas_trmm_ib_cublas = 128;
 bool kblas_trmm_use_custom = 0;
 #define SIMPLE_SIZE_CUSTOM(n) ( ((n)<32) || ((n) % 32 == 0 && (n) <= kblas_trmm_ib_custom) )
-#define SIMPLE_SIZE(n) ( (n) <= kblas_trmm_ib_cublas) )
+#define SIMPLE_SIZE(n) ( (n) <= kblas_trmm_ib_cublas )
 //==============================================================================================
 #define WARP 32
 #define WARP1 33
@@ -133,24 +138,24 @@ __device__ __inline__ cuDoubleComplex shfl(cuDoubleComplex x, int lane, int ws =
   return make_cuDoubleComplex( shfl(x.x, lane, ws), shfl(x.y, lane, ws) );
 }
 //==============================================================================================
-template<typename T, int WARPS_PER_BLOCK, int B_COLS_PER_WARP/*TODO*/, bool LEFT, bool LOWER, bool TRANS, bool UNIT/*TODO*/, bool CONJG/*TODO*/>
-__global__ void __launch_bounds__(256)
+template<typename T, int WARPS_PER_BLOCK, int B_COLS_PER_WARP/*TODO*/, bool LEFT, bool LOWER, bool TRANS, bool UNIT/*TODO*/, bool CONJG>
+__global__ void //__launch_bounds__(256)
 trmm_mul32_sb(int M, int N, T alpha, const T* A, int incA, T* B, int incB, int mb){
   
   int txyw = tx + ty*WARP1, txyiA = tx + ty*incA, txyiB = tx + ty*incB;
   
   //setup shared memory
   __shared__ T sA[WARP * WARP1];//strided to avoid bank conflict
-  T rB, s;
-  int b = 0, c, j, a;
-  const A_COL_PER_WARP = WARP / WARPS_PER_BLOCK;
+  T rB, rBj, s, a[4], b[4], *sAA;
+  int c, j, r, l;
+  const int A_COL_PER_WARP = WARP / WARPS_PER_BLOCK;
   if(LEFT){/*TODO*/
     B += blockIdx.x * WARPS_PER_BLOCK * incB;
     const bool forward = (LEFT && (LOWER == TRANS)) || (!LEFT && (LOWER != TRANS));
     const bool active = true/*TODO*/;
 
 
-    for( c = (forward ? 0 : mb-1); (forward && (c < mb)) || (!forward && (c > -1)); c += (forward : 1 : -1))
+    for( c = (forward ? 0 : mb-1); (forward && (c < mb)) || (!forward && (c > -1)); c += (forward ? 1 : -1))
     {
       s = make_zero<T>();
       //load A(c,c) from global to shared mem
@@ -166,21 +171,28 @@ trmm_mul32_sb(int M, int N, T alpha, const T* A, int incA, T* B, int incB, int m
       if(LOWER == TRANS){
         #pragma unroll
         for(j = 0; j < WARP; j++){
+          rBj = shfl(rB, j);
           if(j >= tx){
-            s = FMA( sA[j + tx * WARP1], shfl(rB, j), s);/*TODO*/
+            s = FMA( CONJG ? conjugate(sA[j + tx * WARP1]) : sA[j + tx * WARP1], rBj, s);
           }
         }
       }else{
         #pragma unroll
         for(j = WARP-1; j > -1; j--){
-          if(j <= tx){
-            s = FMA( sA[tx + j * WARP1], shfl(rB, j), s);
+          if(j == tx){
+            s = rB;
+            if(!UNIT){
+              s *= CONJG ? conjugate(sA[tx + j * WARP1]) : sA[tx + j * WARP1];
+            }
           }
+          rBj = shfl(rB, j);
+          if(j < tx)
+            s = FMA( CONJG ? conjugate(sA[tx + j * WARP1]) : sA[tx + j * WARP1], rBj, s);
         }
       }
       __syncthreads();
 
-      for(r = (forward ? c+1 : 0); (forward && (r < mb)) || (!forward && (r > c)); r++){
+      for(r = (forward ? c+1 : 0); (forward && (r < mb)) || (!forward && (r < c)); r++){
         #pragma unroll
         for(l = 0; l < A_COL_PER_WARP; l++){
           if(TRANS)//load A(r,c)
@@ -193,17 +205,43 @@ trmm_mul32_sb(int M, int N, T alpha, const T* A, int incA, T* B, int incB, int m
         __syncthreads();
 
         //gemm A(r,c)|A(c,r) & B(r) onto B(c) held at s
+        if(TRANS)
+          sAA = sA + tx*WARP1;
+        else
+          sAA = sA + tx;
         #pragma unroll
-        for(j = 0; j < WARP; j++){
-          if(TRANS)
-            s = FMA( sA[j + tx * WARP1], shfl(rB, j), s);/*TODO*/
-          else
-            s = FMA( sA[tx + j * WARP1], shfl(rB, j), s);
+        for(j = 0; j < WARP; j+=4){
+          if(TRANS){
+            //s = FMA( sA[j + tx * WARP1], shfl(rB, j), s);            
+            a[0] = CONJG ? conjugate(sAA[j + 0]) : sAA[j + 0];
+            a[1] = CONJG ? conjugate(sAA[j + 1]) : sAA[j + 1];
+            a[2] = CONJG ? conjugate(sAA[j + 2]) : sAA[j + 2];
+            a[3] = CONJG ? conjugate(sAA[j + 3]) : sAA[j + 3];
+          }
+          else{
+            //s = FMA( sA[tx + j * WARP1], shfl(rB, j), s);
+            a[0] = sAA[(j + 0)*WARP1];
+            a[1] = sAA[(j + 1)*WARP1];
+            a[2] = sAA[(j + 2)*WARP1];
+            a[3] = sAA[(j + 3)*WARP1];
+          }
+          
+          b[0] = shfl(rB, j + 0);
+          b[1] = shfl(rB, j + 1);
+          b[2] = shfl(rB, j + 2);
+          b[3] = shfl(rB, j + 3);
+          s = FMA( a[0], b[0], s );
+          s = FMA( a[1], b[1], s );
+          s = FMA( a[2], b[2], s );
+          s = FMA( a[3], b[3], s );
         }
         __syncthreads();
       }
       //store back B(c) to global mem
-      B[txyiB + WARP * c] = alpha * s;
+      //if(LOWER == TRANS)
+        B[txyiB + WARP * c] = alpha * s;
+      //else
+        //B[txyiB + WARP * c] = s;
     }
   }
 }
@@ -228,24 +266,25 @@ cublasStatus_t Xtrmm(cublasHandle_t handle,
                      const double *alpha, const double *A, int incA,
                                                 double *B, int incB){
 
-  void (*trmm_kernel)(int M, int N, T alpha, const T* A, int incA, T* B, int incB, int mb);
+  typedef void (*trmm_kernels_type)(int M, int N, double alpha, const double* A, int incA, double* B, int incB, int mb);
 
   #define WARPS_PER_BLOCK 8
   #define B_COLS_PER_WARP 1
-  trmm_kernel trmm_kernels[4] = {// T, WARPS_PER_BLOCK, B_COLS_PER_WARP, LEFT, LOWER, TRANS, UNIT, CONJG
-    trmm_mul32_sb<double, WARPS_PER_BLOCK, B_COLS_PER_WARP, true,  true,  true, true, true>,
-    trmm_mul32_sb<double, WARPS_PER_BLOCK, B_COLS_PER_WARP, true,  true, false, true, true>,
-    trmm_mul32_sb<double, WARPS_PER_BLOCK, B_COLS_PER_WARP, true, false,  true, true, true>,
-    trmm_mul32_sb<double, WARPS_PER_BLOCK, B_COLS_PER_WARP, true, false, false, true, true>
+  
+  trmm_kernels_type trmm_kernels[4] = {// T, WARPS_PER_BLOCK, B_COLS_PER_WARP, LEFT, LOWER, TRANS, UNIT, CONJG
+    trmm_mul32_sb<double, WARPS_PER_BLOCK, B_COLS_PER_WARP, true,  true, false, false, false>,
+    trmm_mul32_sb<double, WARPS_PER_BLOCK, B_COLS_PER_WARP, true,  true,  true, false, false>,
+    trmm_mul32_sb<double, WARPS_PER_BLOCK, B_COLS_PER_WARP, true, false, false, false, false>,
+    trmm_mul32_sb<double, WARPS_PER_BLOCK, B_COLS_PER_WARP, true, false,  true, false, false>
   };
   
   cudaStream_t curStream;
   cublasStatus_t status;
   if(!kblas_trmm_use_custom){
     return cublasXtrmm(handle,
-                      side, uplo, trans, diag,
-                      m, n,
-                      &alpha, A, incA,
+                       side, uplo, trans, diag,
+                       m, n,
+                       alpha, A, incA,
                               B, incB );
   }
 
@@ -261,8 +300,9 @@ cublasStatus_t Xtrmm(cublasHandle_t handle,
   if(side == CUBLAS_SIDE_LEFT){
     if(m % WARP == 0 && n % WARPS_PER_BLOCK == 0)
     {
+      int func_idx = 2*(uplo == CUBLAS_FILL_MODE_UPPER) + (trans != CUBLAS_OP_N);
       dim3 dimBlock( WARP, WARPS_PER_BLOCK );
-      trmm_kernels<<< dim3( n / WARPS_PER_BLOCK, 1), dimBlock, 0, curStream>>> (m, n, *alpha, A, incA, B, incB, m / WARP);
+      trmm_kernels[func_idx]<<< dim3( n / WARPS_PER_BLOCK, 1), dimBlock, 0, curStream>>> (m, n, *alpha, A, incA, B, incB, m / WARP);
       if(!_kblas_error( (cudaGetLastError()), __func__, __FILE__, __LINE__ ))
         return CUBLAS_STATUS_EXECUTION_FAILED;
     }else{/*TODO*/}
@@ -391,10 +431,10 @@ cublasStatus_t kblasStrmm(cublasHandle_t handle,
                           const float *alpha,
                           const float *A, int lda,
                                 float *B, int ldb){
-  return kblasXtrmm(handle
+  return kblasXtrmm(handle,
                     side, uplo, trans, diag,
                     m, n,
-                    *alpha, A, lda,
+                    alpha, A, lda,
                             B, ldb);
 }
 cublasStatus_t kblasDtrmm(cublasHandle_t handle,
@@ -404,10 +444,10 @@ cublasStatus_t kblasDtrmm(cublasHandle_t handle,
                           const double *alpha,
                           const double *A, int lda,
                                 double *B, int ldb){
-  return kblasXtrmm(handle
+  return kblasXtrmm(handle,
                     side, uplo, trans, diag,
                     m, n,
-                    *alpha, A, lda,
+                    alpha, A, lda,
                             B, ldb);
 }
 cublasStatus_t kblasCtrmm(cublasHandle_t handle,
@@ -417,10 +457,10 @@ cublasStatus_t kblasCtrmm(cublasHandle_t handle,
                           const cuComplex *alpha,
                           const cuComplex *A, int lda,
                                 cuComplex *B, int ldb){
-  return kblasXtrmm(handle
+  return kblasXtrmm(handle,
                     side, uplo, trans, diag,
                     m, n,
-                    *alpha, A, lda,
+                    alpha, A, lda,
                             B, ldb);
 }
 cublasStatus_t kblasZtrmm(cublasHandle_t handle,
@@ -430,10 +470,10 @@ cublasStatus_t kblasZtrmm(cublasHandle_t handle,
                           const cuDoubleComplex *alpha,
                           const cuDoubleComplex *A, int lda,
                                 cuDoubleComplex *B, int ldb){
-  return kblasXtrmm(handle
+  return kblasXtrmm(handle,
                     side, uplo, trans, diag,
                     m, n,
-                    *alpha, A, lda,
+                    alpha, A, lda,
                             B, ldb);
 }
 

@@ -20,7 +20,11 @@ extern bool kblas_trmm_use_custom;
 
 //==============================================================================================
 int main(int argc, char** argv)
-{  
+{
+  
+  cublasHandle_t cublas_handle;
+  cublasCreate(&cublas_handle);
+  
   kblas_opts opts;
   if(!parse_opts( argc, argv, &opts )){
     USAGE;
@@ -31,8 +35,9 @@ int main(int argc, char** argv)
   kblas_trmm_ib_custom = opts.nb;
   kblas_trmm_ib_cublas = opts.nb;
   kblas_trmm_use_custom = (bool)opts.custom;
-  test_trmm<double>(opts, alpha);
+  test_trmm<double>(opts, alpha, cublas_handle);
   
+  cublasDestroy(cublas_handle);
 }
 
 

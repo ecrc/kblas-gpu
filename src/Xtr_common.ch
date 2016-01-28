@@ -51,7 +51,7 @@ int CLOSEST_REG_SIZE(int n);
 
 //==============================================================================================
 
-void cublasXgemm(char transa, char transb, int m, int n, int k,
+/*void cublasXgemm(char transa, char transb, int m, int n, int k,
                  float alpha, const float *A, int lda,
                               const float *B, int ldb,
                  float beta,        float *C, int ldc );
@@ -66,7 +66,30 @@ void cublasXgemm(char transa, char transb, int m, int n, int k,
 void cublasXgemm(char transa, char transb, int m, int n, int k,
                  cuDoubleComplex alpha, const cuDoubleComplex *A, int lda,
                                         const cuDoubleComplex *B, int ldb,
-                 cuDoubleComplex beta,        cuDoubleComplex *C, int ldc);
+                 cuDoubleComplex beta,        cuDoubleComplex *C, int ldc);*/
 
-
+cublasStatus_t cublasXgemm( cublasHandle_t handle,
+                            cublasOperation_t transa, cublasOperation_t transb,
+                            int m, int n, int k,
+                            const float *alpha, const float *A, int lda,
+                                                const float *B, int ldb,
+                            const float *beta,        float *C, int ldc);
+cublasStatus_t cublasXgemm( cublasHandle_t handle,
+                            cublasOperation_t transa, cublasOperation_t transb,
+                            int m, int n, int k,
+                            const double *alpha, const double *A, int lda,
+                                                 const double *B, int ldb,
+                            const double *beta,        double *C, int ldc);
+cublasStatus_t cublasXgemm(cublasHandle_t handle,
+                           cublasOperation_t transa, cublasOperation_t transb,
+                           int m, int n, int k,
+                           const cuComplex *alpha, const cuComplex *A, int lda,
+                                                   const cuComplex *B, int ldb,
+                           const cuComplex *beta,        cuComplex *C, int ldc);
+cublasStatus_t cublasXgemm(cublasHandle_t handle,
+                           cublasOperation_t transa, cublasOperation_t transb,
+                           int m, int n, int k,
+                           const cuDoubleComplex *alpha, const cuDoubleComplex *A, int lda,
+                                                         const cuDoubleComplex *B, int ldb,
+                           const cuDoubleComplex *beta,        cuDoubleComplex *C, int ldc);
 

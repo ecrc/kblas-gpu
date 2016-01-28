@@ -2,9 +2,7 @@
 #ifndef	_TESTING_UTILS_
 #define _TESTING_UTILS_
 
-#include <stdlib.h>
-
-#include <cuda.h>
+#include <stdarg.h>
 
 #define NRUNS	(10)
 
@@ -206,25 +204,25 @@ double zget_max_error_matrix(cuDoubleComplex* ref, cuDoubleComplex *res, long m,
 //=====================================================================================
 void srand_matrix(long rows, long cols, float* A, long LDA)
 {
-	// fill in the entire matrix with random values
-	long i;
-	long size_a = cols * LDA; 
+    // fill in the entire matrix with random values
+    long i;
+    long size_a = cols * LDA;
     for(i = 0; i < size_a; i++) A[i] = ( (float)rand() ) / (float)RAND_MAX;
 }
 
 void drand_matrix(long rows, long cols, double* A, long LDA)
 {
-	// fill in the entire matrix with random values
-	long i;
-	long size_a = cols * LDA; 
+    // fill in the entire matrix with random values
+    long i;
+    long size_a = cols * LDA;
     for(i = 0; i < size_a; i++) A[i] = ( (double)rand() ) / (double)RAND_MAX;
 }
 
 void crand_matrix(long rows, long cols, cuFloatComplex* A, long LDA)
 {
-	// fill in the entire matrix with random values
-	long i;
-	long size_a = cols * LDA; 
+    // fill in the entire matrix with random values
+    long i;
+    long size_a = cols * LDA;
     for(i = 0; i < size_a; i++)
     {
     	A[i].x = ( (float)rand() ) / (float)RAND_MAX;
@@ -244,6 +242,7 @@ void zrand_matrix(long rows, long cols, cuDoubleComplex* A, long LDA)
     }
 }
 //==============================================================================================
+#if defined(__cplusplus)
 void Xrand_matrix(long rows, long cols, float* A, long LDA){
   srand_matrix(rows, cols, A, LDA);
 }
@@ -275,12 +274,13 @@ float Xget_max_error_matrix(cuFloatComplex* ref, cuFloatComplex *res, long m, lo
 double Xget_max_error_matrix(cuDoubleComplex* ref, cuDoubleComplex *res, long m, long n, long lda){
   return zget_max_error_matrix(ref, res, m, n, lda);
 }
+#endif//__cplusplus
 
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 extern "C"{
 #endif
-  void kblas_assert( bool condition, const char* msg, ... )
+  void kblas_assert( int condition, const char* msg, ... )
   {
     if ( ! condition ) {
       printf( "Assert failed: " );
@@ -525,7 +525,7 @@ extern "C"{
       //USAGE
       exit(0);
     }
-    assert( ntest <= MAX_NTEST );
+    kblas_assert( ntest <= MAX_NTEST, "error: tests exceeded max allowed tests!\n" );
     opts->ntest = ntest;
     
     
@@ -538,12 +538,13 @@ extern "C"{
   // Make a matrix symmetric/symmetric positive definite.
   // Increases diagonal by N.
   // Sets Aji = ( Aij ) for j < i, that is, copy lower triangle to upper triangle.
-#ifdef __cplusplus
+#if defined(__cplusplus)
 }
 #endif
 
 
 //==============================================================================================
+#if defined(__cplusplus)
 template<class T>
 void kblas_make_hpd( int N, T* A, int lda )
 {
@@ -555,12 +556,13 @@ void kblas_make_hpd( int N, T* A, int lda )
     }
   }
 }
+#endif//__cplusplus
 
-double gettime(void)
+/*double gettime(void)
 {
   struct timeval tp;
   gettimeofday( &tp, NULL );
   return tp.tv_sec + 1e-6 * tp.tv_usec;
-}
+}*/
 
 #endif	//_TESTING_UTILS_

@@ -72,19 +72,22 @@ C_SRC+=	              \
 
 INC_SRC=testing_utils.h
 
-C_OBJ=$(C_SRC:.c=.o) $(C_SRC:.cpp=.o)
+OBJ_DIR=./obj
+C_OBJ = $(patsubst %.c,$(OBJ_DIR)/%.o,$(C_SRC))
+
+#C_OBJ=$(C_SRC:.c=.o) $(C_SRC:.cpp=.o)
 EXE=$(C_SRC:.c=)
 
-test_%trmm.o: test_%trmm.c test_trmm.ch $(INC_SRC) $(KBLAS_LIB)
-	$(CXX) $(COPTS) $(INCLUDES) -c $< -o $@
+$(OBJ_DIR)/test_%trmm.o: test_%trmm.c test_trmm.ch $(INC_SRC) $(KBLAS_LIB)
+	$(CXX) $(INCLUDES) -c $< -o $@
 
-%.o: %.c $(INC_SRC) $(KBLAS_LIB)
+$(OBJ_DIR)/%.o: %.c $(INC_SRC) $(KBLAS_LIB)
 	$(CC) $(COPTS) $(INCLUDES) -c $< -o $@
 
-test_%trmm: test_%trmm.o
+test_%trmm: $(OBJ_DIR)/test_%trmm.o
 	$(CXX) $< -o $@ $(LIB_PATH) $(LIB)
 
-test_%: test_%.o 
+test_%: $(OBJ_DIR)/test_%.o 
 	$(CC) $< -o $@ $(LIB_PATH) $(LIB)
 
 all: $(EXE)
@@ -92,5 +95,5 @@ all: $(EXE)
 $(EXE): $(C_OBJ)
 
 clean:
-	rm -f *.o *.m $(EXE)
+	rm -f $(OBJ_DIR)/*.o *.m $(EXE)
 

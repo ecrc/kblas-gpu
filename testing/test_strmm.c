@@ -8,21 +8,22 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
-#include <cublas.h>
+#include "cublas_v2.h"
 
 #include "kblas.h"
 #include "testing_utils.h"
 #include "test_trmm.ch"
 
 
+extern int kblas_trmm_ib_custom;
+extern int kblas_trmm_ib_cublas;
+extern bool kblas_trmm_use_custom;
 
 //==============================================================================================
 int main(int argc, char** argv)
 {
-  if( CUBLAS_STATUS_SUCCESS != cublasInit() ) {
-    fprintf(stderr, "ERROR: cublasInit failed\n");
-    exit(-1);
-  } 
+  cublasHandle_t cublas_handle;
+  cublasCreate(&cublas_handle);
 
   kblas_opts opts;
   if(!parse_opts( argc, argv, &opts )){
@@ -31,9 +32,12 @@ int main(int argc, char** argv)
   }
 
   float alpha = 0.29;
-  test_trmm<float>(opts, alpha);
+  kblas_trmm_ib_custom = opts.nb;
+  kblas_trmm_ib_cublas = opts.nb;
+  kblas_trmm_use_custom = (bool)opts.custom;
+  test_trmm<float>(opts, alpha, cublas_handle);
   
-  cublasShutdown();
+  cublasDestroy(cublas_handle);
 }
 
 

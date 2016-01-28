@@ -87,6 +87,7 @@ __device__ static __inline__ double make_real(double x){return x;}
 __device__ static __inline__ cuFloatComplex 	make_real(cuFloatComplex a){return make_cuFloatComplex(a.x, 0.0);}
 __device__ static __inline__ cuDoubleComplex 	make_real(cuDoubleComplex a){return make_cuDoubleComplex(a.x, 0.0);}
 /*************************************************************/
+#if defined(__CUDACC__)
 /**
 	Atomic add on double precision, as suggested by the CUDA programming Guide
 **/
@@ -119,6 +120,8 @@ __device__ static __inline__ void atomicAdd(cuDoubleComplex* address, cuDoubleCo
 	atomicAdd( (double*) (&(*address).x) ,val.x);
 	atomicAdd( (double*) (&(*address).y) ,val.y);
 }
+#endif
+
 /*************************************************************
  *              cuDoubleComplex
  */
@@ -133,6 +136,12 @@ __host__ __device__ static __inline__ cuDoubleComplex
 operator+(const cuDoubleComplex a, const cuDoubleComplex b)
 {
     return make_cuDoubleComplex(a.x + b.x, a.y + b.y);
+}
+
+__host__ __device__ static __inline__ cuDoubleComplex 
+operator+(const cuDoubleComplex a, int b)
+{
+    return make_cuDoubleComplex(a.x + b, a.y);
 }
 
 __host__ __device__ static __inline__ void
@@ -199,6 +208,12 @@ __host__ __device__ static __inline__ cuFloatComplex
 operator+(const cuFloatComplex a, const cuFloatComplex b)
 {
     return make_cuFloatComplex(a.x + b.x, a.y + b.y);
+}
+
+__host__ __device__ static __inline__ cuFloatComplex 
+operator+(const cuFloatComplex a, int b)
+{
+    return make_cuFloatComplex(a.x + b, a.y);
 }
 
 __host__ __device__ static __inline__ void

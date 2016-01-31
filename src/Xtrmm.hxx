@@ -45,6 +45,13 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle,
 {
   T one = make_one<T>();
   cublasStatus_t status;
+  if(*alpha == make_zero<T>()){//TODO
+    return Xtrmm(handle,
+                 side, uplo, trans, diag,
+                 m, n,
+                 alpha, A, incA,
+                        B, incB );
+  }
   
   if(side == CUBLAS_SIDE_LEFT){
 

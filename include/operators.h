@@ -52,17 +52,17 @@ __host__ __device__ static __inline__ void make_one_(cuDoubleComplex* a) {(*a).x
 template<class T>
 __host__ __device__ static __inline__ T make_zero()
 {
-	T a;
-	make_zero_(&a);
-	return a;
+  T a;
+  make_zero_(&a);
+  return a;
 }
 
 template<class T>
 __host__ __device__ T make_one()
 {
-	T a;
-	make_one_(&a);
-	return a;
+  T a;
+  make_one_(&a);
+  return a;
 }
 
 __device__ static __inline__ float FMA(float a, float b, float c){return fmaf(a,b,c);}
@@ -194,6 +194,12 @@ operator*=(cuDoubleComplex &a, const double s)
     a.x *= s; a.y *= s;
 }
 
+__host__ __device__ static __inline__ bool
+operator==(const cuDoubleComplex a, const cuDoubleComplex b)
+{
+  return ((a.x == b.x) && (a.y == b.y));
+}
+
 /*************************************************************
  *              cuFloatComplex
  */
@@ -264,6 +270,12 @@ __host__ __device__ static __inline__ void
 operator*=(cuFloatComplex &a, const float s)
 {
     a.x *= s; a.y *= s;
+}
+
+__host__ __device__ static __inline__ bool 
+operator==(const cuFloatComplex a, const cuFloatComplex b)
+{
+  return ((a.x == b.x) && (a.y == b.y));
 }
 
 #endif  // _OPERATORS_

@@ -84,7 +84,7 @@ $(OBJ_DIR)/%_control.cu_o: %_control.cu
 $(OBJ_DIR)/%tr_common.cu_o: %tr_common.cu %tr_common.ch
 	$(NVCC) $(NVOPTS) $(NVOPTS_3) $(INC) -c $< -o $@
 
-$(OBJ_DIR)/%trmm.cu_o: %trmm.cu %trmm.hxx %tr_common.ch
+$(OBJ_DIR)/%trmm.cu_o: %trmm.cu %tr_common.ch
 	$(NVCC) $(NVOPTS) $(NVOPTS_3) $(INC) -c $< -o $@
 
 KBLAS_DIR=$(KBLAS_ROOT)/lib

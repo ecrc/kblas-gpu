@@ -138,115 +138,7 @@ __device__ __inline__ cuDoubleComplex shfl(cuDoubleComplex x, int lane, int ws =
   return make_cuDoubleComplex( shfl(x.x, lane, ws), shfl(x.y, lane, ws) );
 }
 //==============================================================================================
-/*template<typename T, int WARPS_PER_BLOCK, int B_COLS_PER_WARP, bool LEFT, bool LOWER, bool TRANS, bool UNIT, bool CONJG>
-__global__ void //__launch_bounds__(256)
-trmm_mul32_sb(int M, int N, T alpha, const T* A, int incA, T* B, int incB, int mb){
-  
-  int txyw = tx + ty*WARP1, txyiA = tx + ty*incA, txyiB = tx + ty*incB;
-  
-  //setup shared memory
-  __shared__ T sA[WARP * WARP1];//strided to avoid bank conflict
-  T rB, rBj, s, a[4], b[4], *sAA;
-  int c, j, r, l;
-  const int A_COL_PER_WARP = WARP / WARPS_PER_BLOCK;
-  if(LEFT){/ *TODO* /
-    B += blockIdx.x * WARPS_PER_BLOCK * incB;
-    const bool forward = (LEFT && (LOWER == TRANS)) || (!LEFT && (LOWER != TRANS));
-    const bool active = true/ *TODO* /;
-
-
-    for( c = (forward ? 0 : mb-1); (forward && (c < mb)) || (!forward && (c > -1)); c += (forward ? 1 : -1))
-    {
-      s = make_zero<T>();
-      //load A(c,c) from global to shared mem
-      #pragma unroll
-      for(l = 0; l < A_COL_PER_WARP; l++){
-        sA[txyw + l * WARPS_PER_BLOCK * WARP1] = A[txyiA + WARP * c * (incA+1) + l * WARPS_PER_BLOCK * incA];
-      }
-      //load B(c) into registers
-      rB = B[txyiB + WARP * c];
-      __syncthreads();
-
-      //perform trmm on shared mem
-      if(LOWER == TRANS){
-        #pragma unroll
-        for(j = 0; j < WARP; j++){
-          rBj = shfl(rB, j);
-          if(j >= tx){
-            s = FMA( CONJG ? conjugate(sA[j + tx * WARP1]) : sA[j + tx * WARP1], rBj, s);
-          }
-        }
-      }else{
-        #pragma unroll
-        for(j = WARP-1; j > -1; j--){
-          if(j == tx){
-            s = rB;
-            if(!UNIT){
-              s *= CONJG ? conjugate(sA[tx + j * WARP1]) : sA[tx + j * WARP1];
-            }
-          }
-          rBj = shfl(rB, j);
-          if(j < tx)
-            s = FMA( CONJG ? conjugate(sA[tx + j * WARP1]) : sA[tx + j * WARP1], rBj, s);
-        }
-      }
-      __syncthreads();
-
-      for(r = (forward ? c+1 : 0); (forward && (r < mb)) || (!forward && (r < c)); r++){
-        #pragma unroll
-        for(l = 0; l < A_COL_PER_WARP; l++){
-          if(TRANS)//load A(r,c)
-            sA[txyw + l * WARPS_PER_BLOCK * WARP1] = A[txyiA + WARP * (r + c * incA) + l * WARPS_PER_BLOCK * incA];
-          else//load A(c,r)
-            sA[txyw + l * WARPS_PER_BLOCK * WARP1] = A[txyiA + WARP * (c + r * incA) + l * WARPS_PER_BLOCK * incA];
-        }
-        //load B(r)
-        rB = B[txyiB + WARP * r];
-        __syncthreads();
-
-        //gemm A(r,c)|A(c,r) & B(r) onto B(c) held at s
-        if(TRANS)
-          sAA = sA + tx*WARP1;
-        else
-          sAA = sA + tx;
-        #pragma unroll
-        for(j = 0; j < WARP; j+=4){
-          if(TRANS){
-            //s = FMA( sA[j + tx * WARP1], shfl(rB, j), s);            
-            a[0] = CONJG ? conjugate(sAA[j + 0]) : sAA[j + 0];
-            a[1] = CONJG ? conjugate(sAA[j + 1]) : sAA[j + 1];
-            a[2] = CONJG ? conjugate(sAA[j + 2]) : sAA[j + 2];
-            a[3] = CONJG ? conjugate(sAA[j + 3]) : sAA[j + 3];
-          }
-          else{
-            //s = FMA( sA[tx + j * WARP1], shfl(rB, j), s);
-            a[0] = sAA[(j + 0)*WARP1];
-            a[1] = sAA[(j + 1)*WARP1];
-            a[2] = sAA[(j + 2)*WARP1];
-            a[3] = sAA[(j + 3)*WARP1];
-          }
-          
-          b[0] = shfl(rB, j + 0);
-          b[1] = shfl(rB, j + 1);
-          b[2] = shfl(rB, j + 2);
-          b[3] = shfl(rB, j + 3);
-          s = FMA( a[0], b[0], s );
-          s = FMA( a[1], b[1], s );
-          s = FMA( a[2], b[2], s );
-          s = FMA( a[3], b[3], s );
-        }
-        __syncthreads();
-      }
-      //store back B(c) to global mem
-      //if(LOWER == TRANS)
-        B[txyiB + WARP * c] = alpha * s;
-      //else
-        //B[txyiB + WARP * c] = s;
-    }
-  }
-}*/
-//==============================================================================================
-template<typename T, int WARPS_PER_BLOCK, int B_COLS_PER_WARP, bool LOWER, bool TRANS, bool UNIT, bool CONJG>
+template<typename T, int WARPS_PER_BLOCK, int B_COLS_PER_WARP, bool LOWER, bool TRANS, bool CONJG>
 __global__ void //__launch_bounds__(256)
 trmm_mul32_L(int M, int N, T alpha, const T* A, int incA, T* B, int incB, int mb){
   
@@ -401,7 +293,7 @@ trmm_mul32_L(int M, int N, T alpha, const T* A, int incA, T* B, int incB, int mb
   }
 }
 //==============================================================================================
-template<typename T, int WARPS_PER_BLOCK, int B_ROWS_PER_WARP, bool LOWER, bool TRANS, bool UNIT, bool CONJG>
+template<typename T, int WARPS_PER_BLOCK, int B_ROWS_PER_WARP, bool LOWER, bool TRANS, bool CONJG>
 __global__ void //__launch_bounds__(256)
 trmm_mul32_R(int M, int N, T alpha, const T* A, int incA, T* B, int incB, int nb){
 
@@ -567,23 +459,15 @@ cublasStatus_t Xtrmm(cublasHandle_t handle,
   #define WARPS_PER_BLOCK 8
   #define B_COLS_PER_WARP 1
   
-  trmm_kernels_type trmm_kernels[16] = {// T, WARPS_PER_BLOCK, B_COLS_PER_WARP, LEFT, LOWER, TRANS, UNIT, CONJG
-    trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true, false, false, false>,
-    trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true, false,  true, false>,
-    trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true,  true, false, false>,
-    trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true,  true,  true, false>,
-    trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false, false, false, false>,
-    trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false, false,  true, false>,
-    trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false,  true, false, false>,
-    trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false,  true,  true, false>,
-    trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true, false, false, false>,
-    trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true, false,  true, false>,
-    trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true,  true, false, false>,
-    trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true,  true,  true, false>,
-    trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false, false, false, false>,
-    trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false, false,  true, false>,
-    trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false,  true, false, false>,
-    trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false,  true,  true, false>
+  trmm_kernels_type trmm_kernels[16] = {// T, WARPS_PER_BLOCK, B_COLS_PER_WARP, LEFT, LOWER, TRANS, CONJG
+    trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true, false, false>,
+    trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true,  true, false>,
+    trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false, false, false>,
+    trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false,  true, false>,
+    trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true, false, false>,
+    trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true,  true, false>,
+    trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false, false, false>,
+    trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false,  true, false>
   };
   
   cudaStream_t curStream;
@@ -591,39 +475,289 @@ cublasStatus_t Xtrmm(cublasHandle_t handle,
 
   if((status = cublasGetStream( handle, &curStream )) != CUBLAS_STATUS_SUCCESS ) return status;
   
-  /*if(side == CUBLAS_SIDE_RIGHT){
-    return cublasXtrmm(handle,
-                       side, uplo, trans, diag,
-                       m, n,
-                       alpha, A, incA,
-                              B, incB );
-  }else
-  if(side == CUBLAS_SIDE_LEFT)*/
+  if( ((side == CUBLAS_SIDE_LEFT) && (m % WARP == 0)) || ((side == CUBLAS_SIDE_RIGHT) && (n % WARP == 0)))
   {
-    if( ((side == CUBLAS_SIDE_LEFT) && (m % WARP == 0)) || ((side == CUBLAS_SIDE_RIGHT) && (n % WARP == 0)) )
-    {
-      int func_idx = 8*(side == CUBLAS_SIDE_RIGHT) + 4*(uplo == CUBLAS_FILL_MODE_UPPER) + 2*(trans != CUBLAS_OP_N) + (diag == CUBLAS_DIAG_UNIT);
-      dim3 blockDim( WARP, WARPS_PER_BLOCK );
-      dim3 gridDim(
-        (side == CUBLAS_SIDE_LEFT) * (n / (WARPS_PER_BLOCK * B_COLS_PER_WARP) + (n % (WARPS_PER_BLOCK * B_COLS_PER_WARP) > 0))
-        +
-        (side == CUBLAS_SIDE_RIGHT) * (m / (WARPS_PER_BLOCK * B_COLS_PER_WARP) + (m % (WARPS_PER_BLOCK * B_COLS_PER_WARP) > 0))
-        , 1);
-      int mb = (side == CUBLAS_SIDE_LEFT) * m / WARP + (side == CUBLAS_SIDE_RIGHT) * n / WARP;
-      trmm_kernels[func_idx]<<< gridDim, blockDim, 0, curStream>>> (m, n, *alpha, A, incA, B, incB, mb);
-      if(!_kblas_error( (cudaGetLastError()), __func__, __FILE__, __LINE__ ))
-        return CUBLAS_STATUS_EXECUTION_FAILED;
-    }else{
-      //error: we should not reach this case
-      return CUBLAS_STATUS_INTERNAL_ERROR;
-    }
+    int func_idx = 4*(side == CUBLAS_SIDE_RIGHT) + 2*(uplo == CUBLAS_FILL_MODE_UPPER) + (trans != CUBLAS_OP_N);// + (diag == CUBLAS_DIAG_UNIT);
+    dim3 blockDim( WARP, WARPS_PER_BLOCK );
+    dim3 gridDim(
+      (side == CUBLAS_SIDE_LEFT) * (n / (WARPS_PER_BLOCK * B_COLS_PER_WARP) + (n % (WARPS_PER_BLOCK * B_COLS_PER_WARP) > 0))
+      +
+      (side == CUBLAS_SIDE_RIGHT) * (m / (WARPS_PER_BLOCK * B_COLS_PER_WARP) + (m % (WARPS_PER_BLOCK * B_COLS_PER_WARP) > 0))
+      , 1);
+    int mb = (side == CUBLAS_SIDE_LEFT) * m / WARP + (side == CUBLAS_SIDE_RIGHT) * n / WARP;
+    trmm_kernels[func_idx]<<< gridDim, blockDim, 0, curStream>>> (m, n, *alpha, A, incA, B, incB, mb);
+    if(!_kblas_error( (cudaGetLastError()), __func__, __FILE__, __LINE__ ))
+      return CUBLAS_STATUS_EXECUTION_FAILED;
+  }else{
+    //error: we should not reach this case
+    return CUBLAS_STATUS_INTERNAL_ERROR;
   }
   return CUBLAS_STATUS_SUCCESS;
 }
 
 //==============================================================================================
+template<class T>
+cublasStatus_t kblasXtrmm(cublasHandle_t handle,
+                          cublasSideMode_t side, cublasFillMode_t uplo,
+                          cublasOperation_t trans, cublasDiagType_t diag,
+                          int m, int n,
+                          const T *alpha,
+                          const T *A, int incA,
+                                T *B, int incB)
+{
+  T one = make_one<T>();
+  cublasStatus_t status;
+  if(*alpha == make_zero<T>()){//TODO
+    return Xtrmm(handle,
+                 side, uplo, trans, diag,
+                 m, n,
+                 alpha, A, incA,
+                        B, incB );
+  }
 
-#include "Xtrmm.hxx"
+  if(side == CUBLAS_SIDE_LEFT){
+
+    if(SIMPLE_SIZE(m)){
+      return Xtrmm(handle,
+                   side, uplo, trans, diag,
+                   m, n,
+                   alpha, A, incA,
+                          B, incB );
+    }
+
+    int m1, m2;
+    if(REG_SIZE(m))
+      m1 = m2 = m/2;
+    else{
+      m1 = CLOSEST_REG_SIZE(m);
+      m2 = m-m1;
+    }
+    cublasOperation_t noTrans = CUBLAS_OP_N;//Trans = CUBLAS_OP_T,
+
+    if(uplo == CUBLAS_FILL_MODE_UPPER){
+
+      //Left / Upper / NoTrans
+      if(trans == CUBLAS_OP_N){
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m1, n,
+                                alpha, A, incA,
+                                       B, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = cublasXgemm(handle,
+                                 trans, noTrans,
+                                 m1, n, m2,
+                                 alpha, A+m1*incA, incA,
+                                        B+m1, incB,
+                                 &one,  B, incB)) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m2, n,
+                                alpha, A+m1+m1*incA, incA,
+                                       B+m1, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+      }
+      //Left / Upper / [Conj]Trans
+      else{
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m2, n,
+                                alpha, A+m1+m1*incA, incA,
+                                       B+m1, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = cublasXgemm(handle,
+                                 trans, noTrans,
+                                 m2, n, m1,
+                                 alpha, A+m1*incA, incA,
+                                        B, incB,
+                                 &one,  B+m1, incB
+                                 )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m1, n,
+                                alpha, A, incA,
+                                       B, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+      }
+
+    }else{//uplo == Lower
+
+      //Left / Lower / NoTrans
+      if(trans == CUBLAS_OP_N){
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m2, n,
+                                alpha, A+m1+m1*incA, incA,
+                                       B+m1, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = cublasXgemm(handle,
+                                 trans, noTrans,
+                                 m2, n, m1,
+                                 alpha, A+m1, incA,
+                                        B, incB,
+                                 &one,  B+m1, incB
+                                 )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m1, n,
+                                alpha, A, incA,
+                                       B, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+      }
+      //Left / Lower / [Conj]Trans
+      else{//trans == Trans
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m1, n,
+                                alpha, A, incA,
+                                       B, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = cublasXgemm(handle,
+                                 trans, noTrans,
+                                 m1, n, m2,
+                                 alpha, A+m1, incA,
+                                        B+m1, incB,
+                                 &one,  B, incB
+                                 )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m2, n,
+                                alpha, A+m1+m1*incA, incA,
+                                       B+m1, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+      }//trans == Trans
+    }//uplo == Lower
+
+  }else{//side == Right
+    int n1, n2;
+
+    if(SIMPLE_SIZE(n)){
+      return Xtrmm(handle,
+                   side, uplo, trans, diag,
+                   m, n,
+                   alpha, A, incA,
+                          B, incB );
+    }
+    if(REG_SIZE(n))
+      n1 = n2 = n/2;
+    else{
+      n1 = CLOSEST_REG_SIZE(n);
+      n2 = n-n1;
+    }
+
+    if(uplo == CUBLAS_FILL_MODE_UPPER){
+      //Right / Upper / NoTrans
+      if(trans == CUBLAS_OP_N){
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m, n2,
+                                alpha, A+n1+n1*incA, incA,
+                                       B+n1*incB, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = cublasXgemm(handle,
+                                 CUBLAS_OP_N, trans,
+                                 m, n2, n1,
+                                 alpha, B, incB,
+                                        A+n1*incA, incA,
+                                 &one,  B+n1*incB, incB
+                                 )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m, n1,
+                                alpha, A, incA,
+                                       B, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+      }
+      //Right / Upper / [Conj]Trans
+      else{
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m, n1,
+                                alpha, A, incA,
+                                       B, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = cublasXgemm(handle,
+                                 CUBLAS_OP_N, trans,
+                                 m, n1, n2,
+                                 alpha, B+n1*incB, incB,
+                                        A+n1*incA, incA,
+                                 &one,  B, incB
+                                 )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m, n2,
+                                alpha, A+n1+n1*incA, incA,
+                                       B+n1*incB, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+      }
+    }else{
+      //Right / Lower / NoTrans
+      if(trans == CUBLAS_OP_N){
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m, n1,
+                                alpha, A, incA,
+                                       B, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = cublasXgemm(handle,
+                                 CUBLAS_OP_N, trans,
+                                 m, n1, n2,
+                                 alpha, B+n1*incB, incB,
+                                        A+n1, incA,
+                                 &one,  B, incB
+                                 )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m, n2,
+                                alpha, A+n1+n1*incA, incA,
+                                       B+n1*incB, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+      }
+      //Right / Lower / [Conj]Trans
+      else{
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m, n2,
+                                alpha, A+n1+n1*incA, incA,
+                                       B+n1*incB, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = cublasXgemm(handle,
+                                 CUBLAS_OP_N, trans,
+                                 m, n2, n1,
+                                 alpha, B, incB,
+                                        A+n1, incA,
+                                 &one,  B+n1*incB, incB
+                                 )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m, n1,
+                                alpha, A, incA,
+                                       B, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+      }
+    }
+
+  }//side == Right
+
+  return CUBLAS_STATUS_SUCCESS;
+}
+
 
 //==============================================================================================
 

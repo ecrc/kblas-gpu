@@ -415,6 +415,7 @@ int kblas_ztrsm_async(
   cudaStream_t    stream);*/
 
 
+//cuBLAS_v2 API
 cublasStatus_t kblasStrmm(cublasHandle_t handle,
                           cublasSideMode_t side, cublasFillMode_t uplo,
                           cublasOperation_t trans, cublasDiagType_t diag,

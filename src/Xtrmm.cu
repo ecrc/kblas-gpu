@@ -507,6 +507,7 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle,
 {
   T one = make_one<T>();
   cublasStatus_t status;
+  
   if(*alpha == make_zero<T>()){//TODO
     return Xtrmm(handle,
                  side, uplo, trans, diag,
@@ -761,8 +762,8 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle,
 
 //==============================================================================================
 
-extern "C" {
   /*
+extern "C" {
 int kblas_strmm_async(
   char side, char uplo, char trans, char diag,
   int m, int n,
@@ -818,56 +819,159 @@ int kblas_ztrmm_async(
     alpha, A, incA,
            B, incB,
     stream);
-}* /
-  
-int kblas_strmm(
-  char side, char uplo, char trans, char diag,
-  int m, int n,
-  float alpha, const float *A, int incA,
-                      float *B, int incB){
-  return kblasXtrmm(
-    side, uplo, trans, diag,
-    m, n,
-    alpha, A, incA,
-           B, incB,
-    0);
-}
-int kblas_dtrmm(
-  char side, char uplo, char trans, char diag,
-  int m, int n,
-  double alpha, const double *A, int incA,
-                        double *B, int incB){
-  return kblasXtrmm(
-    side, uplo, trans, diag,
-    m, n,
-    alpha, A, incA,
-           B, incB,
-    0);
-}
-int kblas_ctrmm(
-  char side, char uplo, char trans, char diag,
-  int m, int n,
-  cuComplex alpha, const cuComplex *A, int incA,
-                          cuComplex *B, int incB){
-  return kblasXtrmm(
-    side, uplo, trans, diag,
-    m, n,
-    alpha, A, incA,
-           B, incB,
-    0);
-}
-int kblas_ztrmm(
-  char side, char uplo, char trans, char diag,
-  int m, int n,
-  cuDoubleComplex alpha, const cuDoubleComplex *A, int incA,
-                                cuDoubleComplex *B, int incB){
-  return kblasXtrmm(
-    side, uplo, trans, diag,
-    m, n,
-    alpha, A, incA,
-           B, incB,
-    0);
 }*/
+  //==============================================================================================
+
+void kblasStrmm_async(char side, char uplo, char trans, char diag,
+                      int m, int n,
+                      float alpha, const float *A, int lda,
+                                         float *B, int ldb,
+                      cudaStream_t stream){
+  
+  cublasHandle_t cublas_handle;
+  if( cublasCreate(&cublas_handle) != CUBLAS_STATUS_SUCCESS ) return;
+  if( cublasSetStream_v2(cublas_handle, stream) != CUBLAS_STATUS_SUCCESS ){
+    cublasDestroy_v2(cublas_handle);
+    return;
+  }
+  cublasSideMode_t  side_v2  = (side  == KBLAS_Left  ? CUBLAS_SIDE_LEFT : CUBLAS_SIDE_RIGHT);
+  cublasFillMode_t  uplo_v2  = (uplo  == KBLAS_Lower ? CUBLAS_FILL_MODE_LOWER : CUBLAS_FILL_MODE_UPPER);
+  cublasOperation_t trans_v2 = (trans == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);
+  cublasDiagType_t  diag_v2  = (diag  == KBLAS_Unit  ? CUBLAS_DIAG_UNIT : CUBLAS_DIAG_NON_UNIT);
+  
+  kblasXtrmm(cublas_handle,
+             side_v2, uplo_v2, trans_v2, diag_v2,
+             m, n,
+             &alpha, A, lda,
+                     B, ldb);
+
+  cublasDestroy_v2(cublas_handle);
+}
+
+void kblasDtrmm_async(char side, char uplo, char trans, char diag,
+                      int m, int n,
+                      double alpha, const double *A, int lda,
+                                          double *B, int ldb,
+                      cudaStream_t stream){
+
+  cublasHandle_t cublas_handle;
+  if( cublasCreate(&cublas_handle) != CUBLAS_STATUS_SUCCESS ) return;
+  if( cublasSetStream_v2(cublas_handle, stream) != CUBLAS_STATUS_SUCCESS ){
+    cublasDestroy_v2(cublas_handle);
+    return;
+  }
+  cublasSideMode_t  side_v2  = (side  == KBLAS_Left  ? CUBLAS_SIDE_LEFT : CUBLAS_SIDE_RIGHT);
+  cublasFillMode_t  uplo_v2  = (uplo  == KBLAS_Lower ? CUBLAS_FILL_MODE_LOWER : CUBLAS_FILL_MODE_UPPER);
+  cublasOperation_t trans_v2 = (trans == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);
+  cublasDiagType_t  diag_v2  = (diag  == KBLAS_Unit  ? CUBLAS_DIAG_UNIT : CUBLAS_DIAG_NON_UNIT);
+
+  kblasXtrmm(cublas_handle,
+             side_v2, uplo_v2, trans_v2, diag_v2,
+             m, n,
+             &alpha, A, lda,
+                     B, ldb);
+
+  cublasDestroy_v2(cublas_handle);
+}
+void kblasCtrmm_async(char side, char uplo, char trans, char diag,
+                      int m, int n,
+                      cuComplex alpha, const cuComplex *A, int lda,
+                                             cuComplex *B, int ldb,
+                      cudaStream_t stream){
+
+  cublasHandle_t cublas_handle;
+  if( cublasCreate(&cublas_handle) != CUBLAS_STATUS_SUCCESS ) return;
+  if( cublasSetStream_v2(cublas_handle, stream) != CUBLAS_STATUS_SUCCESS ){
+    cublasDestroy_v2(cublas_handle);
+    return;
+  }
+  cublasSideMode_t  side_v2  = (side  == KBLAS_Left  ? CUBLAS_SIDE_LEFT : CUBLAS_SIDE_RIGHT);
+  cublasFillMode_t  uplo_v2  = (uplo  == KBLAS_Lower ? CUBLAS_FILL_MODE_LOWER : CUBLAS_FILL_MODE_UPPER);
+  cublasOperation_t trans_v2 = (trans == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);
+  cublasDiagType_t  diag_v2  = (diag  == KBLAS_Unit  ? CUBLAS_DIAG_UNIT : CUBLAS_DIAG_NON_UNIT);
+
+  kblasXtrmm(cublas_handle,
+             side_v2, uplo_v2, trans_v2, diag_v2,
+             m, n,
+             &alpha, A, lda,
+                     B, ldb);
+
+  cublasDestroy_v2(cublas_handle);
+}
+void kblasZtrmm_async(char side, char uplo, char trans, char diag,
+                      int m, int n,
+                      cuDoubleComplex alpha, const cuDoubleComplex *A, int lda,
+                                                   cuDoubleComplex *B, int ldb,
+                      cudaStream_t stream){
+
+  cublasHandle_t cublas_handle;
+  if( cublasCreate(&cublas_handle) != CUBLAS_STATUS_SUCCESS ) return;
+  if( cublasSetStream_v2(cublas_handle, stream) != CUBLAS_STATUS_SUCCESS ){
+    cublasDestroy_v2(cublas_handle);
+    return;
+  }
+  cublasSideMode_t  side_v2  = (side  == KBLAS_Left  ? CUBLAS_SIDE_LEFT : CUBLAS_SIDE_RIGHT);
+  cublasFillMode_t  uplo_v2  = (uplo  == KBLAS_Lower ? CUBLAS_FILL_MODE_LOWER : CUBLAS_FILL_MODE_UPPER);
+  cublasOperation_t trans_v2 = (trans == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);
+  cublasDiagType_t  diag_v2  = (diag  == KBLAS_Unit  ? CUBLAS_DIAG_UNIT : CUBLAS_DIAG_NON_UNIT);
+
+  kblasXtrmm(cublas_handle,
+             side_v2, uplo_v2, trans_v2, diag_v2,
+             m, n,
+             &alpha, A, lda,
+                     B, ldb);
+
+  cublasDestroy_v2(cublas_handle);
+}
+//==============================================================================================
+
+void kblasStrmm(char side, char uplo, char trans, char diag,
+                int m, int n,
+                float alpha, const float *A, int lda,
+                                   float *B, int ldb){
+
+  kblasStrmm_async(side, uplo, trans, diag,
+                   m, n,
+                   alpha, A, lda,
+                          B, ldb,
+                   0);
+}
+
+void kblasDtrmm(char side, char uplo, char trans, char diag,
+                int m, int n,
+                double alpha, const double *A, int lda,
+                                    double *B, int ldb){
+
+  kblasDtrmm_async(side, uplo, trans, diag,
+                   m, n,
+                   alpha, A, lda,
+                          B, ldb,
+                   0);
+}
+void kblasCtrmm(char side, char uplo, char trans, char diag,
+                int m, int n,
+                cuComplex alpha, const cuComplex *A, int lda,
+                                       cuComplex *B, int ldb){
+
+  kblasCtrmm_async(side, uplo, trans, diag,
+                   m, n,
+                   alpha, A, lda,
+                          B, ldb,
+                   0);
+
+}
+void kblasZtrmm(char side, char uplo, char trans, char diag,
+                int m, int n,
+                cuDoubleComplex alpha, const cuDoubleComplex *A, int lda,
+                                             cuDoubleComplex *B, int ldb){
+
+  kblasZtrmm_async(side, uplo, trans, diag,
+                   m, n,
+                   alpha, A, lda,
+                          B, ldb,
+                   0);
+}
+//==============================================================================================
 
 cublasStatus_t kblasStrmm(cublasHandle_t handle,
                           cublasSideMode_t side, cublasFillMode_t uplo,
@@ -880,7 +984,7 @@ cublasStatus_t kblasStrmm(cublasHandle_t handle,
                     side, uplo, trans, diag,
                     m, n,
                     alpha, A, lda,
-                            B, ldb);
+                           B, ldb);
 }
 cublasStatus_t kblasDtrmm(cublasHandle_t handle,
                           cublasSideMode_t side, cublasFillMode_t uplo,
@@ -893,7 +997,7 @@ cublasStatus_t kblasDtrmm(cublasHandle_t handle,
                     side, uplo, trans, diag,
                     m, n,
                     alpha, A, lda,
-                            B, ldb);
+                           B, ldb);
 }
 cublasStatus_t kblasCtrmm(cublasHandle_t handle,
                           cublasSideMode_t side, cublasFillMode_t uplo,
@@ -906,7 +1010,7 @@ cublasStatus_t kblasCtrmm(cublasHandle_t handle,
                     side, uplo, trans, diag,
                     m, n,
                     alpha, A, lda,
-                            B, ldb);
+                           B, ldb);
 }
 cublasStatus_t kblasZtrmm(cublasHandle_t handle,
                           cublasSideMode_t side, cublasFillMode_t uplo,
@@ -919,9 +1023,9 @@ cublasStatus_t kblasZtrmm(cublasHandle_t handle,
                     side, uplo, trans, diag,
                     m, n,
                     alpha, A, lda,
-                            B, ldb);
+                           B, ldb);
 }
 
-}
+//}
 
 

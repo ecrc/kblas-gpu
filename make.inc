@@ -1,4 +1,8 @@
 
+#support CPU API
+#KBLAS_CPU_API=TRUE
+
+
 #specify cuda directory
 _CUDA_ROOT_=/usr/local/cuda
 

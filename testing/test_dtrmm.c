@@ -33,7 +33,7 @@ int main(int argc, char** argv)
   
   double alpha = 0.29;
   kblas_trmm_ib_custom = opts.nb;
-  kblas_trmm_ib_cublas = opts.nb;
+  kblas_trmm_ib_cublas = opts.nb; 
   kblas_trmm_use_custom = (bool)opts.custom;
   test_trmm<double>(opts, alpha, cublas_handle);
   

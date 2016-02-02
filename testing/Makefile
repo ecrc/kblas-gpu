@@ -95,5 +95,5 @@ all: $(EXE)
 $(EXE): $(C_OBJ)
 
 clean:
-	rm -f $(OBJ_DIR)/*.o *.m $(EXE)
+	rm -f $(OBJ_DIR)/*.o $(EXE)
 

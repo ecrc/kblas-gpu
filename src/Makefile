@@ -28,7 +28,7 @@ KBLAS2_CU_SRC=	$(SCAL_SRC)          \
 		$(GEMM_MGPU_SRC)     \
 		$(OTHER_SRC)
 
-KBLAS3_CU_SRC= Xtrmm.cu Xtr_common.cu
+KBLAS3_CU_SRC= Xtrmm.cu Xtr_common.cu Xtrsm.cu
 
 OBJ_DIR=./obj
 #ALL_OBJ=$(KBLAS2_CU_SRC:.cu=.cu_o) $(KBLAS3_CU_SRC:.cu=.cu_o)

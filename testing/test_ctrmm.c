@@ -15,6 +15,9 @@
 #include "operators.h"
 #include "test_trmm.ch"
 
+extern int kblas_trmm_ib_custom;
+extern int kblas_trmm_ib_cublas;
+extern bool kblas_trmm_use_custom;
 
 
 //==============================================================================================
@@ -29,6 +32,9 @@ int main(int argc, char** argv)
     return -1;
   }
   
+  kblas_trmm_ib_custom = opts.nb;
+  kblas_trmm_ib_cublas = opts.nb;
+  kblas_trmm_use_custom = (bool)opts.custom;
   cuFloatComplex alpha = make_cuFloatComplex(1.2, -0.6);
   test_trmm<cuFloatComplex>(opts, alpha, cublas_handle);
   

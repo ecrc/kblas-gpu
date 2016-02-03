@@ -67,7 +67,11 @@ C_SRC+=	              \
 	test_dtrmm.c \
 	test_strmm.c \
 	test_ctrmm.c \
-	test_ztrmm.c
+	test_ztrmm.c \
+	test_dtrsm.c \
+	test_strsm.c \
+	test_ctrsm.c \
+	test_ztrsm.c
 
 
 INC_SRC=testing_utils.h
@@ -81,11 +85,11 @@ EXE=$(C_SRC:.c=)
 $(OBJ_DIR)/test_%trmm.o: test_%trmm.c test_trmm.ch $(INC_SRC) $(KBLAS_LIB)
 	$(CXX) $(INCLUDES) -c $< -o $@
 
+$(OBJ_DIR)/test_%trsm.o: test_%trsm.c test_trsm.ch $(INC_SRC) $(KBLAS_LIB)
+	$(CXX) $(INCLUDES) -c $< -o $@
+
 $(OBJ_DIR)/%.o: %.c $(INC_SRC) $(KBLAS_LIB)
 	$(CC) $(COPTS) $(INCLUDES) -c $< -o $@
-
-test_%trmm: $(OBJ_DIR)/test_%trmm.o
-	$(CC) $< -o $@ $(LIB_PATH) $(LIB)
 
 test_%: $(OBJ_DIR)/test_%.o 
 	$(CC) $< -o $@ $(LIB_PATH) $(LIB)

@@ -12,31 +12,28 @@
 
 #include "kblas.h"
 #include "testing_utils.h"
-#include "operators.h"
-#include "test_trmm.ch"
+#include "test_trsm.ch"
 
 
-extern int kblas_trmm_ib_custom;
-extern int kblas_trmm_ib_cublas;
-extern bool kblas_trmm_use_custom;
+extern int kblas_trsm_ib_cublas;
+extern bool kblas_trsm_use_custom;
 
 //==============================================================================================
 int main(int argc, char** argv)
 {
   cublasHandle_t cublas_handle;
   cublasCreate(&cublas_handle);
-  
+
   kblas_opts opts;
   if(!parse_opts( argc, argv, &opts )){
     USAGE;
     return -1;
   }
-  
-  kblas_trmm_ib_custom = opts.nb;
-  kblas_trmm_ib_cublas = opts.nb;
-  kblas_trmm_use_custom = (bool)opts.custom;
-  cuDoubleComplex alpha = make_cuDoubleComplex(1.2, -0.6);
-  test_trmm<cuDoubleComplex>(opts, alpha, cublas_handle);
+
+  float alpha = 0.29;
+  kblas_trsm_ib_cublas = opts.nb;
+  kblas_trsm_use_custom = (bool)opts.custom;
+  test_trsm<float>(opts, alpha, cublas_handle);
   
   cublasDestroy(cublas_handle);
 }

@@ -72,55 +72,81 @@ __device__ static __inline__ cuFloatComplex FMA(cuFloatComplex a, cuFloatComplex
 __device__ static __inline__ cuDoubleComplex FMA(cuDoubleComplex a, cuDoubleComplex b, cuDoubleComplex
 c){  return make_cuDoubleComplex( fma(a.x, b.x, fma(-a.y, b.y, c.x)), fma(a.y, b.x, fma(a.x, b.y, c.y)) );}
 
-__device__ static __inline__ float      conjugate(float x){return x;}
-__device__ static __inline__ double conjugate(double x){return x;}
-__device__ static __inline__ cuFloatComplex 	conjugate(cuFloatComplex x){return cuConjf(x);}
-__device__ static __inline__ cuDoubleComplex 	conjugate(cuDoubleComplex x){return cuConj(x);}
+__device__ static __inline__ float           conjugate(float x){return x;}
+__device__ static __inline__ double          conjugate(double x){return x;}
+__device__ static __inline__ cuFloatComplex  conjugate(cuFloatComplex x){return cuConjf(x);}
+__device__ static __inline__ cuDoubleComplex conjugate(cuDoubleComplex x){return cuConj(x);}
 
-__device__ static __inline__ float 				conj_if(int _if_, float x){return x;}
-__device__ static __inline__ double 			conj_if(int _if_, double x){return x;}
-__device__ static __inline__ cuFloatComplex 	conj_if(int _if_, cuFloatComplex x){if(_if_==0)return x; else return cuConjf(x);}
-__device__ static __inline__ cuDoubleComplex 	conj_if(int _if_, cuDoubleComplex x){if(_if_==0)return x; else return cuConj(x);}
+__device__ static __inline__ float           conj_if(int _if_, float x){return x;}
+__device__ static __inline__ double          conj_if(int _if_, double x){return x;}
+__device__ static __inline__ cuFloatComplex  conj_if(int _if_, cuFloatComplex x){if(_if_==0)return x; else return cuConjf(x);}
+__device__ static __inline__ cuDoubleComplex conj_if(int _if_, cuDoubleComplex x){if(_if_==0)return x; else return cuConj(x);}
 
-__device__ static __inline__ float 	make_real(float x){return x;}
-__device__ static __inline__ double make_real(double x){return x;}
-__device__ static __inline__ cuFloatComplex 	make_real(cuFloatComplex a){return make_cuFloatComplex(a.x, 0.0);}
-__device__ static __inline__ cuDoubleComplex 	make_real(cuDoubleComplex a){return make_cuDoubleComplex(a.x, 0.0);}
-/*************************************************************/
+__device__ static __inline__ float           make_real(float x){return x;}
+__device__ static __inline__ double          make_real(double x){return x;}
+__device__ static __inline__ cuFloatComplex  make_real(cuFloatComplex a){return make_cuFloatComplex(a.x, 0.0);}
+__device__ static __inline__ cuDoubleComplex make_real(cuDoubleComplex a){return make_cuDoubleComplex(a.x, 0.0);}
+
+
+//==============================================================================================
 #if defined(__CUDACC__)
+__device__ __inline__ float shfl(float x, int lane, int ws = 32)
+{
+  return __shfl(x, lane, ws);
+}
+__device__ __inline__ double shfl(double x, int lane, int ws = 32)
+{
+  // Split the double number into 2 32b registers.
+  int lo = __double2loint(x), hi = __double2hiint(x);
+  // Shuffle the two 32b registers.
+  lo = __shfl(lo, lane, ws);
+  hi = __shfl(hi, lane, ws);
+  // Recreate the 64b number.
+  return __hiloint2double(hi,lo);
+}
+__device__ __inline__ cuComplex shfl(cuComplex x, int lane, int ws = 32)
+{
+  return make_cuFloatComplex( __shfl(x.x, lane, ws), __shfl(x.y, lane, ws) );
+}
+__device__ __inline__ cuDoubleComplex shfl(cuDoubleComplex x, int lane, int ws = 32)
+{
+  return make_cuDoubleComplex( shfl(x.x, lane, ws), shfl(x.y, lane, ws) );
+}
+
+/*************************************************************/
 /**
-	Atomic add on double precision, as suggested by the CUDA programming Guide
+Atomic add on double precision, as suggested by the CUDA programming Guide
 **/
 __device__ static __inline__ double atomicAdd(double* address, double val)
 {
-	unsigned long long int* address_as_ull =
-	(unsigned long long int*)address;
-	unsigned long long int old = *address_as_ull, assumed;
-	do {
-		assumed = old;
-		old = atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
-	} while (assumed != old);
-	return __longlong_as_double(old);
+  unsigned long long int* address_as_ull =
+  (unsigned long long int*)address;
+  unsigned long long int old = *address_as_ull, assumed;
+  do {
+          assumed = old;
+          old = atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
+  } while (assumed != old);
+  return __longlong_as_double(old);
 }
 
 /**
-	Atomic add for float complex ('C' precision)
+Atomic add for float complex ('C' precision)
 **/
 __device__ static __inline__ void atomicAdd(cuFloatComplex* address, cuFloatComplex val)
 {
-	atomicAdd( (float*) (&(*address).x) ,val.x);
-	atomicAdd( (float*) (&(*address).y) ,val.y);
+  atomicAdd( (float*) (&(*address).x) ,val.x);
+  atomicAdd( (float*) (&(*address).y) ,val.y);
 }
 
 /**
-	Atomic add for double complex ('Z' precision)
+Atomic add for double complex ('Z' precision)
 **/
 __device__ static __inline__ void atomicAdd(cuDoubleComplex* address, cuDoubleComplex val)
 {
-	atomicAdd( (double*) (&(*address).x) ,val.x);
-	atomicAdd( (double*) (&(*address).y) ,val.y);
+  atomicAdd( (double*) (&(*address).x) ,val.x);
+  atomicAdd( (double*) (&(*address).y) ,val.y);
 }
-#endif
+#endif//__CUDACC__
 
 /*************************************************************
  *              cuDoubleComplex
@@ -200,6 +226,20 @@ operator==(const cuDoubleComplex a, const cuDoubleComplex b)
   return ((a.x == b.x) && (a.y == b.y));
 }
 
+__host__ __device__ static __inline__ cuDoubleComplex
+operator/(const cuDoubleComplex a, const float b)
+{
+  //return (a * conjugate(b)) / (b * conjugate(b));
+  return make_cuDoubleComplex(a.x / b, a.y / b);
+}
+
+__host__ __device__ static __inline__ cuDoubleComplex
+operator/(const cuDoubleComplex a, const cuDoubleComplex b)
+{
+  //return (a * conjugate(b)) / (b * conjugate(b));
+  return make_cuDoubleComplex(a.x*b.x + a.y*b.y, a.y*b.x - a.x*b.y) / (b.x*b.x + b.y*b.y);
+}
+
 /*************************************************************
  *              cuFloatComplex
  */
@@ -240,7 +280,7 @@ operator-=(cuFloatComplex &a, const cuFloatComplex b)
     a.x -= b.x; a.y -= b.y;
 }
 
-__host__ __device__ static __inline__ cuFloatComplex 
+__host__ __device__ static __inline__ cuFloatComplex
 operator*(const cuFloatComplex a, const cuFloatComplex b)
 {
     return make_cuFloatComplex(a.x * b.x - a.y * b.y, a.y * b.x + a.x * b.y);
@@ -276,6 +316,20 @@ __host__ __device__ static __inline__ bool
 operator==(const cuFloatComplex a, const cuFloatComplex b)
 {
   return ((a.x == b.x) && (a.y == b.y));
+}
+
+__host__ __device__ static __inline__ cuFloatComplex 
+operator/(const cuFloatComplex a, const float b)
+{
+    //return (a * conjugate(b)) / (b * conjugate(b));
+    return make_cuFloatComplex(a.x / b, a.y / b);
+}
+
+__host__ __device__ static __inline__ cuFloatComplex
+operator/(const cuFloatComplex a, const cuFloatComplex b)
+{
+    //return (a * conjugate(b)) / (b * conjugate(b));
+    return make_cuFloatComplex(a.x*b.x + a.y*b.y, a.y*b.x - a.x*b.y) / (b.x*b.x + b.y*b.y);
 }
 
 #endif  // _OPERATORS_

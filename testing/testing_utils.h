@@ -277,9 +277,13 @@ double Xget_max_error_matrix(cuDoubleComplex* ref, cuDoubleComplex *res, long m,
 #endif//__cplusplus
 
 
+
 #if defined(__cplusplus)
 extern "C"{
 #endif
+
+  const char* cublasGetErrorString( cublasStatus_t error );
+  
   void kblas_assert( int condition, const char* msg, ... )
   {
     if ( ! condition ) {

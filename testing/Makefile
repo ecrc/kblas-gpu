@@ -71,7 +71,8 @@ C_SRC+=	              \
 	test_dtrsm.c \
 	test_strsm.c \
 	test_ctrsm.c \
-	test_ztrsm.c
+	test_ztrsm.c \
+	test_dgemmXt.c
 
 
 INC_SRC=testing_utils.h

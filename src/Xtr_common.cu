@@ -39,7 +39,7 @@
 #include "operators.h"
 
 //==============================================================================================
-
+extern "C"{
 const char* cublasGetErrorString( cublasStatus_t error )
 {
   switch( error ) {
@@ -66,12 +66,18 @@ const char* cublasGetErrorString( cublasStatus_t error )
       
     case CUBLAS_STATUS_INTERNAL_ERROR:
       return "internal error";
-      
+
+    case CUBLAS_STATUS_NOT_SUPPORTED:
+      return "Not Supported";
+
+    case CUBLAS_STATUS_LICENSE_ERROR:
+      return "License Error";
+
     default:
       return "unknown CUBLAS error code";
   }
 }
-
+}
 
 // ----------------------------------------
 // C++ function is overloaded for different error types,

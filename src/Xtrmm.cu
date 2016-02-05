@@ -745,7 +745,7 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle,
   return CUBLAS_STATUS_SUCCESS;
 }
 
-/*/==============================================================================================
+//==============================================================================================
 template<class T>
 cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream_t &strOut,
                           cublasSideMode_t side, cublasFillMode_t uplo,
@@ -1011,8 +1011,28 @@ cublasStatus_t kblasXtrmm_cpu(cublasHandle_t handle,
                           const T *alpha,
                           const T *Ac, int incA,
                                 T *Bc, int incB){
+  //allocate memory on device
+  T *Ad, *Bd;
+  int Am, An, Bm, Bn;
+  if ( side == CUBLAS_SIDE_LEFT ) {
+    Am = An = M;
+  } else {
+    Am = An = N;
+  }
+  Bm = M;
+  Bn = N;
+  
+  cudaError_t err;
+  check_error( cudaMalloc( (void**)&Ad, (Am*An)*sizeof(T) ));
+  check_error( cudaMalloc( (void**)&Bd, (Bm*Bn)*sizeof(T) ));
 
-}*/
+  //setup streams
+  cudaStream_t inStream, outStream;
+  check_error( cudaStreamCreateWithFlags( &inStream, cudaStreamNonBlocking) );
+  //call cpu API trmm
+  //sync and revoke streams
+  //free device memory
+}
 
 //==============================================================================================
 
@@ -1090,7 +1110,7 @@ int kblas_ztrmm_async(
                                                                                                           \
   kblasXtrmm(cublas_handle,                                                                               \
              side_v2, uplo_v2, trans_v2, diag_v2,                                                         \
-             m, n,                                                                                        \ 
+             m, n,                                                                                        \
              &alpha, A, lda,                                                                              \
                      B, ldb);                                                                             \
                                                                                                           \

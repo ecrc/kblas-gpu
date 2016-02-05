@@ -105,8 +105,8 @@ int _kblas_error( cublasStatus_t err, const char* func, const char* file, int li
   return 1;
 }
 
-#define check_error( err ) \
-{if(!_kblas_error( (err), __func__, __FILE__, __LINE__ )) return 0;}
+//#define check_error( err ) \
+//{if(!_kblas_error( (err), __func__, __FILE__, __LINE__ )) return 0;}
 
 //==============================================================================================
 bool REG_SIZE(int n){

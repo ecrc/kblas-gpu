@@ -43,7 +43,7 @@ int _kblas_error( cublasStatus_t err, const char* func, const char* file, int li
 
 //int _kblas_error( int stat, const char* func, const char* file, int line );
 #define check_error( err ) \
-{if(!_kblas_error( (err), __func__, __FILE__, __LINE__ )) return 0;}
+{if(!_kblas_error( (err), __func__, __FILE__, __LINE__ )) return err;}
 
 //==============================================================================================
 bool REG_SIZE(int n);

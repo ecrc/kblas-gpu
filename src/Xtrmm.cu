@@ -745,6 +745,274 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle,
   return CUBLAS_STATUS_SUCCESS;
 }
 
+/*/==============================================================================================
+template<class T>
+cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream_t &strOut,
+                          cublasSideMode_t side, cublasFillMode_t uplo,
+                          cublasOperation_t trans, cublasDiagType_t diag,
+                          int m, int n,
+                          const T *alpha,
+                          const T *Ac, int incA, const T* Ad,
+                                T *Bc, int incB,       T* Bd, bool Bin, bool Bout)
+{
+  T one = make_one<T>();
+  cublasStatus_t status;
+  
+  if( ( *alpha == make_zero<T>() ) //TODO
+   || ( (side == CUBLAS_SIDE_LEFT) && (SIMPLE_SIZE(m)) ) 
+   || ( (side == CUBLAS_SIDE_RIGHT) && (SIMPLE_SIZE(n)) ) ){
+    //copy in A block
+    //if B is not already in, copy in B block
+    return Xtrmm(handle,
+                 side, uplo, trans, diag,
+                 m, n,
+                 alpha, A, incA,
+                        B, incB );
+    //if stream is done computing and Bout, copy B back.
+  }
+
+  if(side == CUBLAS_SIDE_LEFT){
+
+    int m1, m2;
+    if(REG_SIZE(m))
+      m1 = m2 = m/2;
+    else{
+      m1 = CLOSEST_REG_SIZE(m);
+      m2 = m-m1;
+    }
+    cublasOperation_t noTrans = CUBLAS_OP_N;//Trans = CUBLAS_OP_T,
+
+    if(uplo == CUBLAS_FILL_MODE_UPPER){
+
+      //Left / Upper / NoTrans
+      if(trans == CUBLAS_OP_N){
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m1, n,
+                                alpha, A, incA,
+                                       B, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        //copy in A block
+        //if B is not already in, copy B block
+        if((status = cublasXgemm(handle,
+                                 trans, noTrans,
+                                 m1, n, m2,
+                                 alpha, A+m1*incA, incA,
+                                        B+m1, incB,
+                                 &one,  B, incB)) != CUBLAS_STATUS_SUCCESS) return status;
+        //if stream is done computing and Bout, copy B back.
+
+        //B is already in, no need to copy in
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m2, n,
+                                alpha, A+m1+m1*incA, incA,
+                                       B+m1, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+      }
+      //Left / Upper / [Conj]Trans
+      else{
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m2, n,
+                                alpha, A+m1+m1*incA, incA,
+                                       B+m1, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = cublasXgemm(handle,
+                                 trans, noTrans,
+                                 m2, n, m1,
+                                 alpha, A+m1*incA, incA,
+                                        B, incB,
+                                 &one,  B+m1, incB
+                                 )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m1, n,
+                                alpha, A, incA,
+                                       B, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+      }
+
+    }else{//uplo == Lower
+
+      //Left / Lower / NoTrans
+      if(trans == CUBLAS_OP_N){
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m2, n,
+                                alpha, A+m1+m1*incA, incA,
+                                       B+m1, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = cublasXgemm(handle,
+                                 trans, noTrans,
+                                 m2, n, m1,
+                                 alpha, A+m1, incA,
+                                        B, incB,
+                                 &one,  B+m1, incB
+                                 )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m1, n,
+                                alpha, A, incA,
+                                       B, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+      }
+      //Left / Lower / [Conj]Trans
+      else{//trans == Trans
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m1, n,
+                                alpha, A, incA,
+                                       B, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = cublasXgemm(handle,
+                                 trans, noTrans,
+                                 m1, n, m2,
+                                 alpha, A+m1, incA,
+                                        B+m1, incB,
+                                 &one,  B, incB
+                                 )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m2, n,
+                                alpha, A+m1+m1*incA, incA,
+                                       B+m1, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+      }//trans == Trans
+    }//uplo == Lower
+
+  }else{//side == Right
+    int n1, n2;
+
+    if(REG_SIZE(n))
+      n1 = n2 = n/2;
+    else{
+      n1 = CLOSEST_REG_SIZE(n);
+      n2 = n-n1;
+    }
+
+    if(uplo == CUBLAS_FILL_MODE_UPPER){
+      //Right / Upper / NoTrans
+      if(trans == CUBLAS_OP_N){
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m, n2,
+                                alpha, A+n1+n1*incA, incA,
+                                       B+n1*incB, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = cublasXgemm(handle,
+                                 CUBLAS_OP_N, trans,
+                                 m, n2, n1,
+                                 alpha, B, incB,
+                                        A+n1*incA, incA,
+                                 &one,  B+n1*incB, incB
+                                 )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m, n1,
+                                alpha, A, incA,
+                                       B, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+      }
+      //Right / Upper / [Conj]Trans
+      else{
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m, n1,
+                                alpha, A, incA,
+                                       B, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = cublasXgemm(handle,
+                                 CUBLAS_OP_N, trans,
+                                 m, n1, n2,
+                                 alpha, B+n1*incB, incB,
+                                        A+n1*incA, incA,
+                                 &one,  B, incB
+                                 )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m, n2,
+                                alpha, A+n1+n1*incA, incA,
+                                       B+n1*incB, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+      }
+    }else{
+      //Right / Lower / NoTrans
+      if(trans == CUBLAS_OP_N){
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m, n1,
+                                alpha, A, incA,
+                                       B, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = cublasXgemm(handle,
+                                 CUBLAS_OP_N, trans,
+                                 m, n1, n2,
+                                 alpha, B+n1*incB, incB,
+                                        A+n1, incA,
+                                 &one,  B, incB
+                                 )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m, n2,
+                                alpha, A+n1+n1*incA, incA,
+                                       B+n1*incB, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+      }
+      //Right / Lower / [Conj]Trans
+      else{
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m, n2,
+                                alpha, A+n1+n1*incA, incA,
+                                       B+n1*incB, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = cublasXgemm(handle,
+                                 CUBLAS_OP_N, trans,
+                                 m, n2, n1,
+                                 alpha, B, incB,
+                                        A+n1, incA,
+                                 &one,  B+n1*incB, incB
+                                 )) != CUBLAS_STATUS_SUCCESS) return status;
+
+        if((status = kblasXtrmm(handle,
+                                side, uplo, trans, diag,
+                                m, n1,
+                                alpha, A, incA,
+                                       B, incB
+                                )) != CUBLAS_STATUS_SUCCESS) return status;
+      }
+    }
+
+  }//side == Right
+
+  return CUBLAS_STATUS_SUCCESS;
+}
+
+template<class T>
+cublasStatus_t kblasXtrmm_cpu(cublasHandle_t handle, 
+                          cublasSideMode_t side, cublasFillMode_t uplo,
+                          cublasOperation_t trans, cublasDiagType_t diag,
+                          int m, int n,
+                          const T *alpha,
+                          const T *Ac, int incA,
+                                T *Bc, int incB){
+
+}*/
 
 //==============================================================================================
 
@@ -808,30 +1076,33 @@ int kblas_ztrmm_async(
 }*/
   //==============================================================================================
 
+#define kblasXtrmm_async_BODY {                                                                           \
+  cublasHandle_t cublas_handle;                                                                           \
+  if( cublasCreate(&cublas_handle) != CUBLAS_STATUS_SUCCESS ) return;                                     \
+  if( cublasSetStream_v2(cublas_handle, stream) != CUBLAS_STATUS_SUCCESS ){                               \
+    cublasDestroy_v2(cublas_handle);                                                                      \
+    return;                                                                                               \
+  }                                                                                                       \
+  cublasSideMode_t  side_v2  = (side  == KBLAS_Left  ? CUBLAS_SIDE_LEFT : CUBLAS_SIDE_RIGHT);             \
+  cublasFillMode_t  uplo_v2  = (uplo  == KBLAS_Lower ? CUBLAS_FILL_MODE_LOWER : CUBLAS_FILL_MODE_UPPER);  \
+  cublasOperation_t trans_v2 = (trans == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);                        \
+  cublasDiagType_t  diag_v2  = (diag  == KBLAS_Unit  ? CUBLAS_DIAG_UNIT : CUBLAS_DIAG_NON_UNIT);          \
+                                                                                                          \
+  kblasXtrmm(cublas_handle,                                                                               \
+             side_v2, uplo_v2, trans_v2, diag_v2,                                                         \
+             m, n,                                                                                        \ 
+             &alpha, A, lda,                                                                              \
+                     B, ldb);                                                                             \
+                                                                                                          \
+  cublasDestroy_v2(cublas_handle);                                                                        \
+}
+
 void kblasStrmm_async(char side, char uplo, char trans, char diag,
                       int m, int n,
                       float alpha, const float *A, int lda,
                                          float *B, int ldb,
                       cudaStream_t stream){
-  
-  cublasHandle_t cublas_handle;
-  if( cublasCreate(&cublas_handle) != CUBLAS_STATUS_SUCCESS ) return;
-  if( cublasSetStream_v2(cublas_handle, stream) != CUBLAS_STATUS_SUCCESS ){
-    cublasDestroy_v2(cublas_handle);
-    return;
-  }
-  cublasSideMode_t  side_v2  = (side  == KBLAS_Left  ? CUBLAS_SIDE_LEFT : CUBLAS_SIDE_RIGHT);
-  cublasFillMode_t  uplo_v2  = (uplo  == KBLAS_Lower ? CUBLAS_FILL_MODE_LOWER : CUBLAS_FILL_MODE_UPPER);
-  cublasOperation_t trans_v2 = (trans == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);
-  cublasDiagType_t  diag_v2  = (diag  == KBLAS_Unit  ? CUBLAS_DIAG_UNIT : CUBLAS_DIAG_NON_UNIT);
-  
-  kblasXtrmm(cublas_handle,
-             side_v2, uplo_v2, trans_v2, diag_v2,
-             m, n,
-             &alpha, A, lda,
-                     B, ldb);
-
-  cublasDestroy_v2(cublas_handle);
+  kblasXtrmm_async_BODY
 }
 
 void kblasDtrmm_async(char side, char uplo, char trans, char diag,
@@ -839,75 +1110,21 @@ void kblasDtrmm_async(char side, char uplo, char trans, char diag,
                       double alpha, const double *A, int lda,
                                           double *B, int ldb,
                       cudaStream_t stream){
-
-  cublasHandle_t cublas_handle;
-  if( cublasCreate(&cublas_handle) != CUBLAS_STATUS_SUCCESS ) return;
-  if( cublasSetStream_v2(cublas_handle, stream) != CUBLAS_STATUS_SUCCESS ){
-    cublasDestroy_v2(cublas_handle);
-    return;
-  }
-  cublasSideMode_t  side_v2  = (side  == KBLAS_Left  ? CUBLAS_SIDE_LEFT : CUBLAS_SIDE_RIGHT);
-  cublasFillMode_t  uplo_v2  = (uplo  == KBLAS_Lower ? CUBLAS_FILL_MODE_LOWER : CUBLAS_FILL_MODE_UPPER);
-  cublasOperation_t trans_v2 = (trans == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);
-  cublasDiagType_t  diag_v2  = (diag  == KBLAS_Unit  ? CUBLAS_DIAG_UNIT : CUBLAS_DIAG_NON_UNIT);
-
-  kblasXtrmm(cublas_handle,
-             side_v2, uplo_v2, trans_v2, diag_v2,
-             m, n,
-             &alpha, A, lda,
-                     B, ldb);
-
-  cublasDestroy_v2(cublas_handle);
+  kblasXtrmm_async_BODY
 }
 void kblasCtrmm_async(char side, char uplo, char trans, char diag,
                       int m, int n,
                       cuComplex alpha, const cuComplex *A, int lda,
                                              cuComplex *B, int ldb,
                       cudaStream_t stream){
-
-  cublasHandle_t cublas_handle;
-  if( cublasCreate(&cublas_handle) != CUBLAS_STATUS_SUCCESS ) return;
-  if( cublasSetStream_v2(cublas_handle, stream) != CUBLAS_STATUS_SUCCESS ){
-    cublasDestroy_v2(cublas_handle);
-    return;
-  }
-  cublasSideMode_t  side_v2  = (side  == KBLAS_Left  ? CUBLAS_SIDE_LEFT : CUBLAS_SIDE_RIGHT);
-  cublasFillMode_t  uplo_v2  = (uplo  == KBLAS_Lower ? CUBLAS_FILL_MODE_LOWER : CUBLAS_FILL_MODE_UPPER);
-  cublasOperation_t trans_v2 = (trans == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);
-  cublasDiagType_t  diag_v2  = (diag  == KBLAS_Unit  ? CUBLAS_DIAG_UNIT : CUBLAS_DIAG_NON_UNIT);
-
-  kblasXtrmm(cublas_handle,
-             side_v2, uplo_v2, trans_v2, diag_v2,
-             m, n,
-             &alpha, A, lda,
-                     B, ldb);
-
-  cublasDestroy_v2(cublas_handle);
+  kblasXtrmm_async_BODY
 }
 void kblasZtrmm_async(char side, char uplo, char trans, char diag,
                       int m, int n,
                       cuDoubleComplex alpha, const cuDoubleComplex *A, int lda,
                                                    cuDoubleComplex *B, int ldb,
                       cudaStream_t stream){
-
-  cublasHandle_t cublas_handle;
-  if( cublasCreate(&cublas_handle) != CUBLAS_STATUS_SUCCESS ) return;
-  if( cublasSetStream_v2(cublas_handle, stream) != CUBLAS_STATUS_SUCCESS ){
-    cublasDestroy_v2(cublas_handle);
-    return;
-  }
-  cublasSideMode_t  side_v2  = (side  == KBLAS_Left  ? CUBLAS_SIDE_LEFT : CUBLAS_SIDE_RIGHT);
-  cublasFillMode_t  uplo_v2  = (uplo  == KBLAS_Lower ? CUBLAS_FILL_MODE_LOWER : CUBLAS_FILL_MODE_UPPER);
-  cublasOperation_t trans_v2 = (trans == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);
-  cublasDiagType_t  diag_v2  = (diag  == KBLAS_Unit  ? CUBLAS_DIAG_UNIT : CUBLAS_DIAG_NON_UNIT);
-
-  kblasXtrmm(cublas_handle,
-             side_v2, uplo_v2, trans_v2, diag_v2,
-             m, n,
-             &alpha, A, lda,
-                     B, ldb);
-
-  cublasDestroy_v2(cublas_handle);
+  kblasXtrmm_async_BODY
 }
 //==============================================================================================
 

@@ -22,7 +22,6 @@ double FLOPS_TRSM(cuDoubleComplex p, char side, int m, int n){
 }
 
 
-const char* cublasGetErrorString( cublasStatus_t error );
 int _kblas_error( cudaError_t err, const char* func, const char* file, int line );
 int _kblas_error( cublasStatus_t err, const char* func, const char* file, int line );
 

@@ -43,7 +43,7 @@ int main(int argc, char* argv[]){
   cublasStatus_t status;
   cublasXtHandle_t cublasXt_handle;
   if(cublasXtCreate(&cublasXt_handle) != CUBLAS_STATUS_SUCCESS) {printf("handle create fail\n"); return 1;}
-  int devices[2] = { 0,1/*,2,3,4, 5, 6, 7*/ };  // add this line
+  int devices[8] = { 0,1,2,3,4, 5, 6, 7 };  // add this line
   if((status = cublasXtDeviceSelect(cublasXt_handle, opts.ngpu, devices)) != CUBLAS_STATUS_SUCCESS) {
     printf("set devices fail with status: %s\n", cublasGetErrorString(status));
     return 1;

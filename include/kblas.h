@@ -422,7 +422,35 @@ cublasStatus_t kblasZtrmm(cublasHandle_t handle,
                           const cuDoubleComplex *alpha,
                           const cuDoubleComplex *A, int lda,
                                 cuDoubleComplex *B, int ldb);
-
+cublasStatus_t kblas_strmm(cublasHandle_t handle,
+                           cublasSideMode_t side, cublasFillMode_t uplo,
+                           cublasOperation_t trans, cublasDiagType_t diag,
+                           int m, int n,
+                           const float *alpha,
+                           const float *A, int lda,
+                                 float *B, int ldb);
+cublasStatus_t kblas_dtrmm(cublasHandle_t handle,
+                           cublasSideMode_t side, cublasFillMode_t uplo,
+                           cublasOperation_t trans, cublasDiagType_t diag,
+                           int m, int n,
+                           const double *alpha,
+                           const double *A, int lda,
+                                 double *B, int ldb);
+cublasStatus_t kblas_ctrmm(cublasHandle_t handle,
+                           cublasSideMode_t side, cublasFillMode_t uplo,
+                           cublasOperation_t trans, cublasDiagType_t diag,
+                           int m, int n,
+                           const cuComplex *alpha,
+                           const cuComplex *A, int lda,
+                                 cuComplex *B, int ldb);
+cublasStatus_t kblas_ztrmm(cublasHandle_t handle,
+                           cublasSideMode_t side, cublasFillMode_t uplo,
+                           cublasOperation_t trans, cublasDiagType_t diag,
+                           int m, int n,
+                           const cuDoubleComplex *alpha,
+                           const cuDoubleComplex *A, int lda,
+                                 cuDoubleComplex *B, int ldb);
+//TRSM
 cublasStatus_t kblasStrsm(cublasHandle_t handle,
                           cublasSideMode_t side, cublasFillMode_t uplo,
                           cublasOperation_t trans, cublasDiagType_t diag,

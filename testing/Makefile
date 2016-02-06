@@ -87,6 +87,9 @@ EXE=$(C_SRC:.c=)
 $(OBJ_DIR)/test_%trmm.o: test_%trmm.c test_trmm.ch $(INC_SRC) $(KBLAS_LIB)
 	$(CXX) $(INCLUDES) -c $< -o $@
 
+$(OBJ_DIR)/test_%trmm_cpu.o: test_%trmm_cpu.c test_trmm_cpu.ch $(INC_SRC) $(KBLAS_LIB)
+	$(CXX) $(INCLUDES) -c $< -o $@
+
 $(OBJ_DIR)/test_%trsm.o: test_%trsm.c test_trsm.ch $(INC_SRC) $(KBLAS_LIB)
 	$(CXX) $(INCLUDES) -c $< -o $@
 

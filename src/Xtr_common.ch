@@ -42,8 +42,8 @@ int _kblas_error( cudaError_t err, const char* func, const char* file, int line 
 int _kblas_error( cublasStatus_t err, const char* func, const char* file, int line );
 
 //int _kblas_error( int stat, const char* func, const char* file, int line );
-#define check_error( err ) \
-{if(!_kblas_error( (err), __func__, __FILE__, __LINE__ )) return err;}
+#define check_error( err_, ret_ ) \
+{if(!_kblas_error( (err_), __func__, __FILE__, __LINE__ )) return ret_;}
 
 //==============================================================================================
 bool REG_SIZE(int n);

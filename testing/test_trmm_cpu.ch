@@ -314,15 +314,15 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
             fprintf( stderr, "!!!! cudaMalloc failed for: d_B! Error: %s\n", cudaGetErrorString(err) );
             exit(-1);
           }
-          check_error( cublasSetMatrix( Am, An, sizeof(T), h_A, lda, d_A, ldda ) );
-          check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_Rc, ldb, d_B, lddb ) );
+          check_error( cublasSetMatrixAsync( Am, An, sizeof(T), h_A, lda, d_A, ldda, curStream) );
+          check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_Rc, ldb, d_B, lddb, curStream ) );
 
           check_error( cublasXtrmm( cublas_handle,
                                     side, uplo, trans, diag,
                                     M, N,
                                     &alpha, d_A, ldda,
                                             d_B, lddb) );
-          check_error( cublasGetMatrix( M, N, sizeof(T), d_B, lddb, h_Rc, ldb ) );
+          check_error( cublasGetMatrixAsync( M, N, sizeof(T), d_B, lddb, h_Rc, ldb, curStream ) );
           check_error(  cudaFree( d_A ) );
           check_error(  cudaFree( d_B ) );
 
@@ -376,15 +376,15 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
           fprintf( stderr, "!!!! cudaMalloc failed for: d_B! Error: %s\n", cudaGetErrorString(err) );
           exit(-1);
         }
-        check_error( cublasSetMatrix( Am, An, sizeof(T), h_A, lda, d_A, ldda ) );
-        check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_Rk, ldb, d_B, lddb ) );
+        check_error( cublasSetMatrixAsync( Am, An, sizeof(T), h_A, lda, d_A, ldda, curStream ) );
+        check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_Rk, ldb, d_B, lddb, curStream ) );
         
         check_error( kblasXtrmm(cublas_handle,
                                 side, uplo, trans, diag,
                                 M, N,
                                 &alpha, d_A, lda,
                                         d_B, ldb) );
-        check_error( cublasGetMatrix( M, N, sizeof(T), d_B, lddb, h_Rk, ldb ) );
+        check_error( cublasGetMatrixAsync( M, N, sizeof(T), d_B, lddb, h_Rk, ldb, curStream ) );
         check_error(  cudaFree( d_A ) );
         check_error(  cudaFree( d_B ) );
         

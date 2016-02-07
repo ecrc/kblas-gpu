@@ -165,7 +165,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
   int ione     = 1;
   int ISEED[4] = {0,0,0,1};
   
-  T *h_A, *h_B, *h_R;
+  T *h_A, *h_B, *h_Rc, *h_Rk;
   T *d_A, *d_B;
   
   
@@ -218,10 +218,14 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         fprintf( stderr, "!!!! malloc_cpu failed for: h_B\n" );
         exit(-1);
       }
+      if ( (h_Rk = (T*) malloc( (sizeB)*sizeof( T ) ) ) == NULL) {
+        fprintf( stderr, "!!!! malloc_cpu failed for: h_Rk\n" );
+        exit(-1);
+      }
       
-      if(opts.check)
+      if(opts.check || opts.time)
       {
-        if ( (h_R = (T*) malloc( (sizeB)*sizeof( T ) ) ) == NULL) {
+        if ( (h_Rc = (T*) malloc( (sizeB)*sizeof( T ) ) ) == NULL) {
           fprintf( stderr, "!!!! malloc_cpu failed for: h_R\n" );
           exit(-1);
         }
@@ -239,12 +243,12 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
 
       float time = 0;
             
-      if(opts.check){
+      if(opts.time || opts.check){
 
       
         for(int r = 0; r < nruns; r++)
         {
-          check_error( cudaMemcpy ( (void*)h_R, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost ) );
+          check_error( cudaMemcpy ( (void*)h_Rc, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost ) );
           cudaEventRecord(start, 0);
           if ( (err = cudaMalloc( (void**)&d_A, (ldda*An)*sizeof(T) )) != cudaSuccess ) {
             fprintf( stderr, "!!!! cudaMalloc failed for: d_A! Error: %s\n", cudaGetErrorString(err) );
@@ -255,14 +259,14 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
             exit(-1);
           }
           check_error( cublasSetMatrix( Am, An, sizeof(T), h_A, lda, d_A, ldda ) );
-          check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_R, ldb, d_B, lddb ) );
+          check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_Rc, ldb, d_B, lddb ) );
 
           check_error( cublasXtrmm( cublas_handle,
                                     side, uplo, trans, diag,
                                     M, N,
                                     &alpha, d_A, ldda,
                                             d_B, lddb) );
-          check_error( cublasGetMatrix( M, N, sizeof(T), d_B, lddb, h_R, ldb ) );
+          check_error( cublasGetMatrix( M, N, sizeof(T), d_B, lddb, h_Rc, ldb ) );
           check_error(  cudaFree( d_A ) );
           check_error(  cudaFree( d_B ) );
 
@@ -282,6 +286,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       
       for(int r = 0; r < nruns; r++)
       {
+        check_error( cudaMemcpy ( (void*)h_Rk, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost ) );
         //check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
         
         cudaEventRecord(start, 0);
@@ -289,7 +294,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
                                 side, uplo, trans, diag,
                                 M, N,
                                 &alpha, h_A, lda,
-                                        h_B, ldb) );
+                                        h_Rk, ldb) );
         cudaEventRecord(stop, 0);
         cudaEventSynchronize(stop);
         cudaEventElapsedTime(&time, start, stop);
@@ -299,11 +304,14 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       kblas_perf = gflops / kblas_time;
 
       if(opts.check){
-        ref_error = Xget_max_error_matrix(h_R, h_B, Bm, Bn, ldb);
-        free( h_R );
+        ref_error = Xget_max_error_matrix(h_Rc, h_Rk, Bm, Bn, ldb);
+      }
+      if(opts.check || opts.time){
+        free( h_Rc );
       }
       free( h_A );
       free( h_B );
+      free( h_Rk );
       printf(" %7.2f (%7.2f)      %7.2f (%7.2f)         %8.2e\n",
              kblas_perf, 1000.*kblas_time,
              ref_perf, 1000.*ref_time,

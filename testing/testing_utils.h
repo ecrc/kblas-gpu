@@ -318,6 +318,7 @@ extern "C"{
     int nb;
     int custom;
     int warmup;
+    int time;
     
     // lapack flags
     char uplo;
@@ -348,6 +349,7 @@ extern "C"{
     opts->verbose   = 0;
     opts->custom   = 0;
     opts->warmup    = 0;
+    opts->time    = 0;
     
     opts->uplo      = 'L';      // potrf, etc.
     opts->transA    = 'N';    // gemm, etc.
@@ -483,6 +485,7 @@ extern "C"{
       // ----- boolean arguments
       // check results
       else if ( strcmp("-c",         argv[i]) == 0 ) { opts->check  = 1; }
+      else if ( strcmp("-t",         argv[i]) == 0 ) { opts->time  = 1; }
       else if ( strcmp("-v",  argv[i]) == 0 ) { opts->verbose= 1;  }
       else if ( strcmp("-cu",         argv[i]) == 0 ) { opts->custom  = 1; }
       else if ( strcmp("-w",  argv[i]) == 0 ) { opts->warmup = 1;  }

@@ -344,7 +344,7 @@ extern "C"{
     opts->nruns    = 4;
     opts->nb       = 64;  // ??
     opts->tolerance = 30.;
-    opts->check     = 1;
+    opts->check     = 0;
     opts->verbose   = 0;
     opts->custom   = 0;
     opts->warmup    = 0;

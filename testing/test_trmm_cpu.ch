@@ -156,7 +156,7 @@ template<class T>
 int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
 
   
-  const int nruns = opts.nruns;
+  int nruns = opts.nruns;
   double   gflops, ref_perf = 0.0, ref_time = 0.0, kblas_perf = 0.0, kblas_time = 0.0, ref_error = 0.0;
   int M, N;
   int Am, An, Bm, Bn;
@@ -232,6 +232,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       Xrand_matrix(Bm, Bn, h_B, ldb);
       kblas_make_hpd( Am, h_A, lda );
       if(opts.check){
+        nruns = 1;
       }      
       cudaStream_t curStream = NULL;
       check_error(cublasSetStream(cublas_handle, curStream));

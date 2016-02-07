@@ -752,8 +752,8 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
                           cublasOperation_t trans, cublasDiagType_t diag,
                           int m, int n,
                           const T *alpha,
-                          const T *Ac, int incA, const T* Ad, 
-                                T *Bc, int incB,       T* Bd, bool Bin, bool Bout)
+                          const T *Ac, int incA, T* Ad, 
+                                T *Bc, int incB, T* Bd, bool Bin, bool Bout)
 {
   T one = make_one<T>();
   cublasStatus_t status;
@@ -773,7 +773,7 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
     if(!Bin)
       check_error( (status = cublasSetMatrixAsync( M, N, sizeof(T), Bc, incB, Bd, incB, strIn )), status);
     //copy in A block
-    check_error( (status = cublasSetMatrixAsync( M, M, sizeof(T), Ac, incA, Ad, incA, strIn )), status);
+    check_error( status = cublasSetMatrixAsync( M, M, sizeof(T), Ac, incA, Ad, incA, strIn ), status);
     //wait for data to arrive
     check_error( cudaEventRecord(eAin, strIn), CUBLAS_STATUS_INTERNAL_ERROR);
     check_error( cudaStreamWaitEvent(strComp, eAin, 0), CUBLAS_STATUS_INTERNAL_ERROR);

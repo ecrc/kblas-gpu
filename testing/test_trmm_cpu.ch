@@ -75,7 +75,7 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle,
                           const float *alpha,
                           const float *A, int lda,
                                 float *B, int ldb){
-  return kblas_strmm(handle,
+  return kblasStrmm(handle,
                     side, uplo, trans, diag,
                     m, n,
                     alpha, A, lda,
@@ -88,7 +88,7 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle,
                           const double *alpha,
                           const double *A, int lda,
                                 double *B, int ldb){
-  return kblas_dtrmm(handle,
+  return kblasDtrmm(handle,
                     side, uplo, trans, diag,
                     m, n,
                     alpha, A, lda,
@@ -101,13 +101,66 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle,
                           const cuComplex *alpha,
                           const cuComplex *A, int lda,
                                 cuComplex *B, int ldb){
-  return kblas_ctrmm(handle,
+  return kblasCtrmm(handle,
                     side, uplo, trans, diag,
                     m, n,
                     alpha, A, lda,
                            B, ldb);
 }
 cublasStatus_t kblasXtrmm(cublasHandle_t handle,
+                          cublasSideMode_t side, cublasFillMode_t uplo,
+                          cublasOperation_t trans, cublasDiagType_t diag,
+                          int m, int n,
+                          const cuDoubleComplex *alpha,
+                          const cuDoubleComplex *A, int lda,
+                                cuDoubleComplex *B, int ldb){
+  return kblasZtrmm(handle,
+                    side, uplo, trans, diag,
+                    m, n,
+                    alpha, A, lda,
+                           B, ldb);
+}
+
+cublasStatus_t kblas_xtrmm(cublasHandle_t handle,
+                          cublasSideMode_t side, cublasFillMode_t uplo,
+                          cublasOperation_t trans, cublasDiagType_t diag,
+                          int m, int n,
+                          const float *alpha,
+                          const float *A, int lda,
+                                float *B, int ldb){
+  return kblas_strmm(handle,
+                    side, uplo, trans, diag,
+                    m, n,
+                    alpha, A, lda,
+                           B, ldb);
+}
+cublasStatus_t kblas_xtrmm(cublasHandle_t handle,
+                          cublasSideMode_t side, cublasFillMode_t uplo,
+                          cublasOperation_t trans, cublasDiagType_t diag,
+                          int m, int n,
+                          const double *alpha,
+                          const double *A, int lda,
+                                double *B, int ldb){
+  return kblas_dtrmm(handle,
+                    side, uplo, trans, diag,
+                    m, n,
+                    alpha, A, lda,
+                           B, ldb);
+}
+cublasStatus_t kblas_xtrmm(cublasHandle_t handle,
+                          cublasSideMode_t side, cublasFillMode_t uplo,
+                          cublasOperation_t trans, cublasDiagType_t diag,
+                          int m, int n,
+                          const cuComplex *alpha,
+                          const cuComplex *A, int lda,
+                                cuComplex *B, int ldb){
+  return kblas_ctrmm(handle,
+                    side, uplo, trans, diag,
+                    m, n,
+                    alpha, A, lda,
+                           B, ldb);
+}
+cublasStatus_t kblas_xtrmm(cublasHandle_t handle,
                           cublasSideMode_t side, cublasFillMode_t uplo,
                           cublasOperation_t trans, cublasDiagType_t diag,
                           int m, int n,
@@ -157,7 +210,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
 
   
   int nruns = opts.nruns;
-  double   gflops, ref_perf = 0.0, ref_time = 0.0, kblas_perf = 0.0, kblas_time = 0.0, ref_error = 0.0;
+  double   gflops, ref_perf = 0.0, ref_time = 0.0, cpu_perf = 0.0, cpu_time = 0.0, gpu_perf = 0.0, gpu_time = 0.0, ref_error = 0.0;
   int M, N;
   int Am, An, Bm, Bn;
   int sizeA, sizeB;
@@ -181,7 +234,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
   cublasOperation_t trans = (opts.transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);
   cublasDiagType_t  diag  = (opts.diag   == KBLAS_Unit  ? CUBLAS_DIAG_UNIT : CUBLAS_DIAG_NON_UNIT);
 
-  printf("    M     N     kblasTRMM Gflop/s (ms)   cublasTRMM Gflop/s (ms)  MaxError\n");
+  printf("    M     N   kblasTRMM CPU GF/s (ms) kblasTRMM GPU GF/s (ms)   cublasTRMM GPU GF/s (ms)  MaxError\n");
   printf("====================================================================\n");
   for( int i = 0; i < opts.ntest; ++i ) {
     for( int iter = 0; iter < opts.niter; ++iter ) {
@@ -290,7 +343,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         //check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
         
         cudaEventRecord(start, 0);
-        check_error( kblasXtrmm(cublas_handle,
+        check_error( kblas_xtrmm(cublas_handle,
                                 side, uplo, trans, diag,
                                 M, N,
                                 &alpha, h_A, lda,
@@ -298,22 +351,57 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         cudaEventRecord(stop, 0);
         cudaEventSynchronize(stop);
         cudaEventElapsedTime(&time, start, stop);
-        kblas_time += time/1000.0;//to be in sec
+        cpu_time += time/1000.0;//to be in sec
       }
-      kblas_time /= nruns;
-      kblas_perf = gflops / kblas_time;
+      cpu_time /= nruns;
+      cpu_perf = gflops / cpu_time;
+      cudaDeviceSynchronize();
 
       if(opts.check){
         ref_error = Xget_max_error_matrix(h_Rc, h_Rk, Bm, Bn, ldb);
       }
+      
+      for(int r = 0; r < nruns; r++)
+      {
+        check_error( cudaMemcpy ( (void*)h_Rk, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost ) );
+        cudaEventRecord(start, 0);
+        if ( (err = cudaMalloc( (void**)&d_A, (ldda*An)*sizeof(T) )) != cudaSuccess ) {
+          fprintf( stderr, "!!!! cudaMalloc failed for: d_A! Error: %s\n", cudaGetErrorString(err) );
+          exit(-1);
+        }
+        if ( (err = cudaMalloc( (void**)&d_B, (lddb*Bn)*sizeof(T) )) != cudaSuccess ) {
+          fprintf( stderr, "!!!! cudaMalloc failed for: d_B! Error: %s\n", cudaGetErrorString(err) );
+          exit(-1);
+        }
+        check_error( cublasSetMatrix( Am, An, sizeof(T), h_A, lda, d_A, ldda ) );
+        check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_Rk, ldb, d_B, lddb ) );
+        
+        check_error( kblasXtrmm(cublas_handle,
+                                side, uplo, trans, diag,
+                                M, N,
+                                &alpha, d_A, lda,
+                                        d_B, ldb) );
+        check_error( cublasGetMatrix( M, N, sizeof(T), d_B, lddb, h_Rk, ldb ) );
+        check_error(  cudaFree( d_A ) );
+        check_error(  cudaFree( d_B ) );
+        
+        cudaEventRecord(stop, 0);
+        cudaEventSynchronize(stop);
+        cudaEventElapsedTime(&time, start, stop);
+        gpu_time += time/1000.0;//to be in sec
+      }
+      gpu_time /= nruns;
+      gpu_perf = gflops / gpu_time;
+
       if(opts.check || opts.time){
         free( h_Rc );
       }
       free( h_A );
       free( h_B );
       free( h_Rk );
-      printf(" %7.2f (%7.2f)      %7.2f (%7.2f)         %8.2e\n",
-             kblas_perf, 1000.*kblas_time,
+      printf(" %7.2f (%7.2f)      %7.2f (%7.2f)       %7.2f (%7.2f)        %8.2e\n",
+             cpu_perf, 1000.*cpu_time,
+             gpu_perf, 1000.*gpu_time,
              ref_perf, 1000.*ref_time,
              ref_error );
     }

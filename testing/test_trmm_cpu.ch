@@ -222,6 +222,8 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
   T *d_A, *d_B;
   
   
+  check_error( cudaSetDevice(opts.device) );
+  
   USING
   cudaError_t err;
   cudaEvent_t start, stop;

@@ -364,7 +364,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         ref_error = Xget_max_error_matrix(h_Rc, h_Rk, Bm, Bn, ldb);
       }
       
-      for(int r = 0; r < nruns; r++)
+      for(int r = 0; r < nruns && (opts.check || opts.time); r++)
       {
         check_error( cudaMemcpy ( (void*)h_Rk, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost ) );
         cudaEventRecord(start, 0);

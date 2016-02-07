@@ -472,6 +472,11 @@ extern "C"{
         kblas_assert( opts->niter > 0,
                      "error: --niter %s is invalid; ensure niter > 0.\n", argv[i] );
       }
+      else if ( strcmp("--nruns",   argv[i]) == 0 && i+1 < argc ) {
+        opts->nruns = atoi( argv[++i] );
+        kblas_assert( opts->nruns > 0,
+                      "error: --nruns %s is invalid; ensure nruns > 0.\n", argv[i] );
+      }
       else if ( strcmp("--tolerance", argv[i]) == 0 && i+1 < argc ) {
         opts->tolerance = atof( argv[++i] );
         kblas_assert( opts->tolerance >= 0 && opts->tolerance <= 1000,

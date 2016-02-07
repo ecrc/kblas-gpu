@@ -1355,7 +1355,7 @@ cublasStatus_t kblasXtrmm_cpu(cublasHandle_t handle,
   int AsyncEngineCount, devID;
   check_error( cudaGetDevice(&devID), CUBLAS_STATUS_EXECUTION_FAILED);
   check_error( cudaDeviceGetAttribute(&AsyncEngineCount, cudaDevAttrAsyncEngineCount, devID), CUBLAS_STATUS_EXECUTION_FAILED);
-  bool DO_INLINE_BOUT = AsyncEngineCount > 1;
+  bool DO_INLINE_BOUT = AsyncEngineCount > 1 || 1;
   
   check_error( cudaMalloc( (void**)&Ad, (Am*An)*sizeof(T) ), CUBLAS_STATUS_EXECUTION_FAILED);
   check_error( cudaMalloc( (void**)&Bd, (Bm*Bn)*sizeof(T) ), CUBLAS_STATUS_EXECUTION_FAILED);

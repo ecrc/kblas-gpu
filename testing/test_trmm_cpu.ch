@@ -293,8 +293,9 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       if(opts.check){
         nruns = 1;
       }      
-      cudaStream_t curStream = NULL;
-      check_error(cublasSetStream(cublas_handle, curStream));
+      cudaStream_t curStream;
+      check_error( cudaStreamCreateWithFlags( &curStream, cudaStreamNonBlocking) );
+      check_error( cublasSetStream(cublas_handle, curStream));
 
       float time = 0;
             
@@ -406,6 +407,9 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
              gpu_perf, 1000.*gpu_time,
              ref_perf, 1000.*ref_time,
              ref_error );
+      
+      check_error( cudaStreamDestroy( curStream ) );
+      
     }
     if ( opts.niter > 1 ) {
       printf( "\n" );

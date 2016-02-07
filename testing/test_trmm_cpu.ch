@@ -235,7 +235,9 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       }      
       cudaStream_t curStream = NULL;
       check_error(cublasSetStream(cublas_handle, curStream));
-      
+
+      float time = 0;
+            
       if(opts.check){
 
       
@@ -276,7 +278,6 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       //check_error( cublasSetMatrix( Am, An, sizeof(T), h_A, lda, d_A, ldda ) );
       cudaDeviceSynchronize();
 
-      float time = 0;
       
       for(int r = 0; r < nruns; r++)
       {

@@ -458,34 +458,66 @@ int kblas_ztrsm_async(
     //}
   //}
   //TRSM {
-    cublasStatus_t kblasStrsm(cublasHandle_t handle,
-                              cublasSideMode_t side, cublasFillMode_t uplo,
-                              cublasOperation_t trans, cublasDiagType_t diag,
-                              int m, int n,
-                              const float *alpha,
-                              const float *A, int lda,
-                                    float *B, int ldb);
-    cublasStatus_t kblasDtrsm(cublasHandle_t handle,
-                              cublasSideMode_t side, cublasFillMode_t uplo,
-                              cublasOperation_t trans, cublasDiagType_t diag,
-                              int m, int n,
-                              const double *alpha,
-                              const double *A, int lda,
-                                    double *B, int ldb);
-    cublasStatus_t kblasCtrsm(cublasHandle_t handle,
-                              cublasSideMode_t side, cublasFillMode_t uplo,
-                              cublasOperation_t trans, cublasDiagType_t diag,
-                              int m, int n,
-                              const cuComplex *alpha,
-                              const cuComplex *A, int lda,
-                                    cuComplex *B, int ldb);
-    cublasStatus_t kblasZtrsm(cublasHandle_t handle,
-                              cublasSideMode_t side, cublasFillMode_t uplo,
-                              cublasOperation_t trans, cublasDiagType_t diag,
-                              int m, int n,
-                              const cuDoubleComplex *alpha,
-                              const cuDoubleComplex *A, int lda,
-                                    cuDoubleComplex *B, int ldb);
+    //GPU API, data resides on Device memory {
+      cublasStatus_t kblasStrsm(cublasHandle_t handle,
+                                cublasSideMode_t side, cublasFillMode_t uplo,
+                                cublasOperation_t trans, cublasDiagType_t diag,
+                                int m, int n,
+                                const float *alpha,
+                                const float *A, int lda,
+                                      float *B, int ldb);
+      cublasStatus_t kblasDtrsm(cublasHandle_t handle,
+                                cublasSideMode_t side, cublasFillMode_t uplo,
+                                cublasOperation_t trans, cublasDiagType_t diag,
+                                int m, int n,
+                                const double *alpha,
+                                const double *A, int lda,
+                                      double *B, int ldb);
+      cublasStatus_t kblasCtrsm(cublasHandle_t handle,
+                                cublasSideMode_t side, cublasFillMode_t uplo,
+                                cublasOperation_t trans, cublasDiagType_t diag,
+                                int m, int n,
+                                const cuComplex *alpha,
+                                const cuComplex *A, int lda,
+                                      cuComplex *B, int ldb);
+      cublasStatus_t kblasZtrsm(cublasHandle_t handle,
+                                cublasSideMode_t side, cublasFillMode_t uplo,
+                                cublasOperation_t trans, cublasDiagType_t diag,
+                                int m, int n,
+                                const cuDoubleComplex *alpha,
+                                const cuDoubleComplex *A, int lda,
+                                      cuDoubleComplex *B, int ldb);
+    //}
+    //CPU API, data resides on Host memory {
+      cublasStatus_t kblas_strsm(cublasHandle_t handle,
+                                cublasSideMode_t side, cublasFillMode_t uplo,
+                                cublasOperation_t trans, cublasDiagType_t diag,
+                                int m, int n,
+                                const float *alpha,
+                                const float *A, int lda,
+                                      float *B, int ldb);
+      cublasStatus_t kblas_dtrsm(cublasHandle_t handle,
+                                cublasSideMode_t side, cublasFillMode_t uplo,
+                                cublasOperation_t trans, cublasDiagType_t diag,
+                                int m, int n,
+                                const double *alpha,
+                                const double *A, int lda,
+                                      double *B, int ldb);
+      cublasStatus_t kblas_ctrsm(cublasHandle_t handle,
+                                cublasSideMode_t side, cublasFillMode_t uplo,
+                                cublasOperation_t trans, cublasDiagType_t diag,
+                                int m, int n,
+                                const cuComplex *alpha,
+                                const cuComplex *A, int lda,
+                                      cuComplex *B, int ldb);
+      cublasStatus_t kblas_ztrsm(cublasHandle_t handle,
+                                cublasSideMode_t side, cublasFillMode_t uplo,
+                                cublasOperation_t trans, cublasDiagType_t diag,
+                                int m, int n,
+                                const cuDoubleComplex *alpha,
+                                const cuDoubleComplex *A, int lda,
+                                      cuDoubleComplex *B, int ldb);
+    //}
   //}
 #else//CUBLAS_V2_H_
 //cuBLAS Legacy API

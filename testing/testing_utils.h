@@ -316,6 +316,7 @@ extern "C"{
     int check;
     int verbose;
     int nb;
+    int db;
     int custom;
     int warmup;
     int time;
@@ -344,6 +345,7 @@ extern "C"{
     opts->niter    = 1;
     opts->nruns    = 4;
     opts->nb       = 64;  // ??
+    opts->db       = 512;  // ??
     opts->tolerance = 30.;
     opts->check     = 0;
     opts->verbose   = 0;
@@ -486,6 +488,11 @@ extern "C"{
         opts->nb = atoi( argv[++i] );
         kblas_assert( opts->nb > 0,
                      "error: --nb %s is invalid; ensure nb > 0.\n", argv[i] );
+      }
+      else if ( strcmp("--db",      argv[i]) == 0 && i+1 < argc ) {
+        opts->db = atoi( argv[++i] );
+        kblas_assert( opts->db > 0,
+                     "error: --db %s is invalid; ensure db > 0.\n", argv[i] );
       }
       // ----- boolean arguments
       // check results

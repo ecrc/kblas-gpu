@@ -205,6 +205,8 @@ cublasStatus_t cublasXtrmm (cublasHandle_t handle,
 
 
 //==============================================================================================
+extern int kblas_trmm_ib_data;
+//==============================================================================================
 template<class T>
 int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
 
@@ -221,7 +223,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
   T *h_A, *h_B, *h_Rc, *h_Rk;
   T *d_A, *d_B;
   
-  
+  kblas_trmm_ib_data = opts.db;
   check_error( cudaSetDevice(opts.device) );
   
   USING
@@ -240,6 +242,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
   printf("====================================================================\n");
   for( int i = 0; i < opts.ntest; ++i ) {
     for( int iter = 0; iter < opts.niter; ++iter ) {
+      ref_time = cpu_time = gpu_time = 0.0;
       M = opts.msize[i];
       N = opts.nsize[i];
       
@@ -264,26 +267,42 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       
       sizeA = lda*An;
       sizeB = ldb*Bn;
-      
+
+      /*
       if ( (h_A = (T*) malloc( (sizeA)*sizeof( T ) ) ) == NULL) {
         fprintf( stderr, "!!!! malloc_cpu failed for: h_A\n" );
-        exit(-1);
-      }
-      if ( (h_B = (T*) malloc( (sizeB)*sizeof( T ) ) ) == NULL) {
-        fprintf( stderr, "!!!! malloc_cpu failed for: h_B\n" );
         exit(-1);
       }
       if ( (h_Rk = (T*) malloc( (sizeB)*sizeof( T ) ) ) == NULL) {
         fprintf( stderr, "!!!! malloc_cpu failed for: h_Rk\n" );
         exit(-1);
+      }*/
+      
+      if ( cudaMallocHost((void**)&h_A, (sizeA)*sizeof( T ) ) != cudaSuccess) {
+        fprintf( stderr, "!!!! malloc_cpu failed for: h_A\n" );
+        exit(-1);
+      }
+      if ( cudaMallocHost((void**)&h_Rk, (sizeB)*sizeof( T ) ) != cudaSuccess) {
+        fprintf( stderr, "!!!! malloc_cpu failed for: h_Rk\n" );
+        exit(-1);
+      }
+
+      if ( (h_B = (T*) malloc( (sizeB)*sizeof( T ) ) ) == NULL) {
+        fprintf( stderr, "!!!! malloc_cpu failed for: h_B\n" );
+        exit(-1);
       }
       
       if(opts.check || opts.time)
       {
-        if ( (h_Rc = (T*) malloc( (sizeB)*sizeof( T ) ) ) == NULL) {
-          fprintf( stderr, "!!!! malloc_cpu failed for: h_R\n" );
+        /*if ( (h_Rc = (T*) malloc( (sizeB)*sizeof( T ) ) ) == NULL) {
+          fprintf( stderr, "!!!! malloc_cpu failed for: h_Rc\n" );
+          exit(-1);
+        }*/
+        if ( cudaMallocHost((void**)&h_Rc, (sizeB)*sizeof( T ) ) != cudaSuccess) {
+          fprintf( stderr, "!!!! malloc_cpu failed for: h_Rc\n" );
           exit(-1);
         }
+
       }
       // Initialize matrix and vector
       //printf("Initializing on cpu .. \n");
@@ -397,11 +416,14 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       gpu_perf = gflops / gpu_time;
 
       if(opts.check || opts.time){
-        free( h_Rc );
+        cudaFreeHost( h_Rc );
+//         free( h_Rc );
       }
-      free( h_A );
+      cudaFreeHost( h_A );
+//       free( h_A );
       free( h_B );
-      free( h_Rk );
+      cudaFreeHost( h_Rk );
+//       free( h_Rk );
       printf(" %7.2f (%7.2f)      %7.2f (%7.2f)       %7.2f (%7.2f)        %8.2e\n",
              cpu_perf, 1000.*cpu_time,
              gpu_perf, 1000.*gpu_time,

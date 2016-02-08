@@ -88,8 +88,8 @@ int kblas_zgemv2_async(	char trans, int rows, int cols, cuDoubleComplex alpha, c
 int kblas_sgemv_offset( char trans, int rows, int cols, float alpha, float *dA, int lda, float *dX, int incx, float beta, float *dY, int incy, int offset_r, int offset_c);
 int kblas_dgemv_offset( char trans, int rows, int cols, double alpha, double *dA, int lda, double *dX, int incx, double beta, double *dY, int incy, int offset_r, int offset_c);
 int kblas_cgemv_offset( char trans, int rows, int cols, cuFloatComplex alpha, cuFloatComplex *dA, int lda, cuFloatComplex *dX, int incx, cuFloatComplex beta, cuFloatComplex *dY, int incy, int offset_r, int offset_c);
-int kblas_zgemv_offset( char trans, int rows, int cols, cuDoubleComplex alpha, cuDoubleComplex *dA, int lda, cuDoubleComplex *dX, int incx, cuDoubleComplex beta, cuDoubleComplex *dY, int incy, int offset_r, int offset_c);						
-						
+int kblas_zgemv_offset( char trans, int rows, int cols, cuDoubleComplex alpha, cuDoubleComplex *dA, int lda, cuDoubleComplex *dX, int incx, cuDoubleComplex beta, cuDoubleComplex *dY, int incy, int offset_r, int offset_c);
+
 int kblas_sgemv_offset_async( char trans, int rows, int cols, float alpha, float *dA, int lda, float *dX, int incx, float  beta, float *dY, int incy, int offset_r, int offset_c, cudaStream_t stream);
 int kblas_dgemv_offset_async( char trans, int rows, int cols, double alpha, double *dA, int lda, double *dX, int incx, double  beta, double *dY, int incy, int offset_r, int offset_c, cudaStream_t stream);
 int kblas_cgemv_offset_async( char trans, int rows, int cols, cuFloatComplex alpha, cuFloatComplex *dA, int lda, cuFloatComplex *dX, int incx, cuFloatComplex  beta, cuFloatComplex *dY, int incy, int offset_r, int offset_c, cudaStream_t stream);
@@ -110,163 +110,164 @@ int kblas_ssymv_offset( char uplo, int m, float alpha, float *dA, int lda, float
 int kblas_dsymv_offset( char uplo, int m, double alpha, double *dA, int lda, double *dX, int incx, double beta, double *dY, int incy, int offset);
 int kblas_chemv_offset( char uplo, int m, cuFloatComplex alpha, cuFloatComplex *dA, int lda, cuFloatComplex *dX, int incx, cuFloatComplex beta, cuFloatComplex *dY, int incy, int offset);
 int kblas_zhemv_offset( char uplo, int m, cuDoubleComplex alpha, cuDoubleComplex *dA, int lda, cuDoubleComplex *dX, int incx, cuDoubleComplex beta, cuDoubleComplex *dY, int incy, int offset);
-																		
+
 int kblas_ssymv_offset_async( char uplo, int m, float alpha, float *dA, int lda, float *dX, int incx, float  beta, float *dY, int incy, int offset, cudaStream_t stream);
 int kblas_dsymv_offset_async( char uplo, int m, double alpha, double *dA, int lda, double *dX, int incx, double  beta, double *dY, int incy, int offset, cudaStream_t stream);
-int kblas_chemv_offset_async( char uplo, int m, cuFloatComplex alpha, cuFloatComplex *dA, int lda, cuFloatComplex *dX, int incx, cuFloatComplex  beta, cuFloatComplex *dY, int incy, int offset, cudaStream_t stream);							
+int kblas_chemv_offset_async( char uplo, int m, cuFloatComplex alpha, cuFloatComplex *dA, int lda, cuFloatComplex *dX, int incx, cuFloatComplex  beta, cuFloatComplex *dY, int incy, int offset, cudaStream_t stream);
+
 int kblas_zhemv_offset_async( char uplo, int m, cuDoubleComplex alpha, cuDoubleComplex *dA, int lda, cuDoubleComplex *dX, int incx, cuDoubleComplex  beta, cuDoubleComplex *dY, int incy, int offset, cudaStream_t stream);
 
 // multi gpu symv
 //sync
-int kblas_ssymv_mgpu( 	char uplo, int m, 
-						float alpha, float **dA, int lda, 
-						float **dX, int incx, 
-						float  beta, float **dY, int incy, 
-						int ngpus,
-						int offset);
-							
-int kblas_dsymv_mgpu( 	char uplo, int m, 
-						double alpha, double **dA, int lda, 
-						double **dX, int incx, 
-						double  beta, double **dY, int incy, 
-						int ngpus,
-						int offset);
+int kblas_ssymv_mgpu( char uplo, int m,
+                      float alpha, float **dA, int lda,
+                      float **dX, int incx,
+                      float  beta, float **dY, int incy,
+                      int ngpus,
+                      int offset);
 
-int kblas_chemv_mgpu( 	char uplo, int m, 
-						cuFloatComplex alpha, cuFloatComplex **dA, int lda, 
-						cuFloatComplex **dX, int incx, 
-						cuFloatComplex  beta, cuFloatComplex **dY, int incy, 
-						int ngpus,
-						int offset);
+int kblas_dsymv_mgpu( char uplo, int m,
+                      double alpha, double **dA, int lda,
+                      double **dX, int incx,
+                      double  beta, double **dY, int incy,
+                      int ngpus,
+                      int offset);
 
-int kblas_zhemv_mgpu( 	char uplo, int m, 
-						cuDoubleComplex alpha, cuDoubleComplex **dA, int lda, 
-						cuDoubleComplex **dX, int incx, 
-						cuDoubleComplex  beta, cuDoubleComplex **dY, int incy, 
-						int ngpus,
-						int offset);
+int kblas_chemv_mgpu( char uplo, int m,
+                      cuFloatComplex alpha, cuFloatComplex **dA, int lda,
+                      cuFloatComplex **dX, int incx,
+                      cuFloatComplex  beta, cuFloatComplex **dY, int incy,
+                      int ngpus,
+                      int offset);
+
+int kblas_zhemv_mgpu( char uplo, int m,
+                      cuDoubleComplex alpha, cuDoubleComplex **dA, int lda,
+                      cuDoubleComplex **dX, int incx,
+                      cuDoubleComplex  beta, cuDoubleComplex **dY, int incy,
+                      int ngpus,
+                      int offset);
 // async
 int kblas_ssymv_mgpu_async( char uplo, int m, 
-							float alpha, float **dA, int lda, 
-							float **dX, int incx, 
-							float  beta, float **dY, int incy, 
-							int ngpus, 
-							int offset, 
-							cudaStream_t stream[MAX_NGPUS][MAX_STREAMS]);
+                            float alpha, float **dA, int lda,
+                            float **dX, int incx,
+                            float  beta, float **dY, int incy,
+                            int ngpus,
+                            int offset,
+                            cudaStream_t stream[MAX_NGPUS][MAX_STREAMS]);
 
 int kblas_dsymv_mgpu_async( char uplo, int m, 
-							double alpha, double **dA, int lda, 
-							double **dX, int incx, 
-							double  beta, double **dY, int incy, 
-							int ngpus, 
-							int offset, 
-							cudaStream_t stream[MAX_NGPUS][MAX_STREAMS]);
+                            double alpha, double **dA, int lda,
+                            double **dX, int incx,
+                            double  beta, double **dY, int incy,
+                            int ngpus,
+                            int offset,
+                            cudaStream_t stream[MAX_NGPUS][MAX_STREAMS]);
 
 int kblas_chemv_mgpu_async( char uplo, int m, 
-							cuFloatComplex alpha, cuFloatComplex **dA, int lda, 
-							cuFloatComplex **dX, int incx, 
-							cuFloatComplex  beta, cuFloatComplex **dY, int incy, 
-							int ngpus,
-							int offset, 
-							cudaStream_t stream[MAX_NGPUS][MAX_STREAMS]);
+                            cuFloatComplex alpha, cuFloatComplex **dA, int lda,
+                            cuFloatComplex **dX, int incx,
+                            cuFloatComplex  beta, cuFloatComplex **dY, int incy,
+                            int ngpus,
+                            int offset,
+                            cudaStream_t stream[MAX_NGPUS][MAX_STREAMS]);
 
 int kblas_zhemv_mgpu_async( char uplo, int m, 
-							cuDoubleComplex alpha, cuDoubleComplex **dA, int lda, 
-							cuDoubleComplex **dX, int incx, 
-							cuDoubleComplex  beta, cuDoubleComplex **dY, int incy, 
-							int ngpus,
-							int offset, 
-							cudaStream_t stream[MAX_NGPUS][MAX_STREAMS]);
+                            cuDoubleComplex alpha, cuDoubleComplex **dA, int lda,
+                            cuDoubleComplex **dX, int incx,
+                            cuDoubleComplex  beta, cuDoubleComplex **dY, int incy,
+                            int ngpus,
+                            int offset,
+                            cudaStream_t stream[MAX_NGPUS][MAX_STREAMS]);
 
 
 // multi gpu gemv
 // sync
 int kblas_sgemv_mgpu( char trans, int rows, int cols,
-						float alpha, float **dA, int lda, 
-						float **dX, int incx, 
-						float  beta, float **dY, int incy, 
-						int ngpus, 
-						int offset_r, int offset_c);
+                      float alpha, float **dA, int lda,
+                      float **dX, int incx,
+                      float  beta, float **dY, int incy,
+                      int ngpus,
+                      int offset_r, int offset_c);
 
 int kblas_dgemv_mgpu( char trans, int rows, int cols,
-						double alpha, double **dA, int lda, 
-						double **dX, int incx, 
-						double  beta, double **dY, int incy, 
-						int ngpus, 
-						int offset_r, int offset_c);
+                      double alpha, double **dA, int lda,
+                      double **dX, int incx,
+                      double  beta, double **dY, int incy,
+                      int ngpus,
+                      int offset_r, int offset_c);
 
 int kblas_cgemv_mgpu( char trans, int rows, int cols,
-						cuFloatComplex alpha, cuFloatComplex **dA, int lda, 
-						cuFloatComplex **dX, int incx, 
-						cuFloatComplex  beta, cuFloatComplex **dY, int incy, 
-						int ngpus, 
-						int offset_r, int offset_c);
+                      cuFloatComplex alpha, cuFloatComplex **dA, int lda,
+                      cuFloatComplex **dX, int incx,
+                      cuFloatComplex  beta, cuFloatComplex **dY, int incy,
+                      int ngpus,
+                      int offset_r, int offset_c);
 
 int kblas_zgemv_mgpu( char trans, int rows, int cols,
-						cuDoubleComplex alpha, cuDoubleComplex **dA, int lda, 
-						cuDoubleComplex **dX, int incx, 
-						cuDoubleComplex  beta, cuDoubleComplex **dY, int incy, 
-						int ngpus, 
-						int offset_r, int offset_c);
+                      cuDoubleComplex alpha, cuDoubleComplex **dA, int lda,
+                      cuDoubleComplex **dX, int incx,
+                      cuDoubleComplex  beta, cuDoubleComplex **dY, int incy,
+                      int ngpus,
+                      int offset_r, int offset_c);
 
 // async
 int kblas_sgemv_mgpu_async( char trans, int rows, int cols,
-							float alpha, float **dA, int lda, 
-							float **dX, int incx, 
-							float  beta, float **dY, int incy, 
-							int ngpus, 
-							int offset_r, int offset_c, 
-							cudaStream_t stream[MAX_NGPUS][MAX_STREAMS]);
+                            float alpha, float **dA, int lda,
+                            float **dX, int incx,
+                            float  beta, float **dY, int incy,
+                            int ngpus,
+                            int offset_r, int offset_c,
+                            cudaStream_t stream[MAX_NGPUS][MAX_STREAMS]);
 
 int kblas_dgemv_mgpu_async( char trans, int rows, int cols,
-							double alpha, double **dA, int lda, 
-							double **dX, int incx, 
-							double  beta, double **dY, int incy, 
-							int ngpus,
-							int offset_r, int offset_c, 
-							cudaStream_t stream[MAX_NGPUS][MAX_STREAMS]);
+                            double alpha, double **dA, int lda,
+                            double **dX, int incx,
+                            double  beta, double **dY, int incy,
+                            int ngpus,
+                            int offset_r, int offset_c,
+                            cudaStream_t stream[MAX_NGPUS][MAX_STREAMS]);
 
 int kblas_cgemv_mgpu_async( char trans, int rows, int cols,
-							cuFloatComplex alpha, cuFloatComplex **dA, int lda, 
-							cuFloatComplex **dX, int incx, 
-							cuFloatComplex  beta, cuFloatComplex **dY, int incy, 
-							int ngpus, 
-							int offset_r, int offset_c, 
-							cudaStream_t stream[MAX_NGPUS][MAX_STREAMS]);
+                            cuFloatComplex alpha, cuFloatComplex **dA, int lda,
+                            cuFloatComplex **dX, int incx,
+                            cuFloatComplex  beta, cuFloatComplex **dY, int incy,
+                            int ngpus,
+                            int offset_r, int offset_c,
+                            cudaStream_t stream[MAX_NGPUS][MAX_STREAMS]);
 
 int kblas_zgemv_mgpu_async( char trans, int rows, int cols,
-							cuDoubleComplex alpha, cuDoubleComplex **dA, int lda, 
-							cuDoubleComplex **dX, int incx, 
-							cuDoubleComplex  beta, cuDoubleComplex **dY, int incy, 
-							int ngpus, 
-							int offset_r, int offset_c, 
-							cudaStream_t stream[MAX_NGPUS][MAX_STREAMS]);
+                            cuDoubleComplex alpha, cuDoubleComplex **dA, int lda,
+                            cuDoubleComplex **dX, int incx,
+                            cuDoubleComplex  beta, cuDoubleComplex **dY, int incy,
+                            int ngpus,
+                            int offset_r, int offset_c,
+                            cudaStream_t stream[MAX_NGPUS][MAX_STREAMS]);
 
 // gemm_mgpu (out of core)
 void kblas_sgemm_mgpu(char transa, char transb, long m, long n, long k,
-                float alpha, const float* A, long lda,
-                const float* B, long ldb, 
-                float beta, float* C, long ldc, 
-                long ngpus, long* gpu_id, 
-                long *tile);
+                      float alpha, const float* A, long lda,
+                      const float* B, long ldb,
+                      float beta, float* C, long ldc,
+                      long ngpus, long* gpu_id,
+                      long *tile);
 void kblas_dgemm_mgpu(char transa, char transb, long m, long n, long k,
-                double alpha, const double* A, long lda,
-                const double* B, long ldb, 
-                double beta, double* C, long ldc, 
-                long ngpus, long* gpu_id, 
-                long *tile);
+                      double alpha, const double* A, long lda,
+                      const double* B, long ldb,
+                      double beta, double* C, long ldc,
+                      long ngpus, long* gpu_id,
+                      long *tile);
 void kblas_cgemm_mgpu(char transa, char transb, long m, long n, long k,
-                cuFloatComplex alpha, const cuFloatComplex* A, long lda,
-                const cuFloatComplex* B, long ldb, 
-                cuFloatComplex beta, cuFloatComplex* C, long ldc, 
-                long ngpus, long* gpu_id, 
-                long *tile);
+                      cuFloatComplex alpha, const cuFloatComplex* A, long lda,
+                      const cuFloatComplex* B, long ldb,
+                      cuFloatComplex beta, cuFloatComplex* C, long ldc,
+                      long ngpus, long* gpu_id,
+                      long *tile);
 void kblas_zgemm_mgpu(char transa, char transb, long m, long n, long k,
-                cuDoubleComplex alpha, const cuDoubleComplex* A, long lda,
-                const cuDoubleComplex* B, long ldb, 
-                cuDoubleComplex beta, cuDoubleComplex* C, long ldc, 
-                long ngpus, long* gpu_id, 
-                long *tile);					
+                      cuDoubleComplex alpha, const cuDoubleComplex* A, long lda,
+                      const cuDoubleComplex* B, long ldb,
+                      cuDoubleComplex beta, cuDoubleComplex* C, long ldc,
+                      long ngpus, long* gpu_id,
+                      long *tile);					
 
 // auxiliary mgpu control functions
 void kblas_smalloc_mgpu_1D(	int rows, int cols, float** dA, int ngpus, int ldb, int block_size);
@@ -394,111 +395,137 @@ int kblas_ztrsm_async(
 
 //cuBLAS_v2 API
 #if defined(CUBLAS_V2_H_)
-cublasStatus_t kblasStrmm(cublasHandle_t handle,
-                          cublasSideMode_t side, cublasFillMode_t uplo,
-                          cublasOperation_t trans, cublasDiagType_t diag,
-                          int m, int n,
-                          const float *alpha,
-                          const float *A, int lda,
-                                float *B, int ldb);
-cublasStatus_t kblasDtrmm(cublasHandle_t handle,
-                          cublasSideMode_t side, cublasFillMode_t uplo,
-                          cublasOperation_t trans, cublasDiagType_t diag,
-                          int m, int n,
-                          const double *alpha,
-                          const double *A, int lda,
-                                double *B, int ldb);
-cublasStatus_t kblasCtrmm(cublasHandle_t handle,
-                          cublasSideMode_t side, cublasFillMode_t uplo,
-                          cublasOperation_t trans, cublasDiagType_t diag,
-                          int m, int n,
-                          const cuComplex *alpha,
-                          const cuComplex *A, int lda,
-                                cuComplex *B, int ldb);
-cublasStatus_t kblasZtrmm(cublasHandle_t handle,
-                          cublasSideMode_t side, cublasFillMode_t uplo,
-                          cublasOperation_t trans, cublasDiagType_t diag,
-                          int m, int n,
-                          const cuDoubleComplex *alpha,
-                          const cuDoubleComplex *A, int lda,
-                                cuDoubleComplex *B, int ldb);
-cublasStatus_t kblas_strmm(cublasHandle_t handle,
-                           cublasSideMode_t side, cublasFillMode_t uplo,
-                           cublasOperation_t trans, cublasDiagType_t diag,
-                           int m, int n,
-                           const float *alpha,
-                           const float *A, int lda,
-                                 float *B, int ldb);
-cublasStatus_t kblas_dtrmm(cublasHandle_t handle,
-                           cublasSideMode_t side, cublasFillMode_t uplo,
-                           cublasOperation_t trans, cublasDiagType_t diag,
-                           int m, int n,
-                           const double *alpha,
-                           const double *A, int lda,
-                                 double *B, int ldb);
-cublasStatus_t kblas_ctrmm(cublasHandle_t handle,
-                           cublasSideMode_t side, cublasFillMode_t uplo,
-                           cublasOperation_t trans, cublasDiagType_t diag,
-                           int m, int n,
-                           const cuComplex *alpha,
-                           const cuComplex *A, int lda,
-                                 cuComplex *B, int ldb);
-cublasStatus_t kblas_ztrmm(cublasHandle_t handle,
-                           cublasSideMode_t side, cublasFillMode_t uplo,
-                           cublasOperation_t trans, cublasDiagType_t diag,
-                           int m, int n,
-                           const cuDoubleComplex *alpha,
-                           const cuDoubleComplex *A, int lda,
-                                 cuDoubleComplex *B, int ldb);
-//TRSM
-cublasStatus_t kblasStrsm(cublasHandle_t handle,
-                          cublasSideMode_t side, cublasFillMode_t uplo,
-                          cublasOperation_t trans, cublasDiagType_t diag,
-                          int m, int n,
-                          const float *alpha,
-                          const float *A, int lda,
-                                float *B, int ldb);
-cublasStatus_t kblasDtrsm(cublasHandle_t handle,
-                          cublasSideMode_t side, cublasFillMode_t uplo,
-                          cublasOperation_t trans, cublasDiagType_t diag,
-                          int m, int n,
-                          const double *alpha,
-                          const double *A, int lda,
-                                double *B, int ldb);
-cublasStatus_t kblasCtrsm(cublasHandle_t handle,
-                          cublasSideMode_t side, cublasFillMode_t uplo,
-                          cublasOperation_t trans, cublasDiagType_t diag,
-                          int m, int n,
-                          const cuComplex *alpha,
-                          const cuComplex *A, int lda,
-                                cuComplex *B, int ldb);
-cublasStatus_t kblasZtrsm(cublasHandle_t handle,
-                          cublasSideMode_t side, cublasFillMode_t uplo,
-                          cublasOperation_t trans, cublasDiagType_t diag,
-                          int m, int n,
-                          const cuDoubleComplex *alpha,
-                          const cuDoubleComplex *A, int lda,
-                                cuDoubleComplex *B, int ldb);
+  //TRMM {
+    //GPU API, data resides on Device memory {
+      cublasStatus_t kblasStrmm(cublasHandle_t handle,
+                                cublasSideMode_t side, cublasFillMode_t uplo,
+                                cublasOperation_t trans, cublasDiagType_t diag,
+                                int m, int n,
+                                const float *alpha,
+                                const float *A, int lda,
+                                      float *B, int ldb);
+      cublasStatus_t kblasDtrmm(cublasHandle_t handle,
+                                cublasSideMode_t side, cublasFillMode_t uplo,
+                                cublasOperation_t trans, cublasDiagType_t diag,
+                                int m, int n,
+                                const double *alpha,
+                                const double *A, int lda,
+                                      double *B, int ldb);
+      cublasStatus_t kblasCtrmm(cublasHandle_t handle,
+                                cublasSideMode_t side, cublasFillMode_t uplo,
+                                cublasOperation_t trans, cublasDiagType_t diag,
+                                int m, int n,
+                                const cuComplex *alpha,
+                                const cuComplex *A, int lda,
+                                      cuComplex *B, int ldb);
+      cublasStatus_t kblasZtrmm(cublasHandle_t handle,
+                                cublasSideMode_t side, cublasFillMode_t uplo,
+                                cublasOperation_t trans, cublasDiagType_t diag,
+                                int m, int n,
+                                const cuDoubleComplex *alpha,
+                                const cuDoubleComplex *A, int lda,
+                                      cuDoubleComplex *B, int ldb);
+    //}
+    //CPU API, data resides on Host memory {
+      cublasStatus_t kblas_strmm(cublasHandle_t handle,
+                                cublasSideMode_t side, cublasFillMode_t uplo,
+                                cublasOperation_t trans, cublasDiagType_t diag,
+                                int m, int n,
+                                const float *alpha,
+                                const float *A, int lda,
+                                      float *B, int ldb);
+      cublasStatus_t kblas_dtrmm(cublasHandle_t handle,
+                                cublasSideMode_t side, cublasFillMode_t uplo,
+                                cublasOperation_t trans, cublasDiagType_t diag,
+                                int m, int n,
+                                const double *alpha,
+                                const double *A, int lda,
+                                      double *B, int ldb);
+      cublasStatus_t kblas_ctrmm(cublasHandle_t handle,
+                                cublasSideMode_t side, cublasFillMode_t uplo,
+                                cublasOperation_t trans, cublasDiagType_t diag,
+                                int m, int n,
+                                const cuComplex *alpha,
+                                const cuComplex *A, int lda,
+                                      cuComplex *B, int ldb);
+      cublasStatus_t kblas_ztrmm(cublasHandle_t handle,
+                                cublasSideMode_t side, cublasFillMode_t uplo,
+                                cublasOperation_t trans, cublasDiagType_t diag,
+                                int m, int n,
+                                const cuDoubleComplex *alpha,
+                                const cuDoubleComplex *A, int lda,
+                                      cuDoubleComplex *B, int ldb);
+    //}
+  //}
+  //TRSM {
+    cublasStatus_t kblasStrsm(cublasHandle_t handle,
+                              cublasSideMode_t side, cublasFillMode_t uplo,
+                              cublasOperation_t trans, cublasDiagType_t diag,
+                              int m, int n,
+                              const float *alpha,
+                              const float *A, int lda,
+                                    float *B, int ldb);
+    cublasStatus_t kblasDtrsm(cublasHandle_t handle,
+                              cublasSideMode_t side, cublasFillMode_t uplo,
+                              cublasOperation_t trans, cublasDiagType_t diag,
+                              int m, int n,
+                              const double *alpha,
+                              const double *A, int lda,
+                                    double *B, int ldb);
+    cublasStatus_t kblasCtrsm(cublasHandle_t handle,
+                              cublasSideMode_t side, cublasFillMode_t uplo,
+                              cublasOperation_t trans, cublasDiagType_t diag,
+                              int m, int n,
+                              const cuComplex *alpha,
+                              const cuComplex *A, int lda,
+                                    cuComplex *B, int ldb);
+    cublasStatus_t kblasZtrsm(cublasHandle_t handle,
+                              cublasSideMode_t side, cublasFillMode_t uplo,
+                              cublasOperation_t trans, cublasDiagType_t diag,
+                              int m, int n,
+                              const cuDoubleComplex *alpha,
+                              const cuDoubleComplex *A, int lda,
+                                    cuDoubleComplex *B, int ldb);
+  //}
 #else//CUBLAS_V2_H_
 //cuBLAS Legacy API
 //assumes cuBLAS default stream (NULL)
-void kblasStrmm(char side, char uplo, char trans, char diag,
-                int m, int n,
-                float alpha, const float *A, int lda,
-                                   float *B, int ldb);
-void kblasDtrmm(char side, char uplo, char trans, char diag,
-                int m, int n,
-                double alpha, const double *A, int lda,
-                                    double *B, int ldb);
-void kblasCtrmm(char side, char uplo, char trans, char diag,
-                int m, int n,
-                cuComplex alpha, const cuComplex *A, int lda,
-                                       cuComplex *B, int ldb);
-void kblasZtrmm(char side, char uplo, char trans, char diag,
-                int m, int n,
-                cuDoubleComplex alpha, const cuDoubleComplex *A, int lda,
-                                             cuDoubleComplex *B, int ldb);
-
+//GPU API, data resides on Device memory {
+  void kblasStrmm(char side, char uplo, char trans, char diag,
+                  int m, int n,
+                  float alpha, const float *A, int lda,
+                                    float *B, int ldb);
+  void kblasDtrmm(char side, char uplo, char trans, char diag,
+                  int m, int n,
+                  double alpha, const double *A, int lda,
+                                      double *B, int ldb);
+  void kblasCtrmm(char side, char uplo, char trans, char diag,
+                  int m, int n,
+                  cuComplex alpha, const cuComplex *A, int lda,
+                                        cuComplex *B, int ldb);
+  void kblasZtrmm(char side, char uplo, char trans, char diag,
+                  int m, int n,
+                  cuDoubleComplex alpha, const cuDoubleComplex *A, int lda,
+                  cuDoubleComplex *B, int ldb);
+//}
+/*/CPU API, data resides on Host memory {
+  void kblas_strmm(char side, char uplo, char trans, char diag,
+                  int m, int n,
+                  float alpha, const float *A, int lda,
+                                    float *B, int ldb);
+  void kblas_dtrmm(char side, char uplo, char trans, char diag,
+                  int m, int n,
+                  double alpha, const double *A, int lda,
+                                      double *B, int ldb);
+  void kblas_ctrmm(char side, char uplo, char trans, char diag,
+                  int m, int n,
+                  cuComplex alpha, const cuComplex *A, int lda,
+                                        cuComplex *B, int ldb);
+  void kblas_ztrmm(char side, char uplo, char trans, char diag,
+                  int m, int n,
+                  cuDoubleComplex alpha, const cuDoubleComplex *A, int lda,
+                                              cuDoubleComplex *B, int ldb);
+//}*/
 void kblasStrsm(char side, char uplo, char trans, char diag,
                 int m, int n,
                 float alpha, const float *A, int lda,
@@ -517,7 +544,7 @@ void kblasZtrsm(char side, char uplo, char trans, char diag,
                                              cuDoubleComplex *B, int ldb);
 
 
-//Asynchronous version, takes streadID as parameter
+//Asynchronous version, takes streamID as parameter
 void kblasStrmm_async(char side, char uplo, char trans, char diag,
                       int m, int n,
                       float alpha, const float *A, int lda,

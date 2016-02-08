@@ -65,10 +65,13 @@ C_SRC+=	test_sscal.c \
 
 C_SRC+=	              \
 	test_dtrmm.c \
+	test_dtrmm_cpu.c \
 	test_strmm.c \
 	test_strmm_cpu.c \
 	test_ctrmm.c \
+	test_ctrmm_cpu.c \
 	test_ztrmm.c \
+	test_ztrmm_cpu.c \
 	test_dtrsm.c \
 	test_strsm.c \
 	test_ctrsm.c \

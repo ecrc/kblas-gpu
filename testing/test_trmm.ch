@@ -185,6 +185,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
   printf("====================================================================\n");
   for( int i = 0; i < opts.ntest; ++i ) {
     for( int iter = 0; iter < opts.niter; ++iter ) {
+      ref_time = kblas_time = 0.0;
       M = opts.msize[i];
       N = opts.nsize[i];
       

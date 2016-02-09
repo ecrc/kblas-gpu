@@ -90,7 +90,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
   cublasOperation_t trans = (opts.transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);
   cublasDiagType_t  diag  = (opts.diag   == KBLAS_Unit  ? CUBLAS_DIAG_UNIT : CUBLAS_DIAG_NON_UNIT);
 
-  printf("    M     N   kblasTRSM CPU GF/s (ms) kblasTRSM GPU GF/s (ms)   cublasTRSM GPU GF/s (ms)  MaxError\n");
+  printf("    M     N   kblasTRSM CPU GF/s (ms) kblasTRSM GPU GF/s (ms)   cublasTRSM GPU GF/s (ms)  SP_CPU  SP_GPU   Error\n");
   printf("====================================================================\n");
   for( int i = 0; i < opts.ntest; ++i ) {
     for( int iter = 0; iter < opts.niter; ++iter ) {
@@ -287,10 +287,11 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       free( h_B );
       cudaFreeHost( h_Rk );
 //       free( h_Rk );
-      printf(" %7.2f (%7.2f)      %7.2f (%7.2f)       %7.2f (%7.2f)        %8.2e\n",
+      printf(" %7.2f (%7.2f)      %7.2f (%7.2f)       %7.2f (%7.2f)     %2.2f   %2.2f   %8.2e\n",
              cpu_perf, cpu_time,
              gpu_perf, gpu_time,
              ref_perf, ref_time,
+             ref_time / cpu_time, ref_time / gpu_time,
              ref_error );
 
       check_error( cudaStreamDestroy( curStream ) );

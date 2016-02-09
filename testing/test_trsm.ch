@@ -23,7 +23,6 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
   
   USING
   cudaError_t err;
-  cudaEvent_t start, stop;
 
   cudaEventCreate(&start);
   cudaEventCreate(&stop);
@@ -61,32 +60,17 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       
       sizeA = lda*An;
       sizeB = ldb*Bn;
-      
-      if ( (h_A = (T*) malloc( (sizeA)*sizeof( T ) ) ) == NULL) {
-        fprintf( stderr, "!!!! malloc_cpu failed for: h_A\n" );
-        exit(-1);
-      }
-      if ( (h_B = (T*) malloc( (sizeB)*sizeof( T ) ) ) == NULL) {
-        fprintf( stderr, "!!!! malloc_cpu failed for: h_B\n" );
-        exit(-1);
-      }
-      
-      if ( (err = cudaMalloc( (void**)&d_A, (ldda*An)*sizeof(T) )) != cudaSuccess ) {
-        fprintf( stderr, "!!!! cudaMalloc failed for: d_A! Error: %s\n", cudaGetErrorString(err) );
-        exit(-1);
-      }
-      if ( (err = cudaMalloc( (void**)&d_B, (lddb*Bn)*sizeof(T) )) != cudaSuccess ) {
-        fprintf( stderr, "!!!! cudaMalloc failed for: d_B! Error: %s\n", cudaGetErrorString(err) );
-        exit(-1);
-      }
+
+      TESTING_MALLOC_CPU( h_A, T, sizeA);
+      TESTING_MALLOC_CPU( h_B, T, sizeB);
+
+      TESTING_MALLOC_DEV( d_A, T, ldda*An);
+      TESTING_MALLOC_DEV( d_B, T, lddb*Bn);
 
       if(opts.check)
       {
         nruns = 1;
-        if ( (h_R = (T*) malloc( (sizeB)*sizeof( T ) ) ) == NULL) {
-          fprintf( stderr, "!!!! malloc_cpu failed for: h_R\n" );
-          exit(-1);
-        }
+        TESTING_MALLOC_CPU( h_R, T, sizeB);
       }
       // Initialize matrix and vector
       //printf("Initializing on cpu .. \n");
@@ -105,19 +89,17 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       {
         check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
         
-        cudaEventRecord(start, 0);
+        start_timing();
         check_error( kblasXtrsm(cublas_handle,
                                 side, uplo, trans, diag,
                                 M, N,
                                 &alpha, d_A, ldda,
                                         d_B, lddb) );
-        cudaEventRecord(stop, 0);
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&time, start, stop);
-        kblas_time += time/1000.0;//to be in sec
+        time = get_elapsed_time();
+        kblas_time += time;//to be in sec
       }
       kblas_time /= nruns;
-      kblas_perf = gflops / kblas_time;
+      kblas_perf = gflops / (kblas_time / 1000.);
 
       if(opts.check){
         double normA = kblas_lange<T,double>('M', Am, An, h_A, lda);
@@ -145,20 +127,18 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         for(int r = 0; r < nruns; r++)
         {
           check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
-
-          cudaEventRecord(start, 0);
+          
+          start_timing();
           check_error( cublasXtrsm( cublas_handle,
                                     side, uplo, trans, diag,
                                     M, N,
                                     &alpha, d_A, ldda,
-                                            d_B, lddb) );
-          cudaEventRecord(stop, 0);
-          cudaEventSynchronize(stop);
-          cudaEventElapsedTime(&time, start, stop);
-          ref_time += time/1000.0;//to be in sec
+                                    d_B, lddb) );
+          time = get_elapsed_time();
+          ref_time += time;//to be in sec
         }
         ref_time /= nruns;
-        ref_perf = gflops / ref_time;
+        ref_perf = gflops / (ref_time / 1000.);
 
         check_error( cublasGetMatrix( Bm, Bn, sizeof(T), d_B, lddb, h_B, ldb ) );
       }
@@ -169,8 +149,8 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       check_error(  cudaFree( d_B ) );
       
       printf(" %7.2f (%7.2f)      %7.2f (%7.2f)         %8.2e\n",
-             kblas_perf, 1000.*kblas_time,
-             ref_perf, 1000.*ref_time,
+             kblas_perf, kblas_time,
+             ref_perf, ref_time,
              ref_error );
     }
     if ( opts.niter > 1 ) {

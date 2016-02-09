@@ -280,4 +280,26 @@ int _kblas_error( cublasStatus_t err, const char* func, const char* file, int li
     return 0;\
 }
 
+cudaEvent_t start, stop;
+void start_timing(){
+  cudaEventRecord(start, 0);
+}
+float get_elapsed_time(){
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  float time = 0;
+  cudaEventElapsedTime(&time, start, stop);
+  return time;
+}
+
+#define TESTING_MALLOC_CPU( ptr, T, size)                       \
+  if ( (ptr = (T*) malloc( (size)*sizeof( T ) ) ) == NULL) {    \
+    fprintf( stderr, "!!!! malloc_cpu failed for: %s\n" #ptr ); \
+    exit(-1);                                                   \
+  }
+
+#define TESTING_MALLOC_DEV( ptr, T, size)                       \
+  check_error( cudaMalloc( (void**)&ptr, (size)*sizeof(T) ) )
+
+  
 #endif

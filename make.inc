@@ -14,7 +14,7 @@ NVCC=$(_CUDA_ROOT_)/bin/nvcc
 #customize the name of the generated kblas library
 LIB_KBLAS_NAME=libkblas.a
 
-NVOPTS =-O3 --compiler-options -fno-strict-aliasing# --ptx# -E
+NVOPTS =-O3 --compiler-options -fno-strict-aliasing#-E --ptx#
 ifeq (${CC}, gcc)
   COPTS+=-std=c99
 endif

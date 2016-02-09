@@ -11,8 +11,6 @@
 #include "cublas_v2.h"
 
 #include "kblas.h"
-#include "testing_utils.h"
-#include "operators.h"
 #include "test_trsm.ch"
 
 

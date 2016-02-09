@@ -72,133 +72,137 @@ double zget_magnitude(cuDoubleComplex a) { return sqrt(a.x * a.x + a.y * a.y); }
 
 float sget_max_error(float* ref, float *res, int n, int inc)
 {
-	int i;
-	float max_err = -1.0;
-	float err = -1.0;
-	inc = abs(inc);
-	for(i = 0; i < n; i++)
-	{
-		err = fabs(res[i * inc] - ref[i * inc]);
-		if(ref[i * inc] != 0.0)err /= fabs(ref[i * inc]);
-		if(err > max_err)max_err = err;
-		//printf("[%2d]   %-.2f   %-.2f   %-.2e \n", i, ref[i], res[i], err);
-	}
-	return max_err;
+  int i;
+  float max_err = -1.0;
+  float err = -1.0;
+  inc = abs(inc);
+  for(i = 0; i < n; i++)
+  {
+    err = fabs(res[i * inc] - ref[i * inc]);
+    if(ref[i * inc] != 0.0)err /= fabs(ref[i * inc]);
+    if(err > max_err)max_err = err;
+    //printf("[%2d]   %-.2f   %-.2f   %-.2e \n", i, ref[i], res[i], err);
+  }
+  return max_err;
 }
 
 double dget_max_error(double* ref, double *res, int n, int inc)
 {
-	int i;
-	double max_err = -1.0;
-	double err = -1.0;
-	inc = abs(inc);
-	for(i = 0; i < n; i++)
-	{
-		err = fabs(res[i * inc] - ref[i * inc]);
-		if(ref[i * inc] != 0.0)err /= fabs(ref[i * inc]);
-		if(err > max_err)max_err = err;
-		//printf("[%2d]   %-.2f   %-.2f   %-.2e \n", i, ref[i], res[i], err);
-	}
-	return max_err;
+  int i;
+  double max_err = -1.0;
+  double err = -1.0;
+  inc = abs(inc);
+  for(i = 0; i < n; i++)
+  {
+    err = fabs(res[i * inc] - ref[i * inc]);
+    if(ref[i * inc] != 0.0)err /= fabs(ref[i * inc]);
+    if(err > max_err)max_err = err;
+    //printf("[%2d]   %-.2f   %-.2f   %-.2e \n", i, ref[i], res[i], err);
+  }
+  return max_err;
 }
 
 float cget_max_error(cuFloatComplex* ref, cuFloatComplex *res, int n, int inc)
 {
-	int i;
-	float max_err = cget_magnitude( make_cuFloatComplex(0.0, 0) );
-	float err, m;
-	inc = abs(inc);
-	for(i = 0; i < n; i++)
-	{
-		err = cget_magnitude( make_cuFloatComplex(res[i * inc].x - ref[i * inc].x, res[i * inc].y - ref[i * inc].y) );
-		if(cget_magnitude(ref[i * inc]) > 0)err /= cget_magnitude(ref[i * inc]);
-		if(err > max_err)max_err = err;
-	}
-	return max_err;
+  int i;
+  float max_err = cget_magnitude( make_cuFloatComplex(0.0, 0) );
+  float err, m;
+  inc = abs(inc);
+  for(i = 0; i < n; i++)
+  {
+    err = cget_magnitude( make_cuFloatComplex(res[i * inc].x - ref[i * inc].x, res[i * inc].y - ref[i * inc].y) );
+    if(cget_magnitude(ref[i * inc]) > 0)err /= cget_magnitude(ref[i * inc]);
+    if(err > max_err)max_err = err;
+  }
+  return max_err;
 }
 
 double zget_max_error(cuDoubleComplex* ref, cuDoubleComplex *res, int n, int inc)
 {
-	int i;
-	double max_err = zget_magnitude( make_cuDoubleComplex(0.0, 0) );
-	double err, m;
-	inc = abs(inc);
-	for(i = 0; i < n; i++)
-	{
-		err = zget_magnitude( make_cuDoubleComplex(res[i * inc].x - ref[i * inc].x, res[i * inc].y - ref[i * inc].y) );
-		if(zget_magnitude(ref[i * inc]) > 0)err /= zget_magnitude(ref[i * inc]);
-		if(err > max_err)max_err = err;
-	}
-	return max_err;
+  int i;
+  double max_err = zget_magnitude( make_cuDoubleComplex(0.0, 0) );
+  double err, m;
+  inc = abs(inc);
+  for(i = 0; i < n; i++)
+  {
+    err = zget_magnitude( make_cuDoubleComplex(res[i * inc].x - ref[i * inc].x, res[i * inc].y - ref[i * inc].y) );
+    if(zget_magnitude(ref[i * inc]) > 0)err /= zget_magnitude(ref[i * inc]);
+    if(err > max_err)max_err = err;
+  }
+  return max_err;
 }
 
 //======================================================================
 float sget_max_error_matrix(float* ref, float *res, long m, long n, long lda)
 {
-	long i, j;
-	float max_err = -1.0;
-	float err = -1.0;
-	for(i = 0; i < m; i++)
-		for(j = 0; j < n; j++)
-		{
-			float ref_ = ref[j * lda + i];
-			float res_ = res[j * lda + i];
-			err = fabs(res_ - ref_);
-			if(ref_ != 0.0)err /= fabs(ref_);
-			if(err > max_err)max_err = err;
-			//printf("\n[%2d]   %-.2f   %-.2f   %-.2e \n", i, ref_, res_, err);
-		}
-	return max_err;
+  long i, j;
+  float max_err = -1.0;
+  float err = -1.0;
+  for(i = 0; i < m; i++){
+    for(j = 0; j < n; j++)
+    {
+      float ref_ = ref[j * lda + i];
+      float res_ = res[j * lda + i];
+      err = fabs(res_ - ref_);
+      if(ref_ != 0.0)err /= fabs(ref_);
+      if(err > max_err)max_err = err;
+      //printf("\n[%2d]   %-.2f   %-.2f   %-.2e \n", i, ref_, res_, err);
+    }
+  }
+  return max_err;
 }
 
 double dget_max_error_matrix(double* ref, double *res, long m, long n, long lda)
 {
-	long i, j;
-	double max_err = -1.0;
-	double err = -1.0;
-	for(i = 0; i < m; i++)
-		for(j = 0; j < n; j++)
-		{
-			double ref_ = ref[j * lda + i];
-			double res_ = res[j * lda + i];
-			err = fabs(res_ - ref_);
-			if(ref_ != 0.0)err /= fabs(ref_);
-			if(err > max_err)max_err = err;
-			//printf("\n[%2d]   %-.2f   %-.2f   %-.2e \n", i, ref_, res_, err);
-		}
-	return max_err;
+  long i, j;
+  double max_err = -1.0;
+  double err = -1.0;
+  for(i = 0; i < m; i++){
+    for(j = 0; j < n; j++)
+    {
+      double ref_ = ref[j * lda + i];
+      double res_ = res[j * lda + i];
+      err = fabs(res_ - ref_);
+      if(ref_ != 0.0)err /= fabs(ref_);
+      if(err > max_err)max_err = err;
+      //printf("\n[%2d]   %-.2f   %-.2f   %-.2e \n", i, ref_, res_, err);
+    }
+  }
+  return max_err;
 }
 
 float cget_max_error_matrix(cuFloatComplex* ref, cuFloatComplex *res, long m, long n, long lda)
 {
-	long i, j;
-	float max_err = -1.0;
-	float err = -1.0;
-	for(i = 0; i < m; i++)
-		for(j = 0; j < n; j++)
-		{
-			err = cget_magnitude(make_cuFloatComplex(res[j * lda + i].x - ref[j * lda + i].x, res[j * lda + i].y - ref[j * lda + i].y));
-			if(cget_magnitude(ref[j * lda + i]) > 0)err /= cget_magnitude(ref[j * lda + i]);
-			if(err > max_err)max_err = err;
-			//printf("\n[%2d]   %-.2f   %-.2f   %-.2e \n", i, ref_, res_, err);
-		}
-	return max_err;
+  long i, j;
+  float max_err = -1.0;
+  float err = -1.0;
+  for(i = 0; i < m; i++){
+    for(j = 0; j < n; j++)
+    {
+      err = cget_magnitude(make_cuFloatComplex(res[j * lda + i].x - ref[j * lda + i].x, res[j * lda + i].y - ref[j * lda + i].y));
+      if(cget_magnitude(ref[j * lda + i]) > 0)err /= cget_magnitude(ref[j * lda + i]);
+      if(err > max_err)max_err = err;
+      //printf("\n[%2d]   %-.2f   %-.2f   %-.2e \n", i, ref_, res_, err);
+    }
+  }
+  return max_err;
 }
 
 double zget_max_error_matrix(cuDoubleComplex* ref, cuDoubleComplex *res, long m, long n, long lda)
 {
-	long i, j;
-	double max_err = -1.0;
-	double err = -1.0;
-	for(i = 0; i < m; i++)
-		for(j = 0; j < n; j++)
-		{
-			err = zget_magnitude(make_cuDoubleComplex(res[j * lda + i].x - ref[j * lda + i].x, res[j * lda + i].y - ref[j * lda + i].y));
-			if(zget_magnitude(ref[j * lda + i]) > 0)err /= zget_magnitude(ref[j * lda + i]);
-			if(err > max_err)max_err = err;
-			//printf("\n[%2d]   %-.2f   %-.2f   %-.2e \n", i, ref_, res_, err);
-		}
-	return max_err;
+  long i, j;
+  double max_err = -1.0;
+  double err = -1.0;
+  for(i = 0; i < m; i++){
+    for(j = 0; j < n; j++)
+    {
+      err = zget_magnitude(make_cuDoubleComplex(res[j * lda + i].x - ref[j * lda + i].x, res[j * lda + i].y - ref[j * lda + i].y));
+      if(zget_magnitude(ref[j * lda + i]) > 0)err /= zget_magnitude(ref[j * lda + i]);
+      if(err > max_err)max_err = err;
+      //printf("\n[%2d]   %-.2f   %-.2f   %-.2e \n", i, ref_, res_, err);
+    }
+  }
+  return max_err;
 }
 
 //=====================================================================================

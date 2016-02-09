@@ -8,7 +8,7 @@ template<class T>
 int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
 
   
-  const int nruns = opts.nruns;
+  int nruns = opts.nruns;
   double   gflops, ref_perf = 0.0, ref_time = 0.0, kblas_perf = 0.0, kblas_time = 0.0, ref_error = 0.0;
   int M, N;
   int Am, An, Bm, Bn;
@@ -82,6 +82,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
 
       if(opts.check)
       {
+        nruns = 1;
         if ( (h_R = (T*) malloc( (sizeB)*sizeof( T ) ) ) == NULL) {
           fprintf( stderr, "!!!! malloc_cpu failed for: h_R\n" );
           exit(-1);
@@ -119,15 +120,23 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       kblas_perf = gflops / kblas_time;
 
       if(opts.check){
+        double normA = kblas_lange<T,double>('M', Am, An, h_A, lda);
+        check_error( cublasGetMatrix( Bm, Bn, sizeof(T), d_B, lddb, h_R, ldb ) );
+        double normX = kblas_lange<T,double>('M', Bm, Bn, h_R, ldb);
 
+        T one = make_one<T>();
+        T mone = make_zero<T>() - one;
+        T invAlpha = one / alpha;
         check_error( kblasXtrmm(cublas_handle,
                                 side, uplo, trans, diag,
                                 M, N,
-                                &alpha, d_A, ldda,
-                                        d_B, lddb) );
-        
-        check_error( cublasGetMatrix( M, N, sizeof(T), d_B, lddb, h_R, ldb ) );
-        ref_error = Xget_max_error_matrix(h_B, h_R, Bm, Bn, ldb);
+                                &invAlpha, d_A, ldda,
+                                           d_B, lddb) );
+        check_error( cublasGetMatrix( Bm, Bn, sizeof(T), d_B, lddb, h_R, ldb ) );
+        kblasXaxpy( Bm * Bn, mone, h_B, 1, h_R, 1 );
+        double normR = kblas_lange<T,double>('M', Bm, Bn, h_R, ldb);
+        ref_error = normR / (normX * normA);
+        //ref_error = Xget_max_error_matrix(h_B, h_R, Bm, Bn, ldb);
         free( h_R );
       }
       if(opts.time){
@@ -151,7 +160,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         ref_time /= nruns;
         ref_perf = gflops / ref_time;
 
-        check_error( cublasGetMatrix( M, N, sizeof(T), d_B, lddb, h_B, ldb ) );
+        check_error( cublasGetMatrix( Bm, Bn, sizeof(T), d_B, lddb, h_B, ldb ) );
       }
       
       free( h_A );

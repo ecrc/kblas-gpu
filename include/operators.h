@@ -226,6 +226,12 @@ operator==(const cuDoubleComplex a, const cuDoubleComplex b)
   return ((a.x == b.x) && (a.y == b.y));
 }
 
+__host__ __device__ static __inline__ bool
+operator!=(const cuDoubleComplex a, const cuDoubleComplex b)
+{
+  return ((a.x != b.x) || (a.y != b.y));
+}
+
 __host__ __device__ static __inline__ cuDoubleComplex
 operator/(const cuDoubleComplex a, const float b)
 {
@@ -316,6 +322,12 @@ __host__ __device__ static __inline__ bool
 operator==(const cuFloatComplex a, const cuFloatComplex b)
 {
   return ((a.x == b.x) && (a.y == b.y));
+}
+
+__host__ __device__ static __inline__ bool
+operator!=(const cuFloatComplex a, const cuFloatComplex b)
+{
+  return ((a.x != b.x) || (a.y != b.y));
 }
 
 __host__ __device__ static __inline__ cuFloatComplex 

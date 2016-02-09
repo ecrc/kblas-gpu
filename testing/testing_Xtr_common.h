@@ -2,6 +2,9 @@
 #define _TESTING_TR_COMMON_
 
 
+#include "testing_utils.h"
+#include "operators.h"
+
 //==============================================================================================
 #define FMULS_TRMM_2(m_, n_) (0.5 * (n_) * (m_) * ((m_)+1))
 #define FADDS_TRMM_2(m_, n_) (0.5 * (n_) * (m_) * ((m_)-1))
@@ -211,6 +214,59 @@ cublasStatus_t cublasXtrsm (cublasHandle_t handle,
                             const cuDoubleComplex *alpha,
                             const cuDoubleComplex *A, int lda,
                                   cuDoubleComplex *B, int ldb);
+
+template<typename T>
+void kblasXaxpy (int n, T alpha, const T *x, int incx, T *y, int incy){
+  int ix = 0, iy = 0;
+  if(incx < 0) ix = 1 - n * incx;
+  if(incy < 0) iy = 1 - n * incy;
+  for(int i = 0; i < n; i++, ix+=incx, iy+=incy){
+    y[iy] += alpha * x[ix];
+  }
+}
+/*void cublasXaxpy (int n, float alpha, const float *x, int incx, float *y, int incy){
+  cublasSaxpy (n, alpha, x, incx, y, incy);
+}
+void cublasXaxpy (int n, double alpha, const double *x, int incx, double *y, int incy){
+  cublasDaxpy (n, alpha, x, incx, y, incy);
+}
+void cublasXaxpy (int n, cuComplex alpha, const cuComplex *x, int incx, cuComplex *y, int incy){
+  cublasCaxpy (n, alpha, x, incx, y, incy);
+}
+void cublasXaxpy (int n, cuDoubleComplex alpha, const cuDoubleComplex *x, int incx, cuDoubleComplex *y, int incy){
+  cublasZaxpy (n, alpha, x, incx, y, incy);
+}*/
+
+//==============================================================================================
+
+template<typename T>
+bool kblas_laisnan(T val1, T val2){
+  return val1 != val2;
+}
+
+template<typename T>
+bool kblas_isnan(T val){
+  return kblas_laisnan(val,val);
+}
+
+float Xabs(float a){return fabs(a);}
+double Xabs(double a){return fabs(a);}
+float Xabs(cuFloatComplex a){return cget_magnitude(a);}
+double Xabs(cuDoubleComplex a){return zget_magnitude(a);}
+
+template<typename T, typename R>
+R kblas_lange(char type, int M, int N, T* arr, int lda){
+  R value = make_zero<R>();
+  R temp;
+  for(int j = 0; j < N; j++){
+    for(int i = 0; i < N; i++){
+      temp = Xabs(arr[i + j * lda]);
+      if( kblas_isnan(temp) || value < temp)
+        value = temp;
+    }
+  }
+  return value;
+}
 
 
 //==============================================================================================

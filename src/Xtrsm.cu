@@ -1033,6 +1033,7 @@ cublasStatus_t kblasXtrsm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
 }
 
 //==============================================================================================
+#define DO_INLINE_BOUT 0
 template<class T>
 cublasStatus_t kblasXtrsm_cpu(cublasHandle_t handle,
                               cublasSideMode_t side, cublasFillMode_t uplo,
@@ -1056,10 +1057,10 @@ cublasStatus_t kblasXtrsm_cpu(cublasHandle_t handle,
   check_error( cudaHostRegister((void*)h_B, Bm * Bn * sizeof(T), cudaHostRegisterDefault), CUBLAS_STATUS_INTERNAL_ERROR);*/
 
   cublasStatus_t status;
-  int AsyncEngineCount, devID;
+  /*int AsyncEngineCount, devID;
   check_error( cudaGetDevice(&devID), CUBLAS_STATUS_INTERNAL_ERROR);
   check_error( cudaDeviceGetAttribute(&AsyncEngineCount, cudaDevAttrAsyncEngineCount, devID), CUBLAS_STATUS_INTERNAL_ERROR);
-  bool DO_INLINE_BOUT = AsyncEngineCount > 1;
+  bool DO_INLINE_BOUT = AsyncEngineCount > 1;*/
   
   check_error( cudaMalloc( (void**)&d_A, (Am*An)*sizeof(T) ), CUBLAS_STATUS_INTERNAL_ERROR);
   check_error( cudaMalloc( (void**)&d_B, (Bm*Bn)*sizeof(T) ), CUBLAS_STATUS_INTERNAL_ERROR);

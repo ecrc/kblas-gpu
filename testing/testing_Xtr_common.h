@@ -294,7 +294,7 @@ float get_elapsed_time(){
 
 #define TESTING_MALLOC_CPU( ptr, T, size)                       \
   if ( (ptr = (T*) malloc( (size)*sizeof( T ) ) ) == NULL) {    \
-    fprintf( stderr, "!!!! malloc_cpu failed for: %s\n" #ptr ); \
+    fprintf( stderr, "!!!! malloc_cpu failed for: %s\n", #ptr ); \
     exit(-1);                                                   \
   }
 

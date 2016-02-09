@@ -175,7 +175,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         for(int r = 0; r < nruns; r++)
         {
           check_error( cudaMemcpy ( (void*)h_Rc, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost ) );
-          start_timing();
+          start_timing(curStream);
           if ( (err = cudaMalloc( (void**)&d_A, (ldda*An)*sizeof(T) )) != cudaSuccess ) {
             fprintf( stderr, "!!!! cudaMalloc failed for: d_A! Error: %s\n", cudaGetErrorString(err) );
             exit(-1);
@@ -196,7 +196,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
           check_error(  cudaFree( d_A ) );
           check_error(  cudaFree( d_B ) );
 
-          time = get_elapsed_time();
+          time = get_elapsed_time(curStream);
           ref_time += time;
         }
         ref_time /= nruns;
@@ -213,13 +213,13 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         check_error( cudaMemcpy ( (void*)h_Rk, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost ) );
         //check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
 
-        start_timing();
+        start_timing(curStream);
         check_error( kblas_xtrsm(cublas_handle,
                                 side, uplo, trans, diag,
                                 M, N,
                                 &alpha, h_A, lda,
                                         h_Rk, ldb) );
-        time = get_elapsed_time();
+        time = get_elapsed_time(curStream);
         cpu_time += time;
       }
       cpu_time /= nruns;
@@ -250,7 +250,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         for(int r = 0; r < nruns; r++)
         {
           check_error( cudaMemcpy ( (void*)h_Rk, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost ) );
-          start_timing();
+          start_timing(curStream);
           if ( (err = cudaMalloc( (void**)&d_A, (ldda*An)*sizeof(T) )) != cudaSuccess ) {
             fprintf( stderr, "!!!! cudaMalloc failed for: d_A! Error: %s\n", cudaGetErrorString(err) );
             exit(-1);
@@ -271,7 +271,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
           check_error(  cudaFree( d_A ) );
           check_error(  cudaFree( d_B ) );
 
-          time = get_elapsed_time();
+          time = get_elapsed_time(curStream);
           gpu_time += time;
         }
         gpu_time /= nruns;

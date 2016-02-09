@@ -41,6 +41,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
   printf("====================================================================\n");
   for( int i = 0; i < opts.ntest; ++i ) {
     for( int iter = 0; iter < opts.niter; ++iter ) {
+      ref_time = kblas_time_rec = kblas_time_cus = 0.0;
       M = opts.msize[i];
       N = opts.nsize[i];
       
@@ -83,7 +84,8 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       Xrand_matrix(Bm, Bn, h_B, ldb);
       kblas_make_hpd( Am, h_A, lda );
       
-      cudaStream_t curStream = NULL;
+      cudaStream_t curStream;
+      check_error( cudaStreamCreateWithFlags( &curStream, cudaStreamNonBlocking) );
       check_error(cublasSetStream(cublas_handle, curStream));
       
       check_error( cublasSetMatrix( Am, An, sizeof(T), h_A, lda, d_A, ldda ) );
@@ -95,13 +97,13 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       {
         check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
         
-        start_timing();
+        start_timing(curStream);
         check_error( kblasXtrsm(cublas_handle,
                                 side, uplo, trans, diag,
                                 M, N,
                                 &alpha, d_A, ldda,
                                         d_B, lddb) );
-        time = get_elapsed_time();
+        time = get_elapsed_time(curStream);
         kblas_time_rec += time;
       }
       kblas_time_rec /= nruns;
@@ -113,13 +115,13 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       {
         check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
 
-        start_timing();
+        start_timing(curStream);
         check_error( kblasXtrsm(cublas_handle,
                                 side, uplo, trans, diag,
                                 M, N,
                                 &alpha, d_A, ldda,
                                         d_B, lddb) );
-        time = get_elapsed_time();
+        time = get_elapsed_time(curStream);
         kblas_time_cus += time;
       }
       kblas_time_cus /= nruns;
@@ -152,13 +154,13 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         {
           check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
           
-          start_timing();
+          start_timing(curStream);
           check_error( cublasXtrsm( cublas_handle,
                                     side, uplo, trans, diag,
                                     M, N,
                                     &alpha, d_A, ldda,
                                     d_B, lddb) );
-          time = get_elapsed_time();
+          time = get_elapsed_time(curStream);
           ref_time += time;//to be in sec
         }
         ref_time /= nruns;
@@ -178,6 +180,8 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
              ref_perf, ref_time,
              ref_time / kblas_time_rec, ref_time / kblas_time_cus,
              ref_error );
+      
+      check_error( cudaStreamDestroy( curStream ) );
     }
     if ( opts.niter > 1 ) {
       printf( "\n" );

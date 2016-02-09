@@ -281,11 +281,11 @@ int _kblas_error( cublasStatus_t err, const char* func, const char* file, int li
 }
 
 cudaEvent_t start, stop;
-void start_timing(){
-  cudaEventRecord(start, 0);
+void start_timing(cudaStream_t curStream){
+  cudaEventRecord(start, curStream);
 }
-float get_elapsed_time(){
-  cudaEventRecord(stop, 0);
+float get_elapsed_time(cudaStream_t curStream){
+  cudaEventRecord(stop, curStream);
   cudaEventSynchronize(stop);
   float time = 0;
   cudaEventElapsedTime(&time, start, stop);

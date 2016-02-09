@@ -73,9 +73,13 @@ C_SRC+=	              \
 	test_ztrmm.c \
 	test_ztrmm_cpu.c \
 	test_dtrsm.c \
+	test_dtrsm_cpu.c \
 	test_strsm.c \
+	test_strsm_cpu.c \
 	test_ctrsm.c \
+	test_ctrsm_cpu.c \
 	test_ztrsm.c \
+	test_ztrsm_cpu.c \
 	test_dgemmXt.c
 
 
@@ -87,13 +91,16 @@ C_OBJ = $(patsubst %.c,$(OBJ_DIR)/%.o,$(C_SRC))
 #C_OBJ=$(C_SRC:.c=.o) $(C_SRC:.cpp=.o)
 EXE=$(C_SRC:.c=)
 
-$(OBJ_DIR)/test_%trmm.o: test_%trmm.c test_trmm.ch $(INC_SRC) $(KBLAS_LIB)
+$(OBJ_DIR)/test_%trmm.o: test_%trmm.c test_trmm.ch testing_Xtr_common.h $(INC_SRC) $(KBLAS_LIB)
 	$(CXX) $(INCLUDES) -c $< -o $@
 
-$(OBJ_DIR)/test_%trmm_cpu.o: test_%trmm_cpu.c test_trmm_cpu.ch $(INC_SRC) $(KBLAS_LIB)
+$(OBJ_DIR)/test_%trmm_cpu.o: test_%trmm_cpu.c test_trmm_cpu.ch testing_Xtr_common.h $(INC_SRC) $(KBLAS_LIB)
 	$(CXX) $(INCLUDES) -c $< -o $@
 
-$(OBJ_DIR)/test_%trsm.o: test_%trsm.c test_trsm.ch $(INC_SRC) $(KBLAS_LIB)
+$(OBJ_DIR)/test_%trsm.o: test_%trsm.c test_trsm.ch testing_Xtr_common.h $(INC_SRC) $(KBLAS_LIB)
+	$(CXX) $(INCLUDES) -c $< -o $@
+
+$(OBJ_DIR)/test_%trsm_cpu.o: test_%trsm_cpu.c test_trsm_cpu.ch testing_Xtr_common.h $(INC_SRC) $(KBLAS_LIB)
 	$(CXX) $(INCLUDES) -c $< -o $@
 
 $(OBJ_DIR)/%.o: %.c $(INC_SRC) $(KBLAS_LIB)

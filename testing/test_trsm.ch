@@ -1,120 +1,7 @@
 #ifndef _TEST_TRSM_
 #define _TEST_TRSM_
 
-//==============================================================================================
-#define FMULS_TRSM_2(m_, n_) (0.5 * (n_) * (m_) * ((m_)+1))
-#define FADDS_TRSM_2(m_, n_) (0.5 * (n_) * (m_) * ((m_)-1))
-#define FMULS_TRSM(side_, m_, n_) ( ( (side_) == KBLAS_Left ) ? FMULS_TRSM_2((m_), (n_)) : FMULS_TRSM_2((n_), (m_)) )
-#define FADDS_TRSM(side_, m_, n_) ( ( (side_) == KBLAS_Left ) ? FADDS_TRSM_2((m_), (n_)) : FADDS_TRSM_2((n_), (m_)) )
-
-
-double FLOPS_TRSM(float p, char side, int m, int n){
-  return FMULS_TRSM(side, (double)(m), (double)(n)) + FADDS_TRSM(side, (double)(m), (double)(n));
-}
-double FLOPS_TRSM(double p, char side, int m, int n){
-  return FMULS_TRSM(side, (double)(m), (double)(n)) + FADDS_TRSM(side, (double)(m), (double)(n));
-}
-double FLOPS_TRSM(cuFloatComplex p, char side, int m, int n){
-  return 6. * FMULS_TRSM(side, (double)(m), (double)(n)) + 2. * FADDS_TRSM(side, (double)(m), (double)(n));
-}
-double FLOPS_TRSM(cuDoubleComplex p, char side, int m, int n){
-  return 6. * FMULS_TRSM(side, (double)(m), (double)(n)) + 2. * FADDS_TRSM(side, (double)(m), (double)(n));
-}
-
-
-int _kblas_error( cudaError_t err, const char* func, const char* file, int line );
-int _kblas_error( cublasStatus_t err, const char* func, const char* file, int line );
-
-#define check_error( err ) \
-{ \
-  if(!_kblas_error( (err), __func__, __FILE__, __LINE__ )) \
-    return 0;\
-}
-
-//==============================================================================================
-
-cublasStatus_t kblasXtrsm(cublasHandle_t handle,
-                          cublasSideMode_t side, cublasFillMode_t uplo,
-                          cublasOperation_t trans, cublasDiagType_t diag,
-                          int m, int n,
-                          const float *alpha,
-                          const float *A, int lda,
-                                float *B, int ldb){
-  return kblasStrsm(handle,
-                    side, uplo, trans, diag,
-                    m, n,
-                    alpha, A, lda,
-                           B, ldb);
-}
-cublasStatus_t kblasXtrsm(cublasHandle_t handle,
-                          cublasSideMode_t side, cublasFillMode_t uplo,
-                          cublasOperation_t trans, cublasDiagType_t diag,
-                          int m, int n,
-                          const double *alpha,
-                          const double *A, int lda,
-                                double *B, int ldb){
-  return kblasDtrsm(handle,
-                    side, uplo, trans, diag,
-                    m, n,
-                    alpha, A, lda,
-                           B, ldb);
-}
-cublasStatus_t kblasXtrsm(cublasHandle_t handle,
-                          cublasSideMode_t side, cublasFillMode_t uplo,
-                          cublasOperation_t trans, cublasDiagType_t diag,
-                          int m, int n,
-                          const cuComplex *alpha,
-                          const cuComplex *A, int lda,
-                                cuComplex *B, int ldb){
-  return kblasCtrsm(handle,
-                    side, uplo, trans, diag,
-                    m, n,
-                    alpha, A, lda,
-                           B, ldb);
-}
-cublasStatus_t kblasXtrsm(cublasHandle_t handle,
-                          cublasSideMode_t side, cublasFillMode_t uplo,
-                          cublasOperation_t trans, cublasDiagType_t diag,
-                          int m, int n,
-                          const cuDoubleComplex *alpha,
-                          const cuDoubleComplex *A, int lda,
-                                cuDoubleComplex *B, int ldb){
-  return kblasZtrsm(handle,
-                    side, uplo, trans, diag,
-                    m, n,
-                    alpha, A, lda,
-                           B, ldb);
-}
-
-cublasStatus_t cublasXtrsm(cublasHandle_t handle,
-                           cublasSideMode_t side, cublasFillMode_t uplo,
-                           cublasOperation_t trans, cublasDiagType_t diag,
-                           int m, int n,
-                           const float *alpha,
-                           const float *A, int lda,
-                                 float *B, int ldb);
-cublasStatus_t cublasXtrsm(cublasHandle_t handle,
-                           cublasSideMode_t side, cublasFillMode_t uplo,
-                           cublasOperation_t trans, cublasDiagType_t      diag,
-                           int m, int n,
-                           const double *alpha,
-                           const double *A, int lda,
-                                 double *B, int ldb);
-cublasStatus_t cublasXtrsm (cublasHandle_t handle,
-                            cublasSideMode_t side, cublasFillMode_t uplo,
-                            cublasOperation_t trans, cublasDiagType_t diag,
-                            int m, int n,
-                            const cuComplex *alpha,
-                            const cuComplex *A, int lda,
-                                  cuComplex *B, int ldb);
-cublasStatus_t cublasXtrsm (cublasHandle_t handle,
-                            cublasSideMode_t side, cublasFillMode_t uplo,
-                            cublasOperation_t trans, cublasDiagType_t diag,
-                            int m, int n,
-                            const cuDoubleComplex *alpha,
-                            const cuDoubleComplex *A, int lda,
-                                  cuDoubleComplex *B, int ldb);
-
+#include "testing_Xtr_common.h"
 
 //==============================================================================================
 template<class T>
@@ -232,7 +119,18 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       kblas_perf = gflops / kblas_time;
 
       if(opts.check){
+
+        check_error( kblasXtrmm(cublas_handle,
+                                side, uplo, trans, diag,
+                                M, N,
+                                &alpha, d_A, ldda,
+                                        d_B, lddb) );
+        
         check_error( cublasGetMatrix( M, N, sizeof(T), d_B, lddb, h_R, ldb ) );
+        ref_error = Xget_max_error_matrix(h_B, h_R, Bm, Bn, ldb);
+        free( h_R );
+      }
+      if(opts.time){
         cudaDeviceSynchronize();
       
         for(int r = 0; r < nruns; r++)
@@ -254,9 +152,6 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         ref_perf = gflops / ref_time;
 
         check_error( cublasGetMatrix( M, N, sizeof(T), d_B, lddb, h_B, ldb ) );
-        
-        ref_error = Xget_max_error_matrix(h_B, h_R, Bm, Bn, ldb);
-        free( h_R );
       }
       
       free( h_A );

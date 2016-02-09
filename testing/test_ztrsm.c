@@ -15,7 +15,6 @@
 
 
 extern int kblas_trsm_ib_cublas;
-extern bool kblas_trsm_use_custom;
 
 //==============================================================================================
 int main(int argc, char** argv)

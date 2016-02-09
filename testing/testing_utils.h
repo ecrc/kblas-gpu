@@ -341,6 +341,8 @@ extern "C"{
     int m = -1;
     int n = -1;
     int k = -1;
+    int n_start = 0, n_stop = 0, n_step = 0;
+    int m_start = 0, m_stop = 0, m_step = 0;
     
     // fill in default values
     opts->device   = 0;
@@ -439,6 +441,36 @@ extern "C"{
           exit(1);
         }
       }
+      else if ( strcmp("--nrange", argv[i]) == 0 && i+1 < argc ) {
+        i++;
+        int start, stop, step;
+        info = sscanf( argv[i], "%d:%d:%d", &start, &stop, &step );
+        if ( info == 3 && start >= 0 && stop >= 0 && step != 0 ) {
+          n_start = start;
+          n_stop = stop;
+          n_step = step;
+        }
+        else {
+          fprintf( stderr, "error: --nrange %s is invalid; ensure start >= 0, stop >= 0, step != 0.\n",
+                  argv[i] );
+          exit(1);
+        }
+      }
+      else if ( strcmp("--mrange", argv[i]) == 0 && i+1 < argc ) {
+        i++;
+        int start, stop, step;
+        info = sscanf( argv[i], "%d:%d:%d", &start, &stop, &step );
+        if ( info == 3 && start >= 0 && stop >= 0 && step != 0 ) {
+          m_start = start;
+          m_stop = stop;
+          m_step = step;
+        }
+        else {
+          fprintf( stderr, "error: --mrange %s is invalid; ensure start >= 0, stop >= 0, step != 0.\n",
+                  argv[i] );
+          exit(1);
+        }
+      }
       // save m, n, k if -m, -n, -k is given; applied after loop
       else if ( strcmp("-m", argv[i]) == 0 && i+1 < argc ) {
         m = atoi( argv[++i] );
@@ -533,14 +565,60 @@ extern "C"{
     }
     
     // fill in msize[:], nsize[:], ksize[:] if -m, -n, -k were given
-    if ( m > 0 && n > 0) {
-      for( int j = 0; j < MAX_NTEST; ++j ) {
-        opts->msize[j] = m;
+    if(m_step != 0 && n_step != 0){
+      for( int m = m_start; (m_step > 0 ? m <= m_stop : m >= m_stop); m += m_step ) {
+        for( int n = n_start; (n_step > 0 ? n <= n_stop : n >= n_stop); n += n_step ) {
+          if ( ntest >= MAX_NTEST ) {
+            printf( "warning: --m/n_range, max number of tests reached, ntest=%d.\n",
+                    ntest );
+            break;
+          }
+          opts->msize[ ntest ] = m;
+          opts->nsize[ ntest++ ] = n;
+        }
       }
-      for( int j = 0; j < MAX_NTEST; ++j ) {
-        opts->nsize[j] = n;
+    }else
+    if(m_step != 0 && n >= 0){
+      for( int m = m_start; (m_step > 0 ? m <= m_stop : m >= m_stop); m += m_step ) {
+        if ( ntest >= MAX_NTEST ) {
+          printf( "warning: --m/n_range, max number of tests reached, ntest=%d.\n",
+                  ntest );
+          break;
+        }
+        opts->msize[ ntest ] = m;
+        opts->nsize[ ntest++ ] = n;
+        
       }
-      ntest++;
+    }else
+    if(n_step != 0 && m >= 0){
+      for( int n = n_start; (n_step > 0 ? n <= n_stop : n >= n_stop); n += n_step ) {
+        if ( ntest >= MAX_NTEST ) {
+          printf( "warning: --m/n_range, max number of tests reached, ntest=%d.\n",
+                  ntest );
+          break;
+        }
+        opts->msize[ ntest ] = m;
+        opts->nsize[ ntest++ ] = n;
+      }
+    }else{
+      if ( m >= 0 ) {
+        for( int j = 0; j < MAX_NTEST; ++j ) {
+          opts->msize[j] = m;
+        }
+      }
+      if ( n >= 0 ) {
+        for( int j = 0; j < MAX_NTEST; ++j ) {
+          opts->nsize[j] = n;
+        }
+      }
+      if ( k >= 0 ) {
+        for( int j = 0; j < MAX_NTEST; ++j ) {
+          opts->ksize[j] = k;
+        }
+      }
+      if ( m > 0 && n > 0) {
+        ntest = 1;
+      }
     }
     // if size not specified
     if ( ntest == 0 ) {

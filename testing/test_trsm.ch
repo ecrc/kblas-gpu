@@ -4,12 +4,17 @@
 #include "testing_Xtr_common.h"
 
 //==============================================================================================
+extern bool kblas_trsm_use_custom;
 template<class T>
 int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
 
   
   int nruns = opts.nruns;
-  double   gflops, ref_perf = 0.0, ref_time = 0.0, kblas_perf = 0.0, kblas_time = 0.0, ref_error = 0.0;
+  double  gflops,
+          ref_perf = 0.0, ref_time = 0.0,
+          kblas_perf_rec = 0.0, kblas_time_rec = 0.0,
+          kblas_perf_cus = 0.0, kblas_time_cus = 0.0,
+          ref_error = 0.0;
   int M, N;
   int Am, An, Bm, Bn;
   int sizeA, sizeB;
@@ -32,7 +37,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
   cublasOperation_t trans = (opts.transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);
   cublasDiagType_t  diag  = (opts.diag   == KBLAS_Unit  ? CUBLAS_DIAG_UNIT : CUBLAS_DIAG_NON_UNIT);
 
-  printf("    M     N     kblasTRSM Gflop/s (ms)   cublasTRSM Gflop/s (ms)  MaxError\n");
+  printf("    M     N     kblasTRSM_REC GF/s (ms)  kblasTRSM_CU GF/s (ms)  cublasTRSM GF/s (ms)  SP_REC   SP_CU   Error\n");
   printf("====================================================================\n");
   for( int i = 0; i < opts.ntest; ++i ) {
     for( int iter = 0; iter < opts.niter; ++iter ) {
@@ -85,6 +90,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
 
       float time = 0;
       
+      kblas_trsm_use_custom = false;
       for(int r = 0; r < nruns; r++)
       {
         check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
@@ -96,10 +102,28 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
                                 &alpha, d_A, ldda,
                                         d_B, lddb) );
         time = get_elapsed_time();
-        kblas_time += time;//to be in sec
+        kblas_time_rec += time;
       }
-      kblas_time /= nruns;
-      kblas_perf = gflops / (kblas_time / 1000.);
+      kblas_time_rec /= nruns;
+      kblas_perf_rec = gflops / (kblas_time_rec / 1000.);
+
+      
+      kblas_trsm_use_custom = true;
+      for(int r = 0; r < nruns; r++)
+      {
+        check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
+
+        start_timing();
+        check_error( kblasXtrsm(cublas_handle,
+                                side, uplo, trans, diag,
+                                M, N,
+                                &alpha, d_A, ldda,
+                                        d_B, lddb) );
+        time = get_elapsed_time();
+        kblas_time_cus += time;
+      }
+      kblas_time_cus /= nruns;
+      kblas_perf_cus = gflops / (kblas_time_cus / 1000.);
 
       if(opts.check){
         double normA = kblas_lange<T,double>('M', Am, An, h_A, lda);
@@ -148,9 +172,11 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       check_error(  cudaFree( d_A ) );
       check_error(  cudaFree( d_B ) );
       
-      printf(" %7.2f (%7.2f)      %7.2f (%7.2f)         %8.2e\n",
-             kblas_perf, kblas_time,
+      printf(" %7.2f (%7.2f)      %7.2f (%7.2f)        %7.2f (%7.2f)     %2.2f   %2.2f   %8.2e\n",
+             kblas_perf_rec, kblas_time_rec,
+             kblas_perf_cus, kblas_time_cus,
              ref_perf, ref_time,
+             ref_time / kblas_time_rec, ref_time / kblas_time_cus,
              ref_error );
     }
     if ( opts.niter > 1 ) {

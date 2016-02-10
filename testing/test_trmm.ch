@@ -73,10 +73,13 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       TESTING_MALLOC_DEV( d_A, T, ldda*An);
       TESTING_MALLOC_DEV( d_B, T, lddb*Bn);
 
+      if(opts.check || opts.time)
+      {
+        TESTING_MALLOC_CPU( h_R, T, sizeB);
+      }
       if(opts.check)
       {
         nruns = 1;
-        TESTING_MALLOC_CPU( h_R, T, sizeB);
       }
       // Initialize matrix and vector
       //printf("Initializing on cpu .. \n");
@@ -142,16 +145,14 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         for(int r = 0; r < nruns; r++)
         {
           check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
-
-          cudaEventRecord(start, 0);
+          
+          start_timing(curStream);
           check_error( cublasXtrmm( cublas_handle,
                                     side, uplo, trans, diag,
                                     M, N,
                                     &alpha, d_A, ldda,
-                                            d_B, lddb) );
-          cudaEventRecord(stop, 0);
-          cudaEventSynchronize(stop);
-          cudaEventElapsedTime(&time, start, stop);
+                                    d_B, lddb) );
+          time = get_elapsed_time(curStream);
           ref_time += time;//to be in sec
         }
         ref_time /= nruns;

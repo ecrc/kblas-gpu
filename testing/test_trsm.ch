@@ -168,7 +168,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
                                     side, uplo, trans, diag,
                                     M, N,
                                     &alpha, d_A, ldda,
-                                    d_B, lddb) );
+                                            d_B, lddb) );
           time = get_elapsed_time(curStream);
           ref_time += time;//to be in sec
         }

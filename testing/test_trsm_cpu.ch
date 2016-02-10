@@ -291,7 +291,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       free( h_B );
       cudaFreeHost( h_Rk );
 //       free( h_Rk );
-      printf(" %7.2f (%7.2f)      %7.2f (%7.2f)       %7.2f (%7.2f)     %2.2f   %2.2f   %8.2e\n",
+      printf(" %7.2f %7.2f      %7.2f %7.2f       %7.2f %7.2f     %2.2f   %2.2f   %8.2e\n",
              cpu_perf, cpu_time,
              gpu_perf, gpu_time,
              ref_perf, ref_time,

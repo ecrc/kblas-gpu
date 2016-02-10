@@ -169,7 +169,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       check_error(  cudaFree( d_A ) );
       check_error(  cudaFree( d_B ) );
       
-      printf(" %7.2f (%7.2f)      %7.2f (%7.2f)        %7.2f (%7.2f)     %2.2f   %2.2f   %8.2e\n",
+      printf(" %7.2f %7.2f      %7.2f %7.2f        %7.2f %7.2f     %2.2f   %2.2f   %8.2e\n",
              kblas_perf_rec, kblas_time_rec,
              kblas_perf_cus, kblas_time_cus,
              ref_perf, ref_time,

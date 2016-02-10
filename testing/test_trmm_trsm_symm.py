@@ -31,7 +31,7 @@ if (TRMM == 1):
         for p in programs:
             for v in variants:
                 print
-                cmd = ('./testing/'+p+' '+r+' -w --nb 128 --db 256 -t '+check+' '+v)
+                cmd = ('./testing/'+p+' '+r+' -w --nb 128 --db 256 -t '+check+' --dev 1 '+v)
                 print cmd
                 sys.stdout.flush()
                 os.system(cmd)
@@ -53,7 +53,7 @@ if (TRSM == 1):
         for p in programs:
             for v in variants:
                 print
-                cmd = ('./testing/'+p+' '+r+' -w --nb 128 --db 256 -t '+check+' '+v)
+                cmd = ('./testing/'+p+' '+r+' -w --nb 128 --db 256 -t '+check+' --dev 1 '+v)
                 print cmd
                 sys.stdout.flush()
                 os.system(cmd)

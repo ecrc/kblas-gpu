@@ -80,6 +80,8 @@ C_SRC+=	              \
 	test_ctrsm_cpu.c \
 	test_ztrsm.c \
 	test_ztrsm_cpu.c \
+	test_sgemm.c \
+	test_dgemm.c \
 	test_dgemmXt.c
 
 
@@ -101,6 +103,9 @@ $(OBJ_DIR)/test_%trsm.o: test_%trsm.c test_trsm.ch testing_Xtr_common.h $(INC_SR
 	$(CXX) $(INCLUDES) -c $< -o $@
 
 $(OBJ_DIR)/test_%trsm_cpu.o: test_%trsm_cpu.c test_trsm_cpu.ch testing_Xtr_common.h $(INC_SRC) $(KBLAS_LIB)
+	$(CXX) $(INCLUDES) -c $< -o $@
+
+$(OBJ_DIR)/test_%gemm.o: test_%gemm.c test_gemm.ch testing_Xtr_common.h $(INC_SRC) $(KBLAS_LIB)
 	$(CXX) $(INCLUDES) -c $< -o $@
 
 $(OBJ_DIR)/%.o: %.c $(INC_SRC) $(KBLAS_LIB)

@@ -6,6 +6,22 @@
 #include "operators.h"
 
 //==============================================================================================
+#define FMULS_GEMM(m_, n_, k_) ((m_) * (n_) * (k_))
+#define FADDS_GEMM(m_, n_, k_) ((m_) * (n_) * (k_))
+
+double FLOPS_GEMM(float p, char side, int m, int n, int k){
+  return FMULS_GEMM((double)(m), (double)(n), (double)(k)) + FADDS_GEMM((double)(m), (double)(n), (double)(k));
+}
+double FLOPS_GEMM(double p, char side, int m, int n, int k){
+  return FMULS_GEMM((double)(m), (double)(n), (double)(k)) + FADDS_GEMM((double)(m), (double)(n), (double)(k));
+}
+double FLOPS_GEMM(cuFloatComplex p, char side, int m, int n, int k){
+  return 6. * FMULS_GEMM((double)(m), (double)(n), (double)(k)) + 2.0 * FADDS_GEMM((double)(m), (double)(n), (double)(k));
+}
+double FLOPS_GEMM(cuDoubleComplex p, char side, int m, int n, int k){
+  return 6. * FMULS_GEMM((double)(m), (double)(n), (double)(k)) + 2.0 * FADDS_GEMM((double)(m), (double)(n), (double)(k));
+}
+//==============================================================================================
 #define FMULS_TRMM_2(m_, n_) (0.5 * (n_) * (m_) * ((m_)+1))
 #define FADDS_TRMM_2(m_, n_) (0.5 * (n_) * (m_) * ((m_)-1))
 #define FMULS_TRMM(side_, m_, n_) ( ( (side_) == KBLAS_Left ) ? FMULS_TRMM_2((m_), (n_)) : FMULS_TRMM_2((n_), (m_)) )
@@ -214,6 +230,32 @@ cublasStatus_t cublasXtrsm (cublasHandle_t handle,
                             const cuDoubleComplex *alpha,
                             const cuDoubleComplex *A, int lda,
                                   cuDoubleComplex *B, int ldb);
+
+cublasStatus_t cublasXgemm( cublasHandle_t handle,
+                            cublasOperation_t transa, cublasOperation_t transb,
+                            int m, int n, int k,
+                            const float *alpha, const float *A, int lda,
+                            const float *B, int ldb,
+                            const float *beta,        float *C, int ldc);
+cublasStatus_t cublasXgemm( cublasHandle_t handle,
+                            cublasOperation_t transa, cublasOperation_t transb,
+                            int m, int n, int k,
+                            const double *alpha, const double *A, int lda,
+                            const double *B, int ldb,
+                            const double *beta,        double *C, int ldc);
+cublasStatus_t cublasXgemm(cublasHandle_t handle,
+                           cublasOperation_t transa, cublasOperation_t transb,
+                           int m, int n, int k,
+                           const cuComplex *alpha, const cuComplex *A, int lda,
+                           const cuComplex *B, int ldb,
+                           const cuComplex *beta,        cuComplex *C, int ldc);
+cublasStatus_t cublasXgemm(cublasHandle_t handle,
+                           cublasOperation_t transa, cublasOperation_t transb,
+                           int m, int n, int k,
+                           const cuDoubleComplex *alpha, const cuDoubleComplex *A, int lda,
+                           const cuDoubleComplex *B, int ldb,
+                           const cuDoubleComplex *beta,        cuDoubleComplex *C, int ldc);
+
 
 template<typename T>
 void kblasXaxpy (int n, T alpha, const T *x, int incx, T *y, int incy){

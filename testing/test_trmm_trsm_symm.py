@@ -6,11 +6,11 @@ import csv
 import time
 
 check = '' #'-c'
-TRMM = 0
-TRSM = 1
+TRMM = 1
+TRSM = 0
 SYMM = 0
 SYRK = 0
-ranges = ['--range 128:1024:128',           #square matrices
+ranges = [#'--range 128:1024:128',           #square matrices
           '--range 512:15360:512  ',        #square matrices
           '--mrange 512:15360:512 -n 512 ', #tall & skinny matrices
           '--nrange 512:15360:512 -m 512 '  #thin & wide matrices

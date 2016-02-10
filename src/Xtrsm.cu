@@ -701,7 +701,7 @@ cublasStatus_t kblasXtrsm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
           }
           //copy in A block
           if(!AIsIn)
-            check_error( status = cublasSetMatrixAsync( m2, m1, sizeof(T), h_A+m1*incA, incA, d_A+m1*incA, incA, strIn), status);
+            check_error( status = cublasSetMatrixAsync( m1, m2, sizeof(T), h_A+m1*incA, incA, d_A+m1*incA, incA, strIn), status);
           //wait for data to arrive
           check_error( cudaEventRecord(eDataIn, strIn), CUBLAS_STATUS_INTERNAL_ERROR);
           check_error( cudaStreamWaitEvent(strComp, eDataIn, 0), CUBLAS_STATUS_INTERNAL_ERROR);

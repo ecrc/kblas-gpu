@@ -232,8 +232,8 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
 
         T *h_C, *d_C;
-        nruns = 1;
-        for(int r = 0; r < nruns; r++)
+        
+        for(int r = 0; r < 1; r++)
         {
           check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
 
@@ -250,7 +250,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
           time = get_elapsed_time(curStream);
           ref_time_oop += time;//to be in sec
         }
-        ref_time_oop /= nruns;
+        //ref_time_oop /= nruns;
         ref_perf_oop = gflops / (ref_time_oop /1000.0);
 
         check_error( cublasGetMatrix( M, N, sizeof(T), d_B, lddb, h_B, ldb ) );

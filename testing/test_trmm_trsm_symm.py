@@ -6,7 +6,7 @@ import csv
 import time
 
 check = '' #'-c'
-TRMM = 1
+TRMM = 0
 TRSM = 1
 SYMM = 0
 SYRK = 0
@@ -26,10 +26,10 @@ if (TRMM == 1):
                 '-SR -U -NN',
                 '-SR -U -TN']
     programs = ['test_strmm', 'test_dtrmm', 'test_strmm_cpu', 'test_dtrmm_cpu']
-    
-    for r in ranges:
-        for p in programs:
-            for v in variants:
+
+    for v in variants:
+        for r in ranges:
+            for p in programs:
                 print
                 cmd = ('./testing/'+p+' '+r+' -w --nb 128 --db 256 -t '+check+' --dev 1 '+v)
                 print cmd
@@ -48,12 +48,12 @@ if (TRSM == 1):
                 '-SR -U -NN',
                 '-SR -U -TN']
     programs = ['test_strsm', 'test_dtrsm', 'test_strsm_cpu', 'test_dtrsm_cpu']
-    
-    for r in ranges:
-        for p in programs:
-            for v in variants:
+
+    for v in variants:
+        for r in ranges:
+            for p in programs:
                 print
-                cmd = ('./testing/'+p+' '+r+' -w --nb 128 --db 256 -t '+check+' --dev 1 '+v)
+                cmd = ('./testing/'+p+' '+r+' -w --nb 128 --db 256 -t '+check+' --dev 4 '+v)
                 print cmd
                 sys.stdout.flush()
                 os.system(cmd)

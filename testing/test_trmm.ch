@@ -232,21 +232,21 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
 
         T *h_C, *d_C;
-        TESTING_MALLOC_CPU( h_C, T, sizeB);
-        TESTING_MALLOC_DEV( d_C, T, lddb*Bn);
-        Xrand_matrix(Bm, Bn, h_C, ldb);
-        
+        nruns = 1;
         for(int r = 0; r < nruns; r++)
         {
-          check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_C, ldb, d_C, lddb ) );
+          check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
 
           start_timing(curStream);
+          TESTING_MALLOC_DEV( d_C, T, lddb*Bn);
           check_error( cublasXtrmm( cublas_handle,
                                     side, uplo, trans, diag,
                                     M, N,
                                     &alpha, d_A, ldda,
                                             d_B, lddb,
                                             d_C, lddb) );
+          check_error( cudaMemcpy(d_B, d_C, lddb*Bn*sizeof(T), cudaMemcpyDeviceToDevice) );
+          check_error(  cudaFree( d_C ) );
           time = get_elapsed_time(curStream);
           ref_time_oop += time;//to be in sec
         }
@@ -255,8 +255,6 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
 
         check_error( cublasGetMatrix( M, N, sizeof(T), d_B, lddb, h_B, ldb ) );
 
-        free( h_C );
-        check_error(  cudaFree( d_C ) );
       }
 
       free( h_A );

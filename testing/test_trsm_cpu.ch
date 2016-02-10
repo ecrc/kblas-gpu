@@ -172,6 +172,8 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       check_error( cublasSetStream(cublas_handle, curStream));
       
       if(opts.warmup){
+        TESTING_MALLOC_DEV( d_A, T, ldda*An);
+        TESTING_MALLOC_DEV( d_B, T, lddb*Bn);
         check_error( cublasSetMatrix( Am, An, sizeof(T), h_A, lda, d_A, ldda) );
         check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb) );
         check_error( cublasXtrsm( cublas_handle,
@@ -179,6 +181,8 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
                                   M, N,
                                   &alpha, d_A, ldda,
                                           d_B, lddb) );
+        check_error(  cudaFree( d_A ) );
+        check_error(  cudaFree( d_B ) );
       }
       float time = 0;
 

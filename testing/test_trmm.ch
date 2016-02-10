@@ -90,6 +90,14 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       
       check_error( cublasSetMatrix( Am, An, sizeof(T), h_A, lda, d_A, ldda ) );
 
+      if(opts.warmup){
+        check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
+        check_error( cublasXtrmm( cublas_handle,
+                                  side, uplo, trans, diag,
+                                  M, N,
+                                  &alpha, d_A, ldda,
+                                          d_B, lddb) );
+      }
       float time = 0;
       
       kblas_trmm_use_custom = false;

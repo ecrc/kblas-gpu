@@ -170,7 +170,16 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       cudaStream_t curStream;
       check_error( cudaStreamCreateWithFlags( &curStream, cudaStreamNonBlocking) );
       check_error( cublasSetStream(cublas_handle, curStream));
-
+      
+      if(opts.warmup){
+        check_error( cublasSetMatrix( Am, An, sizeof(T), h_A, lda, d_A, ldda) );
+        check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb) );
+        check_error( cublasXtrsm( cublas_handle,
+                                  side, uplo, trans, diag,
+                                  M, N,
+                                  &alpha, d_A, ldda,
+                                          d_B, lddb) );
+      }
       float time = 0;
 
       if(opts.time){

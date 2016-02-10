@@ -130,30 +130,33 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         exit(-1);
       }*/
 
-      if ( cudaMallocHost((void**)&h_A, (sizeA)*sizeof( T ) ) != cudaSuccess) {
+      TESTING_MALLOC_PIN( h_A, T, sizeA);
+      TESTING_MALLOC_PIN( h_Rk, T, sizeB);
+      /*if ( cudaMallocHost((void**)&h_A, (sizeA)*sizeof( T ) ) != cudaSuccess) {
         fprintf( stderr, "!!!! malloc_cpu failed for: h_A\n" );
         exit(-1);
       }
       if ( cudaMallocHost((void**)&h_Rk, (sizeB)*sizeof( T ) ) != cudaSuccess) {
         fprintf( stderr, "!!!! malloc_cpu failed for: h_Rk\n" );
         exit(-1);
-      }
-
-      if ( (h_B = (T*) malloc( (sizeB)*sizeof( T ) ) ) == NULL) {
+      }*/
+      TESTING_MALLOC_CPU( h_B, T, sizeB);
+      /*if ( (h_B = (T*) malloc( (sizeB)*sizeof( T ) ) ) == NULL) {
         fprintf( stderr, "!!!! malloc_cpu failed for: h_B\n" );
         exit(-1);
-      }
+      }*/
 
-      if(opts.check || opts.time)
+      if(opts.time)
       {
         /*if ( (h_Rc = (T*) malloc( (sizeB)*sizeof( T ) ) ) == NULL) {
           fprintf( stderr, "!!!! malloc_cpu failed for: h_Rc\n" );
           exit(-1);
-        }*/
+        }
         if ( cudaMallocHost((void**)&h_Rc, (sizeB)*sizeof( T ) ) != cudaSuccess) {
           fprintf( stderr, "!!!! malloc_cpu failed for: h_Rc\n" );
           exit(-1);
-        }
+        }*/
+        TESTING_MALLOC_PIN( h_Rc, T, sizeB);
 
       }
       // Initialize matrix and vector
@@ -176,14 +179,10 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         {
           check_error( cudaMemcpy ( (void*)h_Rc, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost ) );
           start_timing(curStream);
-          if ( (err = cudaMalloc( (void**)&d_A, (ldda*An)*sizeof(T) )) != cudaSuccess ) {
-            fprintf( stderr, "!!!! cudaMalloc failed for: d_A! Error: %s\n", cudaGetErrorString(err) );
-            exit(-1);
-          }
-          if ( (err = cudaMalloc( (void**)&d_B, (lddb*Bn)*sizeof(T) )) != cudaSuccess ) {
-            fprintf( stderr, "!!!! cudaMalloc failed for: d_B! Error: %s\n", cudaGetErrorString(err) );
-            exit(-1);
-          }
+          
+          TESTING_MALLOC_DEV( d_A, T, ldda*An);
+          TESTING_MALLOC_DEV( d_B, T, lddb*Bn);
+          
           check_error( cublasSetMatrixAsync( Am, An, sizeof(T), h_A, lda, d_A, ldda, curStream) );
           check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_Rc, ldb, d_B, lddb, curStream ) );
 
@@ -251,14 +250,10 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         {
           check_error( cudaMemcpy ( (void*)h_Rk, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost ) );
           start_timing(curStream);
-          if ( (err = cudaMalloc( (void**)&d_A, (ldda*An)*sizeof(T) )) != cudaSuccess ) {
-            fprintf( stderr, "!!!! cudaMalloc failed for: d_A! Error: %s\n", cudaGetErrorString(err) );
-            exit(-1);
-          }
-          if ( (err = cudaMalloc( (void**)&d_B, (lddb*Bn)*sizeof(T) )) != cudaSuccess ) {
-            fprintf( stderr, "!!!! cudaMalloc failed for: d_B! Error: %s\n", cudaGetErrorString(err) );
-            exit(-1);
-          }
+
+          TESTING_MALLOC_DEV( d_A, T, ldda*An);
+          TESTING_MALLOC_DEV( d_B, T, lddb*Bn);
+
           check_error( cublasSetMatrixAsync( Am, An, sizeof(T), h_A, lda, d_A, ldda, curStream ) );
           check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_Rk, ldb, d_B, lddb, curStream ) );
 
@@ -278,7 +273,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         gpu_perf = gflops / (gpu_time / 1000.0);
       }
 
-      if(opts.check || opts.time){
+      if(opts.time){
         cudaFreeHost( h_Rc );
 //         free( h_Rc );
       }

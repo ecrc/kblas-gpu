@@ -81,7 +81,6 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
   
   USING
   cudaError_t err;
-  cudaEvent_t start, stop;
 
   cudaEventCreate(&start);
   cudaEventCreate(&stop);
@@ -91,7 +90,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
   cublasOperation_t trans = (opts.transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);
   cublasDiagType_t  diag  = (opts.diag   == KBLAS_Unit  ? CUBLAS_DIAG_UNIT : CUBLAS_DIAG_NON_UNIT);
 
-  printf("    M     N   kblasTRMM CPU GF/s (ms) kblasTRMM GPU GF/s (ms)   cublasTRMM GPU GF/s (ms)  MaxError\n");
+  printf("    M     N   kblasTRMM CPU GF/s (ms) kblasTRMM GPU GF/s (ms)   cublasTRMM GPU GF/s (ms)  SP_CPU  SP_GPU   Error\n");
   printf("====================================================================\n");
   for( int i = 0; i < opts.ntest; ++i ) {
     for( int iter = 0; iter < opts.niter; ++iter ) {
@@ -131,30 +130,33 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         exit(-1);
       }*/
       
-      if ( cudaMallocHost((void**)&h_A, (sizeA)*sizeof( T ) ) != cudaSuccess) {
+      TESTING_MALLOC_PIN( h_A, T, sizeA);
+      TESTING_MALLOC_PIN( h_Rk, T, sizeB);
+      /*if ( cudaMallocHost((void**)&h_A, (sizeA)*sizeof( T ) ) != cudaSuccess) {
         fprintf( stderr, "!!!! malloc_cpu failed for: h_A\n" );
         exit(-1);
       }
       if ( cudaMallocHost((void**)&h_Rk, (sizeB)*sizeof( T ) ) != cudaSuccess) {
         fprintf( stderr, "!!!! malloc_cpu failed for: h_Rk\n" );
         exit(-1);
-      }
-
-      if ( (h_B = (T*) malloc( (sizeB)*sizeof( T ) ) ) == NULL) {
+      }*/
+      TESTING_MALLOC_CPU( h_B, T, sizeB);
+      /*if ( (h_B = (T*) malloc( (sizeB)*sizeof( T ) ) ) == NULL) {
         fprintf( stderr, "!!!! malloc_cpu failed for: h_B\n" );
         exit(-1);
-      }
+      }*/
       
       if(opts.check || opts.time)
       {
         /*if ( (h_Rc = (T*) malloc( (sizeB)*sizeof( T ) ) ) == NULL) {
           fprintf( stderr, "!!!! malloc_cpu failed for: h_Rc\n" );
           exit(-1);
-        }*/
+        }
         if ( cudaMallocHost((void**)&h_Rc, (sizeB)*sizeof( T ) ) != cudaSuccess) {
           fprintf( stderr, "!!!! malloc_cpu failed for: h_Rc\n" );
           exit(-1);
-        }
+        }*/
+        TESTING_MALLOC_PIN( h_Rc, T, sizeB);
 
       }
       // Initialize matrix and vector
@@ -173,19 +175,14 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
             
       if(opts.time || opts.check){
 
-      
         for(int r = 0; r < nruns; r++)
         {
           check_error( cudaMemcpy ( (void*)h_Rc, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost ) );
-          cudaEventRecord(start, 0);
-          if ( (err = cudaMalloc( (void**)&d_A, (ldda*An)*sizeof(T) )) != cudaSuccess ) {
-            fprintf( stderr, "!!!! cudaMalloc failed for: d_A! Error: %s\n", cudaGetErrorString(err) );
-            exit(-1);
-          }
-          if ( (err = cudaMalloc( (void**)&d_B, (lddb*Bn)*sizeof(T) )) != cudaSuccess ) {
-            fprintf( stderr, "!!!! cudaMalloc failed for: d_B! Error: %s\n", cudaGetErrorString(err) );
-            exit(-1);
-          }
+          start_timing(curStream);
+          
+          TESTING_MALLOC_DEV( d_A, T, ldda*An);
+          TESTING_MALLOC_DEV( d_B, T, lddb*Bn);
+          
           check_error( cublasSetMatrixAsync( Am, An, sizeof(T), h_A, lda, d_A, ldda, curStream) );
           check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_Rc, ldb, d_B, lddb, curStream ) );
 
@@ -198,9 +195,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
           check_error(  cudaFree( d_A ) );
           check_error(  cudaFree( d_B ) );
 
-          cudaEventRecord(stop, 0);
-          cudaEventSynchronize(stop);
-          cudaEventElapsedTime(&time, start, stop);
+          time = get_elapsed_time(curStream);
           ref_time += time/1000.0;//to be in sec
         }
         ref_time /= nruns;
@@ -217,19 +212,17 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         check_error( cudaMemcpy ( (void*)h_Rk, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost ) );
         //check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
         
-        cudaEventRecord(start, 0);
+        start_timing(curStream);
         check_error( kblas_xtrmm(cublas_handle,
                                 side, uplo, trans, diag,
                                 M, N,
                                 &alpha, h_A, lda,
                                         h_Rk, ldb) );
-        cudaEventRecord(stop, 0);
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&time, start, stop);
-        cpu_time += time/1000.0;//to be in sec
+        time = get_elapsed_time(curStream);
+        cpu_time += time;
       }
       cpu_time /= nruns;
-      cpu_perf = gflops / cpu_time;
+      cpu_perf = gflops / (cpu_time/1000.0);
       cudaDeviceSynchronize();
 
       if(opts.check){
@@ -239,15 +232,11 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       for(int r = 0; r < nruns && (opts.check || opts.time); r++)
       {
         check_error( cudaMemcpy ( (void*)h_Rk, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost ) );
-        cudaEventRecord(start, 0);
-        if ( (err = cudaMalloc( (void**)&d_A, (ldda*An)*sizeof(T) )) != cudaSuccess ) {
-          fprintf( stderr, "!!!! cudaMalloc failed for: d_A! Error: %s\n", cudaGetErrorString(err) );
-          exit(-1);
-        }
-        if ( (err = cudaMalloc( (void**)&d_B, (lddb*Bn)*sizeof(T) )) != cudaSuccess ) {
-          fprintf( stderr, "!!!! cudaMalloc failed for: d_B! Error: %s\n", cudaGetErrorString(err) );
-          exit(-1);
-        }
+        start_timing(curStream);
+        
+        TESTING_MALLOC_DEV( d_A, T, ldda*An);
+        TESTING_MALLOC_DEV( d_B, T, lddb*Bn);
+
         check_error( cublasSetMatrixAsync( Am, An, sizeof(T), h_A, lda, d_A, ldda, curStream ) );
         check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_Rk, ldb, d_B, lddb, curStream ) );
         
@@ -260,13 +249,11 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         check_error(  cudaFree( d_A ) );
         check_error(  cudaFree( d_B ) );
         
-        cudaEventRecord(stop, 0);
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&time, start, stop);
-        gpu_time += time/1000.0;//to be in sec
+        time = get_elapsed_time(curStream);
+        gpu_time += time;
       }
       gpu_time /= nruns;
-      gpu_perf = gflops / gpu_time;
+      gpu_perf = gflops / (gpu_time / 1000.0);
 
       if(opts.check || opts.time){
         cudaFreeHost( h_Rc );
@@ -277,10 +264,11 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       free( h_B );
       cudaFreeHost( h_Rk );
 //       free( h_Rk );
-      printf(" %7.2f (%7.2f)      %7.2f (%7.2f)       %7.2f (%7.2f)        %8.2e\n",
+      printf(" %7.2f (%7.2f)      %7.2f (%7.2f)       %7.2f (%7.2f)     %2.2f    %2.2f   %8.2e\n",
              cpu_perf, 1000.*cpu_time,
              gpu_perf, 1000.*gpu_time,
              ref_perf, 1000.*ref_time,
+             ref_time / cpu_time, ref_time / gpu_time,
              ref_error );
       
       check_error( cudaStreamDestroy( curStream ) );

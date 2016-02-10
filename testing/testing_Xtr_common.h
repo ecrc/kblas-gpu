@@ -301,5 +301,8 @@ float get_elapsed_time(cudaStream_t curStream){
 #define TESTING_MALLOC_DEV( ptr, T, size)                       \
   check_error( cudaMalloc( (void**)&ptr, (size)*sizeof(T) ) )
 
+#define TESTING_MALLOC_PIN( ptr, T, size)                       \
+  check_error( cudaMallocHost((void**)&ptr, (size)*sizeof( T ) ))
   
+
 #endif

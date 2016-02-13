@@ -393,6 +393,7 @@ int kblas_ztrsm_async(
   cudaStream_t    stream);*/
 
 
+
 //cuBLAS_v2 API
 #if defined(CUBLAS_V2_H_)
   //TRMM {
@@ -619,6 +620,7 @@ void kblasZtrsm_async(char side, char uplo, char trans, char diag,
                                                    cuDoubleComplex *B, int ldb,
                       cudaStream_t stream);
 #endif//CUBLAS_V2_H_
+
 
 #ifdef __cplusplus
 }

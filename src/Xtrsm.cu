@@ -1233,7 +1233,7 @@ cublasStatus_t kblasXtrsm_cpu(cublasHandle_t handle,
                                                                                                          \
   cublasDestroy_v2(cublas_handle);                                                                       \
 }
-
+extern "C"{
 void kblasStrsm_async(char side, char uplo, char trans, char diag,
                       int m, int n,
                       float alpha, const float *A, int lda,
@@ -1262,6 +1262,7 @@ void kblasZtrsm_async(char side, char uplo, char trans, char diag,
                                                    cuDoubleComplex *B, int ldb,
                       cudaStream_t stream){
   kblasXtrsm_async_BODY
+}
 }
 //==============================================================================================
 
@@ -1311,6 +1312,7 @@ void kblasZtrsm(char side, char uplo, char trans, char diag,
                           B, ldb,
                    0);
 }
+
 //==============================================================================================
 
 cublasStatus_t kblasStrsm(cublasHandle_t handle,

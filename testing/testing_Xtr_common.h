@@ -318,9 +318,9 @@ int _kblas_error( cublasStatus_t err, const char* func, const char* file, int li
 
 #define check_error( err ) \
 { \
-  if(!_kblas_error( (err), __func__, __FILE__, __LINE__ )) \
-    return 0;\
+  if(!_kblas_error( (err), __func__, __FILE__, __LINE__ )); \
 }
+ //   return 0;\
 
 cudaEvent_t start, stop;
 void start_timing(cudaStream_t curStream){

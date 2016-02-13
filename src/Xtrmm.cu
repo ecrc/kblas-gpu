@@ -473,6 +473,7 @@ cublasStatus_t Xtrmm(cublasHandle_t handle,
       (side == CUBLAS_SIDE_RIGHT) * (m / (WARPS_PER_BLOCK * B_COLS_PER_WARP) + (m % (WARPS_PER_BLOCK * B_COLS_PER_WARP) > 0))
       , 1);
     int mb = (side == CUBLAS_SIDE_LEFT) * m / WARP + (side == CUBLAS_SIDE_RIGHT) * n / WARP;
+    //TODO validate with this run from magma ./testing/testing_dpotri_gpu --dev 1 --range 512:15360:512
     trmm_kernels[func_idx]<<< gridDim, blockDim, 0, curStream>>> (m, n, *alpha, A, incA, B, incB, mb);
     if(!_kblas_error( (cudaGetLastError()), __func__, __FILE__, __LINE__ ))
       return CUBLAS_STATUS_EXECUTION_FAILED;
@@ -1658,6 +1659,7 @@ int kblas_ztrmm_async(
   cublasDestroy_v2(cublas_handle);                                                                        \
 }
 
+extern "C"{
 void kblasStrmm_async(char side, char uplo, char trans, char diag,
                       int m, int n,
                       float alpha, const float *A, int lda,
@@ -1686,6 +1688,7 @@ void kblasZtrmm_async(char side, char uplo, char trans, char diag,
                                                    cuDoubleComplex *B, int ldb,
                       cudaStream_t stream){
   kblasXtrmm_async_BODY
+}
 }
 //==============================================================================================
 

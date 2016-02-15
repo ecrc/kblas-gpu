@@ -88,10 +88,10 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       check_error( cudaStreamCreateWithFlags( &curStream, cudaStreamNonBlocking) );
       check_error(cublasSetStream(cublas_handle, curStream));
       
-      check_error( cublasSetMatrix( Am, An, sizeof(T), h_A, lda, d_A, ldda ) );
+      check_error( cublasSetMatrixAsync( Am, An, sizeof(T), h_A, lda, d_A, ldda, curStream ) );
       
       if(opts.warmup){
-        check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
+        check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb, curStream ) );
         check_error( cublasXtrsm( cublas_handle,
                                   side, uplo, trans, diag,
                                   M, N,
@@ -104,7 +104,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       kblas_trsm_use_custom = false;
       for(int r = 0; r < nruns; r++)
       {
-        check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
+        check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb, curStream ) );
         
         start_timing(curStream);
         check_error( kblasXtrsm(cublas_handle,
@@ -122,7 +122,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       kblas_trsm_use_custom = true;
       for(int r = 0; r < nruns; r++)
       {
-        check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
+        check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb, curStream ) );
 
         start_timing(curStream);
         check_error( kblasXtrsm(cublas_handle,
@@ -138,7 +138,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
 
       if(opts.check){
         double normA = kblas_lange<T,double>('M', Am, An, h_A, lda);
-        check_error( cublasGetMatrix( Bm, Bn, sizeof(T), d_B, lddb, h_R, ldb ) );
+        check_error( cublasGetMatrixAsync( Bm, Bn, sizeof(T), d_B, lddb, h_R, ldb, curStream ) );
         double normX = kblas_lange<T,double>('M', Bm, Bn, h_R, ldb);
 
         T one = make_one<T>();
@@ -149,7 +149,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
                                 M, N,
                                 &invAlpha, d_A, ldda,
                                            d_B, lddb) );
-        check_error( cublasGetMatrix( Bm, Bn, sizeof(T), d_B, lddb, h_R, ldb ) );
+        check_error( cublasGetMatrixAsync( Bm, Bn, sizeof(T), d_B, lddb, h_R, ldb, curStream ) );
         kblasXaxpy( Bm * Bn, mone, h_B, 1, h_R, 1 );
         double normR = kblas_lange<T,double>('M', Bm, Bn, h_R, ldb);
         ref_error = normR / (normX * normA);
@@ -161,7 +161,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       
         for(int r = 0; r < nruns; r++)
         {
-          check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
+          check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb, curStream ) );
           
           start_timing(curStream);
           check_error( cublasXtrsm( cublas_handle,
@@ -175,7 +175,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         ref_time /= nruns;
         ref_perf = gflops / (ref_time / 1000.);
 
-        check_error( cublasGetMatrix( Bm, Bn, sizeof(T), d_B, lddb, h_B, ldb ) );
+        check_error( cublasGetMatrixAsync( Bm, Bn, sizeof(T), d_B, lddb, h_B, ldb, curStream ) );
       }
       
       free( h_A );

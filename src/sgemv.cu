@@ -59,7 +59,7 @@
 
 #define sgemvn_bs		(32)
 #define sgemvn_ty		(8)
-#define sgemvt_by		(1)
+#define sgemvn_by		(1)
 
 #define sgemvt_bs		(32)
 #define sgemvt_ty		(8)

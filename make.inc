@@ -26,7 +26,7 @@ GPU_ARCH_2=kepler
 
 ifeq (${GPU_ARCH_2}, kepler)
   NVOPTS_2 = -DSM=35 -arch sm_35 
-else ifeq (${GPU_ARCH}, fermi)
+else ifeq (${GPU_ARCH_2}, fermi)
   NVOPTS_2 = -DSM=20 -arch sm_20
 else
   $(error GPU_ARCH_2, currently ${GPU_TARGET_2}, must be either fermi or kepler for BLAS2 routines. Please edit your make.inc file)

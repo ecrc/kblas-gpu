@@ -90,6 +90,7 @@ __device__ static __inline__ cuDoubleComplex make_real(cuDoubleComplex a){return
 
 //==============================================================================================
 #if defined(__CUDACC__)
+#if defined(USE_CUSTOM_KERNELS)
 __device__ __inline__ float shfl(float x, int lane, int ws = 32)
 {
   return __shfl(x, lane, ws);
@@ -112,7 +113,7 @@ __device__ __inline__ cuDoubleComplex shfl(cuDoubleComplex x, int lane, int ws =
 {
   return make_cuDoubleComplex( shfl(x.x, lane, ws), shfl(x.y, lane, ws) );
 }
-
+#endif//__CUDA_ARCH__
 /*************************************************************/
 /**
 Atomic add on double precision, as suggested by the CUDA programming Guide

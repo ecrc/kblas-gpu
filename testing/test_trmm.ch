@@ -156,7 +156,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       check_error( cublasSetMatrix( Am, An, sizeof(T), h_A, lda, d_A, ldda ) );
 
       if(opts.warmup){
-        check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
+        check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb, curStream ) );
         check_error( cublasXtrmm( cublas_handle,
                                   side, uplo, trans, diag,
                                   M, N,
@@ -168,7 +168,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       kblas_trmm_use_custom = false;
       for(int r = 0; r < nruns; r++)
       {
-        check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
+        check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb, curStream ) );
         
         start_timing(curStream);
         check_error( kblasXtrmm(cublas_handle,
@@ -186,7 +186,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       kblas_trmm_use_custom = true;
       for(int r = 0; r < nruns; r++)
       {
-        check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
+        check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb, curStream ) );
         
         start_timing(curStream);
         check_error( kblasXtrmm(cublas_handle,
@@ -201,12 +201,12 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       kblas_perf_cus = gflops / (kblas_time_cus / 1000.0);
 
       if(opts.check || opts.time){
-        check_error( cublasGetMatrix( M, N, sizeof(T), d_B, lddb, h_R, ldb ) );
+        check_error( cublasGetMatrixAsync( M, N, sizeof(T), d_B, lddb, h_R, ldb, curStream ) );
         cudaDeviceSynchronize();
       
         for(int r = 0; r < nruns; r++)
         {
-          check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
+          check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb, curStream ) );
           
           start_timing(curStream);
           check_error( cublasXtrmm( cublas_handle,
@@ -220,7 +220,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         ref_time /= nruns;
         ref_perf = gflops / (ref_time /1000.0);
 
-        check_error( cublasGetMatrix( M, N, sizeof(T), d_B, lddb, h_B, ldb ) );
+        check_error( cublasGetMatrixAsync( M, N, sizeof(T), d_B, lddb, h_B, ldb, curStream ) );
         
         if(opts.check)
           ref_error = Xget_max_error_matrix(h_B, h_R, Bm, Bn, ldb);
@@ -229,13 +229,13 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
 
       if(opts.time){
         cudaDeviceSynchronize();
-        check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
+        check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb, curStream ) );
 
         T *h_C, *d_C;
         
         for(int r = 0; r < 1; r++)
         {
-          check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
+          check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb, curStream ) );
 
           start_timing(curStream);
           TESTING_MALLOC_DEV( d_C, T, lddb*Bn);
@@ -253,7 +253,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         //ref_time_oop /= nruns;
         ref_perf_oop = gflops / (ref_time_oop /1000.0);
 
-        check_error( cublasGetMatrix( M, N, sizeof(T), d_B, lddb, h_B, ldb ) );
+        check_error( cublasGetMatrixAsync( M, N, sizeof(T), d_B, lddb, h_B, ldb, curStream ) );
 
       }
 

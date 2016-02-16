@@ -109,6 +109,9 @@ int kblas_trsm_ib_data = 512;
 #define SIMPLE_SIZE(n) ( ((n) < WARP) || ( ((n) % WARP == 0) && ( (n) <= kblas_trsm_ib_cublas ) ) )
 #define SIMPLE_SIZE_DATA(n) ( (n) <= kblas_trsm_ib_data )
 //==============================================================================================
+
+//shuffle intrinsic is not supported before KEPLER
+#if defined(USE_CUSTOM_KERNELS)
 template<typename T, int WARPS_PER_BLOCK, bool LOWER, bool TRANS, bool CONJG, bool UNIT>
 __global__ void //__launch_bounds__(WARP * WARPS_PER_BLOCK)
 trsm_mul32_L(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int incB, int mb)
@@ -233,6 +236,8 @@ trsm_mul32_L(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int
     }
   }
 }
+
+
 //==============================================================================================
 template<class T>
 cublasStatus_t Xtrsm(cublasHandle_t handle,
@@ -296,6 +301,27 @@ cublasStatus_t Xtrsm(cublasHandle_t handle,
   }
   return CUBLAS_STATUS_SUCCESS;
 }
+
+#else
+
+template<class T>
+cublasStatus_t Xtrsm(cublasHandle_t handle,
+                     cublasSideMode_t side, cublasFillMode_t uplo,
+                     cublasOperation_t trans, cublasDiagType_t diag,
+                     int m, int n,
+                     const T *alpha,
+                     const T *A, int incA,
+                     T *B, int incB){
+  
+  //handle with cublas
+  return cublasXtrsm(handle,
+                      side, uplo, trans, diag,
+                      m, n,
+                      alpha, A, incA,
+                      B, incB );
+}
+
+#endif
 //==============================================================================================
 template<typename T>
 cublasStatus_t kblasXtrsm(cublasHandle_t handle,

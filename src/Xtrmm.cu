@@ -116,7 +116,7 @@ bool kblas_trmm_use_custom = 0;
 #define SIMPLE_SIZE_DATA(n) ( (n) <= kblas_trmm_ib_data )
 
 //shuffle intrinsic is not supported before KEPLER
-#if defined(USE_CUSTOM_KERNELS)
+#if (SM >= 30)
 //==============================================================================================
 template<typename T, int WARPS_PER_BLOCK, int B_COLS_PER_WARP, bool LOWER, bool TRANS, bool CONJG>
 __global__ void //__launch_bounds__(256)
@@ -503,7 +503,7 @@ cublasStatus_t Xtrmm(cublasHandle_t handle,
                       B, incB );
 }
 
-#endif
+#endif //(SM >= 30)
 
 //==============================================================================================
 template<class T>

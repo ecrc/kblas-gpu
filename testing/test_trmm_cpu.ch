@@ -77,7 +77,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
   T *d_A, *d_B;
   
   kblas_trmm_ib_data = opts.db;
-  check_error( cudaSetDevice(opts.device) );
+  check_error( cudaSetDevice(opts.devices[0]) );
   
   USING
   cudaError_t err;

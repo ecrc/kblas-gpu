@@ -19,7 +19,7 @@ ifeq (${CC}, gcc)
   COPTS+=-std=c99
 endif
 
-NVOPTS_3 = -DSM=35 -arch sm_35 -DUSE_CUSTOM_KERNELS -lineinfo -Xptxas -v 
+NVOPTS_3 = -DSM=35 -arch sm_35 -lineinfo -Xptxas -v
 
 # specify the gpu architecture for BLAS2 routines (fermi, kepler)
 GPU_ARCH_2=kepler

@@ -90,7 +90,7 @@ __device__ static __inline__ cuDoubleComplex make_real(cuDoubleComplex a){return
 
 //==============================================================================================
 #if defined(__CUDACC__)
-#if defined(USE_CUSTOM_KERNELS)
+#if (SM >= 30)
 __device__ __inline__ float shfl(float x, int lane, int ws = 32)
 {
   return __shfl(x, lane, ws);

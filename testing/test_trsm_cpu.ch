@@ -77,7 +77,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
   T *d_A, *d_B;
 
   kblas_trsm_ib_data = opts.db;
-  check_error( cudaSetDevice(opts.device) );
+  check_error( cudaSetDevice(opts.devices[0]) );
 
   USING
   cudaError_t err;
@@ -238,10 +238,16 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       cpu_perf = gflops / (cpu_time / 1000.0);
       cudaDeviceSynchronize();
 
+      /* TODO still in error
       if(opts.check){
         double normA = kblas_lange<T,double>('M', Am, An, h_A, lda);
-        check_error( cublasGetMatrix( Bm, Bn, sizeof(T), d_B, lddb, h_Rk, ldb ) );
         double normX = kblas_lange<T,double>('M', Bm, Bn, h_Rk, ldb);
+        
+        TESTING_MALLOC_DEV( d_A, T, ldda*An);
+        TESTING_MALLOC_DEV( d_B, T, lddb*Bn);
+        
+        check_error( cublasSetMatrixAsync( Am, An, sizeof(T), h_A, lda, d_A, ldda, curStream) );
+        check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_Rk, ldb, d_B, lddb, curStream ) );
 
         T one = make_one<T>();
         T mone = make_zero<T>() - one;
@@ -256,7 +262,9 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         double normR = kblas_lange<T,double>('M', Bm, Bn, h_Rk, ldb);
         ref_error = normR / (normX * normA);
         //ref_error = Xget_max_error_matrix(h_Rc, h_Rk, Bm, Bn, ldb);
-      }
+        check_error(  cudaFree( d_A ) );
+        check_error(  cudaFree( d_B ) );
+      }*/
       
       if(opts.time){
         for(int r = 0; r < nruns; r++)

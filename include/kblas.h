@@ -306,7 +306,6 @@ int get_zgemv_mgpu_bs(char trans);
 #define KBLAS_NoTrans 'N'
 #define KBLAS_Unit 'U'
 #define KBLAS_NonUnit 'N'
-#define KBLAS_MaxGPUs 8
 
 /*/CPU API
 #if defined(KBLAS_CPU_API)

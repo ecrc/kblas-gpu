@@ -43,8 +43,8 @@ int main(int argc, char* argv[]){
   cublasStatus_t status;
   cublasXtHandle_t cublasXt_handle;
   if(cublasXtCreate(&cublasXt_handle) != CUBLAS_STATUS_SUCCESS) {printf("handle create fail\n"); return 1;}
-  int devices[8] = { 0,1,2,3,4, 5, 6, 7 };  // add this line
-  if((status = cublasXtDeviceSelect(cublasXt_handle, opts.ngpu, devices)) != CUBLAS_STATUS_SUCCESS) {
+  //int devices[8] = { 0,1,2,3,4, 5, 6, 7 };  // add this line
+  if((status = cublasXtDeviceSelect(cublasXt_handle, opts.ngpu, opts.devices)) != CUBLAS_STATUS_SUCCESS) {
     printf("set devices fail with status: %s\n", cublasGetErrorString(status));
     return 1;
   }
@@ -101,10 +101,10 @@ int main(int argc, char* argv[]){
       fprintf( stderr, "!!!! cudaHostAlloc failed for: h_C\n" );
       exit(-1);
     }
-    if ( cudaHostAlloc((void**)&h_R, (ldc*N)*sizeof( double ),0 ) != cudaSuccess) {
+    /*if ( cudaHostAlloc((void**)&h_R, (ldc*N)*sizeof( double ),0 ) != cudaSuccess) {
       fprintf( stderr, "!!!! cudaHostAlloc failed for: h_C\n" );
       exit(-1);
-    }
+    }*/
       
     for( int iter = 0; iter < opts.niter; ++iter ) {
       drand_matrix(Am, An, h_A, lda);
@@ -114,6 +114,17 @@ int main(int argc, char* argv[]){
       //cublasStatus_t status;
       blockDim = opts.nb;
       cublasXtSetBlockDim(cublasXt_handle, blockDim);
+
+      if(opts.warmup){
+        cublasXtDgemm(cublasXt_handle,
+                      CUBLAS_OP_T, CUBLAS_OP_N,
+                      M, N, K,
+                      &alpha, h_A, ldda,
+                      h_B, lddb,
+                      &beta,  h_C, lddc );
+        drand_matrix(ldc, N, h_C, ldc);
+      }
+      
       float time = 0, cublas_time = 0;
       for(int r = 0; r < nruns; r++)
       {
@@ -143,7 +154,7 @@ int main(int argc, char* argv[]){
     cudaFreeHost( h_A );
     cudaFreeHost( h_B );
     cudaFreeHost( h_C );
-    cudaFreeHost( h_R );
+    //cudaFreeHost( h_R );
     if ( opts.niter > 1 ) {
         printf( "\n" );
     }

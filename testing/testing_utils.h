@@ -311,7 +311,7 @@ extern "C"{
     int qsize[ MAX_NTEST ];
     
     // scalars
-    int device;
+    int devices[MAX_NGPUS];
     int nstream;
     int ngpu;
     int niter;
@@ -324,7 +324,8 @@ extern "C"{
     int custom;
     int warmup;
     int time;
-    
+    int bd;
+
     // lapack flags
     char uplo;
     char transA;
@@ -345,7 +346,9 @@ extern "C"{
     int m_start = 0, m_stop = 0, m_step = 0;
     
     // fill in default values
-    opts->device   = 0;
+    for(int d = 0; d < MAX_NGPUS; d++)
+      opts->devices[d] = d;
+    
     opts->nstream  = 1;
     opts->ngpu     = 1;
     opts->niter    = 1;
@@ -358,7 +361,8 @@ extern "C"{
     opts->custom   = 0;
     opts->warmup    = 0;
     opts->time    = 0;
-    
+    opts->bd    = -1;
+
     opts->uplo      = 'L';      // potrf, etc.
     opts->transA    = 'N';    // gemm, etc.
     opts->transB    = 'N';    // gemm
@@ -487,14 +491,45 @@ extern "C"{
       
       // ----- scalar arguments
       else if ( strcmp("--dev", argv[i]) == 0 && i+1 < argc ) {
-        opts->device = atoi( argv[++i] );
-        kblas_assert( opts->device >= 0 && opts->device < ndevices,
+        int n;
+        info = sscanf( argv[++i], "%d", &n );
+        if ( info == 1) {
+          char inp[512];
+          char * pch;
+          int ngpus = 0;
+          strcpy(inp, argv[i]);
+          pch = strtok (inp,",");
+          do{
+            info = sscanf( pch, "%d", &n );
+            if ( ngpus >= MAX_NGPUS ) {
+              printf( "warning: selected number exceeds KBLAS max number of GPUs, ngpus=%d.\n", ngpus);
+              break;
+            }
+            if ( ngpus >= ndevices ) {
+              printf( "warning: max number of available devices reached, ngpus=%d.\n", ngpus);
+              break;
+            }
+            if ( n >= ndevices || n < 0) {
+              printf( "error: device %d is invalid; ensure dev in [0,%d].\n", n, ndevices-1 );
+              break;
+            }
+            opts->devices[ ngpus++ ] = n;
+            pch = strtok (NULL,",");
+          }while(pch != NULL);
+          opts->ngpu = ngpus;
+        }
+        else {
+          fprintf( stderr, "error: --dev %s is invalid; ensure you have comma seperated list of integers.\n",
+                   argv[i] );
+          exit(1);
+        }
+        kblas_assert( opts->ngpu > 0 && opts->ngpu <= ndevices,
                      "error: --dev %s is invalid; ensure dev in [0,%d].\n", argv[i], ndevices-1 );
       }
       else if ( strcmp("--ngpu",    argv[i]) == 0 && i+1 < argc ) {
         opts->ngpu = atoi( argv[++i] );
-        kblas_assert( opts->ngpu <= KBLAS_MaxGPUs ,
-                     "error: --ngpu %s exceeds KBLAS_MaxGPUs, %d.\n", argv[i], KBLAS_MaxGPUs  );
+        kblas_assert( opts->ngpu <= MAX_NGPUS ,
+                      "error: --ngpu %s exceeds MAX_NGPUS, %d.\n", argv[i], MAX_NGPUS  );
         kblas_assert( opts->ngpu <= ndevices,
                      "error: --ngpu %s exceeds number of CUDA devices, %d.\n", argv[i], ndevices );
         kblas_assert( opts->ngpu > 0,
@@ -529,6 +564,11 @@ extern "C"{
         opts->db = atoi( argv[++i] );
         kblas_assert( opts->db > 0,
                      "error: --db %s is invalid; ensure db > 0.\n", argv[i] );
+      }
+      else if ( strcmp("--bd",      argv[i]) == 0 && i+1 < argc ) {
+        opts->bd = atoi( argv[++i] );
+        kblas_assert( opts->bd >= 0,
+                     "error: --bd %s is invalid; ensure db >= 0.\n", argv[i] );
       }
       // ----- boolean arguments
       // check results
@@ -631,7 +671,7 @@ extern "C"{
     
     
     // set device
-    cudaError_t ed = cudaSetDevice( opts->device );
+    cudaError_t ed = cudaSetDevice( opts->devices[0] );
     if(ed != cudaSuccess){printf("Error setting device : %s \n", cudaGetErrorString(ed) ); exit(-1);}
     
     return 1;

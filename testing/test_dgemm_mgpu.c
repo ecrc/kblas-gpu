@@ -42,6 +42,44 @@ int main(int argc, char** argv)
 
   int gpus_avail;
   cudaGetDeviceCount(&gpus_avail);
+  long *gpu_id = (long*)malloc(ngpus2 * sizeof(long));
+
+  if(argc > 9){
+    int n;
+    int info = sscanf( argv[9], "%d", &n );
+    if ( info == 1) {
+      char inp[512];
+      char * pch;
+      int ngpus = 0;
+      strcpy(inp, argv[9]);
+      pch = strtok (inp,",");
+      do{
+        info = sscanf( pch, "%d", &n );
+        if ( ngpus >= MAX_NGPUS ) {
+          printf( "warning: selected number exceeds KBLAS max number of GPUs, ngpus=%d.\n", ngpus);
+          break;
+        }
+        if ( ngpus >= gpus_avail ) {
+          printf( "warning: max number of available devices reached, ngpus=%d.\n", ngpus);
+          break;
+        }
+        if ( n >= gpus_avail || n < 0) {
+          printf( "error: device %d is invalid; ensure dev in [0,%d].\n", n, gpus_avail-1 );
+          break;
+        }
+        gpu_id[ ngpus++ ] = n;
+        pch = strtok (NULL,",");
+      }while(pch != NULL);
+      if(ngpus2 > ngpus) ngpus2 = ngpus;
+      if(ngpus1 > ngpus) ngpus1 = ngpus;
+    }
+  }else{
+    // init ids - for now assume one node
+    long k;
+    for(k = 0; k < ngpus2; k++)
+            gpu_id[k] = (long)k;
+  }
+  
   if(ngpus1 > gpus_avail)
   {printf("Error: Can't run on %ld gpus, only %d gpus are available \n", ngpus1, gpus_avail); exit(-1);}
 
@@ -50,14 +88,7 @@ int main(int argc, char** argv)
 
   if(ngpus1 > ngpus2)
   {printf("Error: ngpus-end is larger than ngpu-start \n"); exit(1);}
-
-  long *gpu_id = (long*)malloc(ngpus2 * sizeof(long));
-
-  // init ids - for now assume one node
-  long k;
-  for(k = 0; k < ngpus2; k++)
-          gpu_id[k] = (long)k;
-
+  
   long M = istop;
   long N = M;
   long K = M;

@@ -91,7 +91,9 @@ OBJ_DIR=./obj
 C_OBJ = $(patsubst %.c,$(OBJ_DIR)/%.o,$(C_SRC))
 
 #C_OBJ=$(C_SRC:.c=.o) $(C_SRC:.cpp=.o)
-EXE=$(C_SRC:.c=)
+#EXE=$(C_SRC:.c=)
+BIN_DIR=./bin
+EXE=$(patsubst %.c,$(BIN_DIR)/%,$(C_SRC))
 
 $(OBJ_DIR)/test_%trmm.o: test_%trmm.c test_trmm.ch testing_Xtr_common.h $(INC_SRC) $(KBLAS_LIB)
 	$(CXX) $(INCLUDES) -c $< -o $@
@@ -111,7 +113,7 @@ $(OBJ_DIR)/test_%gemm.o: test_%gemm.c test_gemm.ch testing_Xtr_common.h $(INC_SR
 $(OBJ_DIR)/%.o: %.c $(INC_SRC) $(KBLAS_LIB)
 	$(CC) $(COPTS) $(INCLUDES) -c $< -o $@
 
-test_%: $(OBJ_DIR)/test_%.o 
+$(BIN_DIR)/test_%: $(OBJ_DIR)/test_%.o 
 	$(CC) $< -o $@ $(LIB_PATH) $(LIB)
 
 all: $(EXE)

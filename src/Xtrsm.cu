@@ -111,7 +111,7 @@ int kblas_trsm_ib_data = 512;
 //==============================================================================================
 
 //shuffle intrinsic is not supported before KEPLER
-#if defined(USE_CUSTOM_KERNELS)
+#if (SM >= 30)
 template<typename T, int WARPS_PER_BLOCK, bool LOWER, bool TRANS, bool CONJG, bool UNIT>
 __global__ void //__launch_bounds__(WARP * WARPS_PER_BLOCK)
 trsm_mul32_L(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int incB, int mb)
@@ -144,12 +144,13 @@ trsm_mul32_L(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int
 
       for(r = (forward ? 0 : mb-1); (forward && r < c) || (!forward && r > c); r += (forward ? 1 : -1))
       {
-        //load A(r,c)
         #pragma unroll
         for(l = 0; l < A_COLS_PER_WARP; l++){
           if(TRANS)
+            //load A(r,c)
             sA[txyw + l * WARPS_PER_BLOCK * WARP1] = A[txyiA + WARP * (r + c * incA) + l * WARPS_PER_BLOCK * incA];
           else
+            //load A(c,r)
             sA[txyw + l * WARPS_PER_BLOCK * WARP1] = A[txyiA + WARP * (c + r * incA) + l * WARPS_PER_BLOCK * incA];
         }
         //load B(r)
@@ -158,7 +159,7 @@ trsm_mul32_L(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int
 
         __syncthreads();
         if(active){
-          //gemm A(r,c) & B(r) onto B(c) held at s
+          //gemm A(r,c)/A(c,r) & B(r) onto B(c) held at s
           if(TRANS)
             sAA = sA + tx*WARP1;
           else
@@ -192,9 +193,9 @@ trsm_mul32_L(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int
       }
 
       //load B(c) into registers
-      if(active)
+      if(active){
         rB = BB[txyiB + WARP * c];
-
+      }
       __syncthreads();
       if(active)
       {
@@ -239,6 +240,17 @@ trsm_mul32_L(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int
 
 
 //==============================================================================================
+#define TRSM_NUM_VARIANTS 4
+#define TRSM_kernel_variants(__WPB)                  \
+        trsm_mul32_L<T, __WPB,  true, false, false, false>, \
+        trsm_mul32_L<T, __WPB,  true,  true, false, false>, \
+        trsm_mul32_L<T, __WPB, false, false, false, false>, \
+        trsm_mul32_L<T, __WPB, false,  true, false, false>
+        /*,TODO
+        trsm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true, false, false>,
+        trsm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true,  true, false>,
+        trsm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false, false, false>,
+        trsm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false,  true, false>*/
 template<class T>
 cublasStatus_t Xtrsm(cublasHandle_t handle,
                      cublasSideMode_t side, cublasFillMode_t uplo,
@@ -266,15 +278,8 @@ cublasStatus_t Xtrsm(cublasHandle_t handle,
   #define WARPS_PER_BLOCK 8
   #define B_COLS_PER_WARP 1
 
-  trsm_kernels_type trsm_kernels[4] = {// T, WARPS_PER_BLOCK, LOWER, TRANS, CONJG, UNIT
-    trsm_mul32_L<T, WARPS_PER_BLOCK,  true, false, false, false>,
-    trsm_mul32_L<T, WARPS_PER_BLOCK,  true,  true, false, false>,
-    trsm_mul32_L<T, WARPS_PER_BLOCK, false, false, false, false>,
-    trsm_mul32_L<T, WARPS_PER_BLOCK, false,  true, false, false>/*,TODO
-    trsm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true, false, false>,
-    trsm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true,  true, false>,
-    trsm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false, false, false>,
-    trsm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false,  true, false>*/
+  trsm_kernels_type trsm_kernels[TRSM_NUM_VARIANTS] = {// T, WARPS_PER_BLOCK, LOWER, TRANS, CONJG, UNIT
+    TRSM_kernel_variants(WARPS_PER_BLOCK)
   };
 
   cudaStream_t curStream;

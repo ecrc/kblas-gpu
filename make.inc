@@ -12,7 +12,7 @@ CC=gcc
 NVCC=$(_CUDA_ROOT_)/bin/nvcc
 
 #customize the name of the generated kblas library
-LIB_KBLAS_NAME=libkblas.a
+LIB_KBLAS_NAME=libkblas-gpu.a
 
 NVOPTS =-O3 --compiler-options -fno-strict-aliasing#-E --ptx#
 ifeq (${CC}, gcc)

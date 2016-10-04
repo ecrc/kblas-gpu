@@ -13,10 +13,10 @@ LIB_PATH+= -L${_CUDA_ROOT_}/lib64
 LIB_PATH+= -L${_KBLAS_ROOT_}/lib
 
 # libraries to link against
-LIB= -lm -lkblas
+LIB= -lm -l${LIB_KBLAS_NAME}
 LIB+= -lcublas -lcudart
 
-KBLAS_LIB=../lib/${LIB_KBLAS_NAME}
+KBLAS_LIB=../lib/lib${LIB_KBLAS_NAME}.a
 
 C_SRC=
 C_SRC+=	test_sscal.c \

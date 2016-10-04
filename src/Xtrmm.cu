@@ -1,5 +1,5 @@
- /**
-  - -* (C) Copyright 2013 King Abdullah University of Science and Technology
+/**
+  -- (C) Copyright 2013 King Abdullah University of Science and Technology
   Authors:
   Ali Charara (ali.charara@kaust.edu.sa)
   David Keyes (david.keyes@kaust.edu.sa)
@@ -30,7 +30,7 @@
   THEORY  OF  LIABILITY,  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
   (INCLUDING  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
   OF  THIS  SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-  **/
+**/
 #include <stdlib.h>
 #include <stdio.h>
 #include <cuda.h>

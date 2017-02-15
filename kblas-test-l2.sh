@@ -8,8 +8,7 @@ NOTRANS=n
 TRANS=t
 #--------------------
 START_DIM=128
-STOP_DIM=256
-#16500
+STOP_DIM=16500
 STEP_DIM=128
 #--------------------
 GPU=0
@@ -18,8 +17,7 @@ NGPU1=2
 NGPU2=${NGPUS}
 #--------------------
 START_DIM_MGPU=1024
-STOP_DIM_MGPU=2048
-#16500
+STOP_DIM_MGPU=16500
 STEP_DIM_MGPU=1024
 OFFSET=0
 #--------------------
@@ -57,6 +55,11 @@ do
   ./test_${p}gemv $GPU $TRANS   $START_DIM $STOP_DIM $STEP_DIM > ${RESDIR}/${p}gemv${TRANS}.txt
   echo " done"
 done
+
+if [ $NGPUS -lt "2" ]; then
+  echo "KBLAS: Not enough GPUs detected to test Multi-GPU routines! Skipping..."
+  exit
+fi
 
 #----- SYMV-MGPU
 for (( g=$NGPU1; g <= $NGPUS && g<=$NGPU2; g++ ))

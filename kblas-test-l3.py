@@ -48,7 +48,7 @@ if (TRMM == 1):
                 '-SR -U -NN',
                 '-SR -U -TN'
                 ]
-    programs = ['test_strmm', 'test_dtrmm', 'test_strmm_cpu', 'test_dtrmm_cpu']
+    programs = ['test_strmm', 'test_dtrmm', 'test_ctrmm', 'test_ztrmm', 'test_strmm_cpu', 'test_dtrmm_cpu', 'test_ctrmm_cpu', 'test_ztrmm_cpu']
 
     for p in programs:
         sys.stdout.write('running: '+p+' ... ')
@@ -77,7 +77,7 @@ if (TRSM == 1):
                 '-SR -U -NN',
                 '-SR -U -TN'
                 ]
-    programs = ['test_strsm', 'test_dtrsm', 'test_strsm_cpu', 'test_dtrsm_cpu']
+    programs = ['test_strsm', 'test_dtrsm', 'test_ctrsm', 'test_ztrsm', 'test_strsm_cpu', 'test_dtrsm_cpu', 'test_ctrsm_cpu', 'test_ztrsm_cpu']
 
     for p in programs:
         sys.stdout.write('running: '+p+' ... ')

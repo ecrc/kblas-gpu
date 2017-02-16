@@ -115,6 +115,9 @@ __device__ __inline__ cuDoubleComplex shfl(cuDoubleComplex x, int lane, int ws =
 }
 #endif//__CUDA_ARCH__
 /*************************************************************/
+#if ( __CUDACC_VER_MAJOR__ >= 8 ) && ( !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 600 )
+#include "sm_60_atomic_functions.h"
+#else
 /**
 Atomic add on double precision, as suggested by the CUDA programming Guide
 **/
@@ -129,7 +132,7 @@ __device__ static __inline__ double atomicAdd(double* address, double val)
   } while (assumed != old);
   return __longlong_as_double(old);
 }
-
+#endif//__CUDACC_VER_MAJOR__
 /**
 Atomic add for float complex ('C' precision)
 **/

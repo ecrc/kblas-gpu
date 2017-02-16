@@ -4,6 +4,7 @@
 import os, sys, getopt
 import csv
 import time
+import commands
 
 # create output log folder
 
@@ -19,10 +20,17 @@ if (not os.path.isdir(BIN_PATH)):
     print 'Unable to find executables folder! Exiting'
     exit()
 
+    
+cmd=('nvidia-smi -L | wc -l')
+NGPUS = commands.getstatusoutput(cmd)[1]
+if (NGPUS < '1'):
+    print 'Unable to detect an NVIDIA GPU device to test on! Exiting'
+    exit()
+
 #check = ''
 check = '-c'
 TRMM = 1
-TRSM = 0
+TRSM = 1
 ranges = ['--range 128:1024:128',           #square matrices
           '--range 512:15360:512  ',        #square matrices
           #'--mrange 512:15360:512 -n 512 ', #tall & skinny matrices
@@ -50,7 +58,7 @@ if (TRMM == 1):
             os.system('echo running: '+p+' > '+TEST_LOGS_PATH+'/'+p+'.txt')
             for v in variants:
                 for r in ranges:
-                    cmd = (BIN_PATH+p+' '+r+' -w --nb 128 --db 256 -t '+check+' --dev 1 '+v)
+                    cmd = (BIN_PATH+p+' '+r+' -w --nb 128 --db 256 -t '+check+' --dev 0 '+v)
                     os.system('echo >> '+TEST_LOGS_PATH+'/'+p+'.txt')
                     os.system('echo '+cmd+' >> '+TEST_LOGS_PATH+'/'+p+'.txt')
                     sys.stdout.flush()
@@ -79,7 +87,7 @@ if (TRSM == 1):
             os.system('echo running: '+p+' > '+TEST_LOGS_PATH+'/'+p+'.txt')
             for v in variants:
                 for r in ranges:
-                    cmd = (BIN_PATH+p+' '+r+' -w --nb 128 --db 256 -t '+check+' --dev 1 '+v)
+                    cmd = (BIN_PATH+p+' '+r+' -w --nb 128 --db 256 -t '+check+' --dev 0 '+v)
                     os.system('echo >> '+TEST_LOGS_PATH+'/'+p+'.txt')
                     os.system('echo '+cmd+' >> '+TEST_LOGS_PATH+'/'+p+'.txt')
                     sys.stdout.flush()

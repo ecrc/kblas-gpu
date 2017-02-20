@@ -19,14 +19,14 @@ extern int kblas_trsm_ib_cublas;
 //==============================================================================================
 int main(int argc, char** argv)
 {
-  cublasHandle_t cublas_handle;
-  cublasCreate(&cublas_handle);
-  
   kblas_opts opts;
   if(!parse_opts( argc, argv, &opts )){
     USAGE;
     return -1;
   }
+  
+  cublasHandle_t cublas_handle;
+  cublasCreate(&cublas_handle);
   
   kblas_trsm_ib_cublas = opts.nb;
   kblas_trsm_use_custom = (bool)opts.custom;

@@ -318,19 +318,24 @@ int _kblas_error( cublasStatus_t err, const char* func, const char* file, int li
 
 #define check_error( err ) \
 { \
-  if(!_kblas_error( (err), __func__, __FILE__, __LINE__ )); \
+  if(!_kblas_error( (err), __func__, __FILE__, __LINE__ )) \
+    exit(1); \
 }
  //   return 0;\
 
 cudaEvent_t start, stop;
 void start_timing(cudaStream_t curStream){
-  cudaEventRecord(start, curStream);
+  check_error( cudaEventRecord(start, curStream) );
+  check_error( cudaGetLastError() );
 }
 float get_elapsed_time(cudaStream_t curStream){
-  cudaEventRecord(stop, curStream);
-  cudaEventSynchronize(stop);
+  check_error( cudaEventRecord(stop, curStream) );
+  check_error( cudaGetLastError() );
+  check_error( cudaEventSynchronize(stop) );
+  check_error( cudaGetLastError() );
   float time = 0;
-  cudaEventElapsedTime(&time, start, stop);
+  check_error( cudaEventElapsedTime(&time, start, stop) );
+  check_error( cudaGetLastError() );
   return time;
 }
 

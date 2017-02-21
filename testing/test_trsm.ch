@@ -29,8 +29,8 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
   USING
   cudaError_t err;
 
-  check_error( cudaEventCreate(&start);
-  check_error( cudaEventCreate(&stop);
+  check_error( cudaEventCreate(&start) );
+  check_error( cudaEventCreate(&stop) );
   
   cublasSideMode_t  side  = (opts.side   == KBLAS_Left  ? CUBLAS_SIDE_LEFT : CUBLAS_SIDE_RIGHT);
   cublasFillMode_t  uplo  = (opts.uplo   == KBLAS_Lower ? CUBLAS_FILL_MODE_LOWER : CUBLAS_FILL_MODE_UPPER);
@@ -213,8 +213,8 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
   }
     	
 
-  cudaEventDestroy(start);
-  cudaEventDestroy(stop);
+  check_error( cudaEventDestroy(start) );
+  check_error( cudaEventDestroy(stop) );
   check_error( cudaGetLastError() );
 }
 

@@ -485,7 +485,7 @@ cublasStatus_t kblasXtrsm(cublasHandle_t handle,
       n2 = n-n1;
     }
 
-    if(uplo == KBLAS_Upper){
+    if(uplo == CUBLAS_FILL_MODE_UPPER){
       //Right / Upper / NoTrans
       if(trans == noTrans){
         if((status = kblasXtrsm(handle,
@@ -871,7 +871,7 @@ cublasStatus_t kblasXtrsm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
       n2 = n-n1;
     }
 
-    if(uplo == KBLAS_Upper){
+    if(uplo == CUBLAS_FILL_MODE_UPPER){
       //Right / Upper / NoTrans
       if(trans == noTrans){
         if((status = kblasXtrsm(handle, strIn, strOut,

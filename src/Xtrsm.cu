@@ -350,7 +350,6 @@ cublasStatus_t kblasXtrsm(cublasHandle_t handle,
   T mone = make_zero<T>() - one;
   T mInvAlpha = mone / *alpha;
   cublasStatus_t status;
-  cublasOperation_t noTrans = CUBLAS_OP_N;//Trans = CUBLAS_OP_T,
 
   if( (*alpha == make_zero<T>())//TODO
    || ( (side == CUBLAS_SIDE_LEFT) && (SIMPLE_SIZE(m)) )
@@ -384,7 +383,7 @@ cublasStatus_t kblasXtrsm(cublasHandle_t handle,
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
 
         if((status = cublasXgemm(handle,
-                                 trans, noTrans,
+                                 trans, CUBLAS_OP_N,
                                  m1, n, m2,
                                  &mone, A+m1*incA, incA,
                                         B+m1, incB,
@@ -408,7 +407,7 @@ cublasStatus_t kblasXtrsm(cublasHandle_t handle,
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
 
         if((status = cublasXgemm(handle,
-                                 trans, noTrans,
+                                 trans, CUBLAS_OP_N,
                                  m2, n, m1,
                                  &mone, A+m1*incA, incA,
                                         B, incB,
@@ -434,7 +433,7 @@ cublasStatus_t kblasXtrsm(cublasHandle_t handle,
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
 
         if((status = cublasXgemm(handle,
-                                 trans, noTrans,
+                                 trans, CUBLAS_OP_N,
                                  m2, n, m1,
                                  &mone, A+m1, incA,
                                         B, incB,
@@ -459,7 +458,7 @@ cublasStatus_t kblasXtrsm(cublasHandle_t handle,
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
 
         if((status = cublasXgemm(handle,
-                                 trans, noTrans,
+                                 trans, CUBLAS_OP_N,
                                  m1, n, m2,
                                  &mone, A+m1, incA,
                                         B+m1, incB,
@@ -487,7 +486,7 @@ cublasStatus_t kblasXtrsm(cublasHandle_t handle,
 
     if(uplo == CUBLAS_FILL_MODE_UPPER){
       //Right / Upper / NoTrans
-      if(trans == noTrans){
+      if(trans == CUBLAS_OP_N){
         if((status = kblasXtrsm(handle,
                                 side, uplo, trans, diag,
                                 m, n1,
@@ -496,7 +495,7 @@ cublasStatus_t kblasXtrsm(cublasHandle_t handle,
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
 
         if((status = cublasXgemm(handle,
-                                 noTrans, trans,
+                                 CUBLAS_OP_N, trans,
                                  m, n2, n1,
                                  &mone, B, incB,
                                         A+n1*incA, incA,
@@ -520,7 +519,7 @@ cublasStatus_t kblasXtrsm(cublasHandle_t handle,
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
 
         if((status = cublasXgemm(handle,
-                                 noTrans, trans,
+                                 CUBLAS_OP_N, trans,
                                  m, n1, n2,
                                  &mInvAlpha, B+n1*incB, incB,
                                              A+n1*incA, incA,
@@ -546,7 +545,7 @@ cublasStatus_t kblasXtrsm(cublasHandle_t handle,
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
 
         if((status = cublasXgemm(handle,
-                                 noTrans, trans,
+                                 CUBLAS_OP_N, trans,
                                  m, n1, n2,
                                  &mone, B+n1*incB, incB,
                                         A+n1, incA,
@@ -570,7 +569,7 @@ cublasStatus_t kblasXtrsm(cublasHandle_t handle,
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
 
         if((status = cublasXgemm(handle,
-                                 noTrans, trans,
+                                 CUBLAS_OP_N, trans,
                                  m, n2, n1,
                                  &mInvAlpha, B, incB,
                                              A+n1, incA,

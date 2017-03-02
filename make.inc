@@ -7,8 +7,8 @@
 _CUDA_ROOT_=$(CUDA_ROOT)
 
 # specify compilers
-CXX=g++
-CC=gcc
+CXX=icpc
+CC=icpc
 NVCC=$(_CUDA_ROOT_)/bin/nvcc
 
 #customize the name of the static kblas library

@@ -3,6 +3,7 @@
 #define _TESTING_UTILS_
 
 #include <stdarg.h>
+#include <sys/time.h>
 
 #define NRUNS	(10)
 
@@ -699,11 +700,11 @@ void kblas_make_hpd( int N, T* A, int lda )
 }
 #endif//__cplusplus
 
-/*double gettime(void)
+double gettime(void)
 {
   struct timeval tp;
   gettimeofday( &tp, NULL );
   return tp.tv_sec + 1e-6 * tp.tv_usec;
-}*/
+}
 
 #endif	//_TESTING_UTILS_

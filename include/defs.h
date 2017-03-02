@@ -35,6 +35,15 @@
 #ifndef	_DEFS_
 #define _DEFS_
 
+#define KBLAS_Lower 'L'
+#define KBLAS_Upper 'U'
+#define KBLAS_Left 'L'
+#define KBLAS_Right 'R'
+#define KBLAS_Trans 'T'
+#define KBLAS_NoTrans 'N'
+#define KBLAS_Unit 'U'
+#define KBLAS_NonUnit 'N'
+
 #define MAX_NGPUS	(16)
 #define MAX_STREAMS	(1)
 

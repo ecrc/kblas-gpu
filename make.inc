@@ -4,7 +4,7 @@
 
 
 #specify cuda directory
-_CUDA_ROOT_=/usr/local/cuda
+_CUDA_ROOT_=$(CUDA_ROOT)
 
 # specify compilers
 CXX=g++
@@ -18,8 +18,9 @@ NVOPTS =-O3 --compiler-options -fno-strict-aliasing#-E --ptx#
 ifeq (${CC}, gcc)
   COPTS+=-std=c99
 endif
+#COPTS+= -qopenmp 
 
-NVOPTS_3 = -DSM=35 -arch sm_35 -lineinfo -Xptxas -v
+NVOPTS_3 = -DSM=35 -arch sm_35 -Xcompiler -fopenmp -lineinfo -Xptxas -v
 
 # specify the gpu architecture for BLAS2 routines (fermi, kepler)
 GPU_ARCH_2=kepler

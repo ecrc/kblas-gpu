@@ -30,12 +30,25 @@ if (NGPUS < '1'):
 #check = ''
 check = '-c'
 TRMM = 1
-TRSM = 1
+TRSM = 1 
 ranges = ['--range 128:1024:128',           #square matrices
-          '--range 512:15360:512  ',        #square matrices
+          #'--range 2048:15360:1024 ',        #square matrices
           #'--mrange 512:15360:512 -n 512 ', #tall & skinny matrices
           #'--nrange 512:15360:512 -m 512 '  #thin & wide matrices
           ]
+#--------------------------------
+def task1(pVariants, pRanges, pExec, pCheck, pDev, pOutfile, pGpus):
+    sys.stdout.write('running: '+pExec+' ... ')
+    os.system('echo running: '+pExec+' > '+pOutfile)
+    for v in pVariants:
+        for r in pRanges:
+            cmd = (pExec+' '+r+' -w --nb 128 --db 256 --ngpu '+pGpus+' -t '+pCheck+' '+v)
+            os.system('echo >> '+pOutfile)
+            os.system('echo '+cmd+' >> '+pOutfile)
+            sys.stdout.flush()
+            os.system(cmd+' >> '+pOutfile)
+            time.sleep(1)
+    print ' done'
 
 ############### TRMM
 if (TRMM == 1):
@@ -48,23 +61,18 @@ if (TRMM == 1):
                 '-SR -U -NN',
                 '-SR -U -TN'
                 ]
-    programs = ['test_strmm', 'test_dtrmm', 'test_ctrmm', 'test_ztrmm', 'test_strmm_cpu', 'test_dtrmm_cpu', 'test_ctrmm_cpu', 'test_ztrmm_cpu']
+    programs = ['test_strmm', 'test_dtrmm', 'test_ctrmm', 'test_ztrmm',
+                'test_strmm_cpu', 'test_dtrmm_cpu', 'test_ctrmm_cpu', 'test_ztrmm_cpu',
+                'test_strmm_mgpu', 'test_dtrmm_mgpu', 'test_ctrmm_mgpu', 'test_ztrmm_mgpu'
+               ]
 
     for p in programs:
-        sys.stdout.write('running: '+p+' ... ')
-        if (not os.path.isfile(BIN_PATH+p)):
-            print 'Unable to find '+BIN_PATH+p+' executable! Skipping...'
+        pp = BIN_PATH+p
+        if (not os.path.isfile(pp)):
+            print 'Unable to find '+pp+' executable! Skipping...'
         else:
-            os.system('echo running: '+p+' > '+TEST_LOGS_PATH+'/'+p+'.txt')
-            for v in variants:
-                for r in ranges:
-                    cmd = (BIN_PATH+p+' '+r+' -w --nb 128 --db 256 -t '+check+' --dev 0 '+v)
-                    os.system('echo >> '+TEST_LOGS_PATH+'/'+p+'.txt')
-                    os.system('echo '+cmd+' >> '+TEST_LOGS_PATH+'/'+p+'.txt')
-                    sys.stdout.flush()
-                    os.system(cmd+' >> '+TEST_LOGS_PATH+'/'+p+'.txt')
-                    time.sleep(1)
-            print 'done'
+            logFile = TEST_LOGS_PATH+'/'+p+'.txt'
+            task1(variants, ranges, pp, check, 0, logFile, NGPUS)
 
 ############### TRSM
 if (TRSM == 1):
@@ -77,21 +85,17 @@ if (TRSM == 1):
                 '-SR -U -NN',
                 '-SR -U -TN'
                 ]
-    programs = ['test_strsm', 'test_dtrsm', 'test_ctrsm', 'test_ztrsm', 'test_strsm_cpu', 'test_dtrsm_cpu', 'test_ctrsm_cpu', 'test_ztrsm_cpu']
+    programs = ['test_strsm', 'test_dtrsm', 'test_ctrsm', 'test_ztrsm',
+                'test_strsm_cpu', 'test_dtrsm_cpu', 'test_ctrsm_cpu', 'test_ztrsm_cpu',
+                'test_strsm_mgpu', 'test_dtrsm_mgpu', 'test_ctrsm_mgpu', 'test_ztrsm_mgpu'
+                ]
 
     for p in programs:
-        sys.stdout.write('running: '+p+' ... ')
-        if (not os.path.isfile(BIN_PATH+p)):
-            print 'Unable to find '+BIN_PATH+p+' executable! Skipping...'
+        pp = BIN_PATH+p
+        if (not os.path.isfile(pp)):
+            print 'Unable to find '+pp+' executable! Skipping...'
         else:
-            os.system('echo running: '+p+' > '+TEST_LOGS_PATH+'/'+p+'.txt')
-            for v in variants:
-                for r in ranges:
-                    cmd = (BIN_PATH+p+' '+r+' -w --nb 128 --db 256 -t '+check+' --dev 0 '+v)
-                    os.system('echo >> '+TEST_LOGS_PATH+'/'+p+'.txt')
-                    os.system('echo '+cmd+' >> '+TEST_LOGS_PATH+'/'+p+'.txt')
-                    sys.stdout.flush()
-                    os.system(cmd+' >> '+TEST_LOGS_PATH+'/'+p+'.txt')
-                    time.sleep(1)
-            print 'done'
+            logFile = TEST_LOGS_PATH+'/'+p+'.txt'
+            task1(variants, ranges, pp, check, 0, logFile, NGPUS)
+
 

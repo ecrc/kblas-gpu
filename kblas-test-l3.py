@@ -32,7 +32,7 @@ check = '-c'
 TRMM = 1
 TRSM = 1 
 ranges = ['--range 128:1024:128',           #square matrices
-          #'--range 2048:15360:1024 ',        #square matrices
+          '--range 2048:15360:1024 ',        #square matrices
           #'--mrange 512:15360:512 -n 512 ', #tall & skinny matrices
           #'--nrange 512:15360:512 -m 512 '  #thin & wide matrices
           ]

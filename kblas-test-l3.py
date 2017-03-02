@@ -20,10 +20,19 @@ if (not os.path.isdir(BIN_PATH)):
     print 'Unable to find executables folder! Exiting'
     exit()
 
-    
-cmd=('nvidia-smi -L | wc -l')
-NGPUS = commands.getstatusoutput(cmd)[1]
-if (NGPUS < '1'):
+#detect GPU devices
+NGPUS=0
+# first check using environment variable
+if ( "CUDA_VISIBLE_DEVICES" in os.environ ):
+    aux=os.environ["CUDA_VISIBLE_DEVICES"].strip(',')
+    if ( len(aux) > 0):
+        NGPUS=int( aux.count(',') ) + 1
+if ( NGPUS == 0 ):
+    # check using system
+    cmd=('nvidia-smi -L | wc -l')
+    NGPUS = int(commands.getstatusoutput(cmd)[1])
+
+if (NGPUS < 1):
     print 'Unable to detect an NVIDIA GPU device to test on! Exiting'
     exit()
 
@@ -42,7 +51,7 @@ def task1(pVariants, pRanges, pExec, pCheck, pDev, pOutfile, pGpus):
     os.system('echo running: '+pExec+' > '+pOutfile)
     for v in pVariants:
         for r in pRanges:
-            cmd = (pExec+' '+r+' -w --nb 128 --db 256 --ngpu '+pGpus+' -t '+pCheck+' '+v)
+            cmd = (pExec+' '+r+' -w --nb 128 --db 256 --ngpu '+str(pGpus)+' -t '+pCheck+' '+v)
             os.system('echo >> '+pOutfile)
             os.system('echo '+cmd+' >> '+pOutfile)
             sys.stdout.flush()
@@ -61,8 +70,8 @@ if (TRMM == 1):
                 '-SR -U -NN',
                 '-SR -U -TN'
                 ]
-    programs = ['test_strmm', 'test_dtrmm', 'test_ctrmm', 'test_ztrmm',
-                'test_strmm_cpu', 'test_dtrmm_cpu', 'test_ctrmm_cpu', 'test_ztrmm_cpu',
+    programs = [#'test_strmm', 'test_dtrmm', 'test_ctrmm', 'test_ztrmm',
+                #'test_strmm_cpu', 'test_dtrmm_cpu', 'test_ctrmm_cpu', 'test_ztrmm_cpu',
                 'test_strmm_mgpu', 'test_dtrmm_mgpu', 'test_ctrmm_mgpu', 'test_ztrmm_mgpu'
                ]
 
@@ -85,8 +94,8 @@ if (TRSM == 1):
                 '-SR -U -NN',
                 '-SR -U -TN'
                 ]
-    programs = ['test_strsm', 'test_dtrsm', 'test_ctrsm', 'test_ztrsm',
-                'test_strsm_cpu', 'test_dtrsm_cpu', 'test_ctrsm_cpu', 'test_ztrsm_cpu',
+    programs = [#'test_strsm', 'test_dtrsm', 'test_ctrsm', 'test_ztrsm',
+                #'test_strsm_cpu', 'test_dtrsm_cpu', 'test_ctrsm_cpu', 'test_ztrsm_cpu',
                 'test_strsm_mgpu', 'test_dtrsm_mgpu', 'test_ctrsm_mgpu', 'test_ztrsm_mgpu'
                 ]
 

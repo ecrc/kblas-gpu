@@ -22,8 +22,17 @@ if (not os.path.isdir(BIN_PATH)):
     exit()
 
 #detect GPU devices
-cmd=('nvidia-smi -L | wc -l')
-NGPUS = int(commands.getstatusoutput(cmd)[1])
+NGPUS=0
+# first check using environment variable
+if ( "CUDA_VISIBLE_DEVICES" in os.environ ):
+    aux=os.environ["CUDA_VISIBLE_DEVICES"].strip(',')
+    if ( len(aux) > 0):
+      NGPUS=int( aux.count(',') ) + 1
+if ( NGPUS == 0 ):
+    # check using system
+    cmd=('nvidia-smi -L | wc -l')
+    NGPUS = int(commands.getstatusoutput(cmd)[1])
+
 if (NGPUS < 1):
     print 'Unable to detect an NVIDIA GPU device to test on! Exiting'
     exit()

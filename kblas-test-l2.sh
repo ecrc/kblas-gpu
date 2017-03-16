@@ -12,8 +12,15 @@ STOP_DIM=16500
 STEP_DIM=128
 #--------------------
 GPU=0
-NGPUS=$(nvidia-smi -L | wc -l)
 NGPU1=2
+if [ -z $CUDA_VISIBLE_DEVICES ]; then
+  NGPUS=$(nvidia-smi -L | wc -l)
+else
+  aux=${CUDA_VISIBLE_DEVICES/,,/,} # replace double commas
+  aux=${aux/%,/} # remove trailing comma
+  aux=${aux/#,/} # remove leading comma
+  NGPUS=$(echo "$aux," |  awk 'BEGIN{FS=","} {print NF?NF-1:0}')
+fi
 NGPU2=${NGPUS}
 #--------------------
 START_DIM_MGPU=1024
@@ -71,6 +78,10 @@ do
     ./test_${p}symv_mgpu $g $UP $START_DIM_MGPU $STOP_DIM_MGPU $STEP_DIM_MGPU $OFFSET > ${RESDIR}/${p}symv${UP}_${g}gpu.txt
     echo " done"
   done
+done
+#----- HEMV-MGPU
+for (( g=$NGPU1; g <= $NGPUS && g<=$NGPU2; g++ ))
+do
   for p in c z
   do
     echo -n "testing ./test_${p}hemv_mgpu..."

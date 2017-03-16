@@ -146,13 +146,15 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       if(opts.warmup){
         TESTING_MALLOC_DEV( d_A, T, ldda*An);
         TESTING_MALLOC_DEV( d_B, T, lddb*Bn);
-        check_error( cublasSetMatrix( Am, An, sizeof(T), h_A, lda, d_A, ldda) );
-        check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb) );
+        check_error( cublasSetMatrixAsync( Am, An, sizeof(T), h_A, lda, d_A, ldda, curStream) );
+        check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb, curStream) );
         check_error( cublasXtrsm( cublas_handle,
                                   side, uplo, trans, diag,
                                   M, N,
                                   &alpha, d_A, ldda,
-                                          d_B, lddb) );
+                                  d_B, lddb) );
+        check_error( cudaStreamSynchronize(curStream) );
+        check_error( cudaGetLastError() );
         check_error( cudaFree( d_A ) );
         check_error( cudaFree( d_B ) );
       }
@@ -162,7 +164,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
 
         for(int r = 0; r < nruns; r++)
         {
-          check_error( cudaMemcpy ( (void*)h_Rc, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost ) );
+          check_error( cudaMemcpyAsync ( (void*)h_Rc, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost, curStream ) );
           start_timing(curStream);
           
           TESTING_MALLOC_DEV( d_A, T, ldda*An);
@@ -177,6 +179,8 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
                                     &alpha, d_A, ldda,
                                             d_B, lddb) );
           check_error( cublasGetMatrixAsync( M, N, sizeof(T), d_B, lddb, h_Rc, ldb, curStream ) );
+          check_error( cudaStreamSynchronize(curStream) );
+          check_error( cudaGetLastError() );
           check_error( cudaFree( d_A ) );
           check_error( cudaFree( d_B ) );
           check_error( cudaGetLastError() );
@@ -195,16 +199,16 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
 
       for(int r = 0; r < nruns; r++)
       {
-        check_error( cudaMemcpy ( (void*)h_Rk, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost ) );
+        check_error( cudaMemcpyAsync ( (void*)h_Rk, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost ), curStream );
         check_error( cudaGetLastError() );
         //check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
 
         start_timing(curStream);
         check_error( kblas_xtrsm(cublas_handle,
-                                side, uplo, trans, diag,
-                                M, N,
-                                &alpha, h_A, lda,
-                                        h_Rk, ldb) );
+                                 side, uplo, trans, diag,
+                                 M, N,
+                                 &alpha, h_A, lda,
+                                         h_Rk, ldb) );
         time = get_elapsed_time(curStream);
         cpu_time += time;
       }
@@ -212,7 +216,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       cpu_perf = gflops / (cpu_time / 1000.0);
       check_error( cudaDeviceSynchronize() );
 
-      /* TODO still in error
+      /* TODO 
       if(opts.check){
         double normA = kblas_lange<T,double>('M', Am, An, h_A, lda);
         double normX = kblas_lange<T,double>('M', Bm, Bn, h_Rk, ldb);
@@ -259,6 +263,8 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
                                   &alpha, d_A, lda,
                                           d_B, ldb) );
           check_error( cublasGetMatrixAsync( M, N, sizeof(T), d_B, lddb, h_Rk, ldb, curStream ) );
+          check_error( cudaStreamSynchronize(curStream) );
+          check_error( cudaGetLastError() );
           check_error( cudaFree( d_A ) );
           check_error( cudaFree( d_B ) );
           check_error( cudaGetLastError() );

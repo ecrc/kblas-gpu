@@ -23,14 +23,14 @@ extern bool kblas_trmm_use_custom;
 //==============================================================================================
 int main(int argc, char** argv)
 {
-  cublasHandle_t cublas_handle;
-  cublasCreate(&cublas_handle);
-
   kblas_opts opts;
   if(!parse_opts( argc, argv, &opts )){
     USAGE;
     return -1;
   }
+
+  cublasHandle_t cublas_handle;
+  cublasCreate(&cublas_handle);
 
   cuFloatComplex alpha = make_cuFloatComplex(1.2, -0.6);
   kblas_trmm_ib_custom = opts.nb;

@@ -5,6 +5,7 @@ import os, sys, getopt
 import csv
 import time
 import commands
+import threading
 
 # create output log folder
 
@@ -20,26 +21,37 @@ if (not os.path.isdir(BIN_PATH)):
     print 'Unable to find executables folder! Exiting'
     exit()
 
-    
-cmd=('nvidia-smi -L | wc -l')
-NGPUS = commands.getstatusoutput(cmd)[1]
-if (NGPUS < '1'):
+#detect GPU devices
+NGPUS=0
+# first check using environment variable
+if ( "CUDA_VISIBLE_DEVICES" in os.environ ):
+    aux=os.environ["CUDA_VISIBLE_DEVICES"].strip(',')
+    if ( len(aux) > 0):
+      NGPUS=int( aux.count(',') ) + 1
+if ( NGPUS == 0 ):
+    # check using system
+    cmd=('nvidia-smi -L | wc -l')
+    NGPUS = int(commands.getstatusoutput(cmd)[1])
+
+if (NGPUS < 1):
     print 'Unable to detect an NVIDIA GPU device to test on! Exiting'
     exit()
 
+#set options
 #check = ''
 check = '-c'
 TRMM = 1
-TRSM = 0
+TRSM = 1
 ranges = ['--range 128:1024:128',           #square matrices
-          '--range 2048:15360:1024 ',        #square matrices
+          '--range 2048:15360:1024  ',        #square matrices
           #'--mrange 512:15360:512 -n 512 ', #tall & skinny matrices
           #'--nrange 512:15360:512 -m 512 '  #thin & wide matrices
           ]
 
+          
 #--------------------------------
 def task1(pVariants, pRanges, pExec, pCheck, pDev, pOutfile):
-    sys.stdout.write('running: '+pExec+' ... ')
+    print 'running: '+pExec+' ... '
     os.system('echo running: '+pExec+' > '+pOutfile)
     for v in pVariants:
         for r in pRanges:
@@ -49,7 +61,16 @@ def task1(pVariants, pRanges, pExec, pCheck, pDev, pOutfile):
             sys.stdout.flush()
             os.system(cmd+' >> '+pOutfile)
             time.sleep(1)
-    print ' done'
+    print pExec+' done'
+
+#--------------------------------
+def launchQueue(*taskQueue):
+    for t in taskQueue:
+        t.start()
+        t.join()
+
+
+
 
 ############### TRMM
 if (TRMM == 1):
@@ -64,14 +85,33 @@ if (TRMM == 1):
                 ]
     programs = ['test_strmm', 'test_dtrmm', 'test_ctrmm', 'test_ztrmm', 'test_strmm_cpu', 'test_dtrmm_cpu', 'test_ctrmm_cpu', 'test_ztrmm_cpu']
 
+    deviceQueue = [[] for _ in xrange(NGPUS)]
+    deviceThread = []
+    
+    dev = 0
     for p in programs:
         pp = BIN_PATH+p
         if (not os.path.isfile(pp)):
             print 'Unable to find '+pp+' executable! Skipping...'
         else:
             logFile = TEST_LOGS_PATH+'/'+p+'.txt'
-            task1(variants, ranges, pp, check, 0, logFile)
+            deviceQueue[dev].append( threading.Thread(target=task1, args=(variants, ranges, pp, check, dev, logFile)) )
+            dev = (dev+1)%NGPUS
 
+    dev = 0
+    while dev < NGPUS:
+        q = deviceQueue[dev]
+        #print q
+        tq = threading.Thread( target=launchQueue, args=(q) )
+        deviceThread.append(tq)
+        tq.start()
+        dev = dev + 1
+
+    dev = 0
+    while dev < NGPUS:
+        tq = deviceThread[dev]
+        tq.join()
+        dev = dev + 1
 
 
 ############### TRSM
@@ -87,11 +127,31 @@ if (TRSM == 1):
                 ]
     programs = ['test_strsm', 'test_dtrsm', 'test_ctrsm', 'test_ztrsm', 'test_strsm_cpu', 'test_dtrsm_cpu', 'test_ctrsm_cpu', 'test_ztrsm_cpu']
 
+    deviceQueue = [[] for _ in xrange(NGPUS)]
+    deviceThread = []
+
+    dev = 0
     for p in programs:
         pp = BIN_PATH+p
         if (not os.path.isfile(pp)):
             print 'Unable to find '+pp+' executable! Skipping...'
         else:
             logFile = TEST_LOGS_PATH+'/'+p+'.txt'
-            task1(variants, ranges, pp, check, 0, logFile)
+            deviceQueue[dev].append( threading.Thread(target=task1, args=(variants, ranges, pp, check, dev, logFile)) )
+            dev = (dev+1)%NGPUS
+
+    dev = 0
+    while dev < NGPUS:
+        q = deviceQueue[dev]
+        #print q
+        tq = threading.Thread( target=launchQueue, args=(q) )
+        deviceThread.append(tq)
+        tq.start()
+        dev = dev + 1
+
+    dev = 0
+    while dev < NGPUS:
+        tq = deviceThread[dev]
+        tq.join()
+        dev = dev + 1
 

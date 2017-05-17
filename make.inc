@@ -7,8 +7,8 @@
 _CUDA_ROOT_=/usr/local/cuda
 
 # specify compilers
-CXX=g++
-CC=gcc
+CXX ?= g++
+CC ?= gcc
 NVCC=$(_CUDA_ROOT_)/bin/nvcc
 
 #customize the name of the static kblas library
@@ -19,7 +19,7 @@ ifeq (${CC}, gcc)
   COPTS+=-std=c99
 endif
 
-NVOPTS_3 = -DSM=35 -arch sm_35 -lineinfo -Xptxas -v
+NVOPTS_3 = -DSM=35 -arch sm_35 #-lineinfo -Xptxas -v
 
 # specify the gpu architecture for BLAS2 routines (fermi, kepler)
 GPU_ARCH_2=kepler

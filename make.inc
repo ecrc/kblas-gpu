@@ -4,7 +4,7 @@
 
 
 #specify cuda directory
-_CUDA_ROOT_=/usr/local/cuda
+_CUDA_ROOT_=$(CUDA_ROOT)
 
 # specify compilers
 CXX ?= g++
@@ -15,7 +15,7 @@ NVCC=$(_CUDA_ROOT_)/bin/nvcc
 LIB_KBLAS_NAME=kblas-gpu
 
 NVOPTS =-O3 --compiler-options -fno-strict-aliasing#-E --ptx#
-COPTS += -std=c99
+COPTS = -std=c99
 
 NVOPTS_3 = -DSM=35 -arch sm_35 #-lineinfo -Xptxas -v
 

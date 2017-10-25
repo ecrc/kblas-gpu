@@ -15,12 +15,7 @@ NVCC=$(_CUDA_ROOT_)/bin/nvcc
 LIB_KBLAS_NAME=kblas-gpu
 
 NVOPTS =-O3 --compiler-options -fno-strict-aliasing#-E --ptx#
-ifeq (${CC}, gcc)
-  COPTS+=-std=c99
-endif
-ifeq (${CC}, cc)
-  COPTS+=-std=c99
-endif
+COPTS += -std=c99
 
 NVOPTS_3 = -DSM=35 -arch sm_35 #-lineinfo -Xptxas -v
 

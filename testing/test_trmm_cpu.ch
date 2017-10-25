@@ -201,7 +201,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       
       for(int r = 0; r < nruns; r++)
       {
-        check_error( cudaMemcpyAsync ( (void*)h_Rk, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost ), curStream );
+        check_error( cudaMemcpyAsync ( (void*)h_Rk, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost, curStream) );
         check_error( cudaGetLastError() );
         //check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
         
@@ -224,7 +224,7 @@ int test_trmm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       
       for(int r = 0; r < nruns && (opts.check || opts.time); r++)
       {
-        check_error( cudaMemcpyAsync ( (void*)h_Rk, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost ), curStream );
+        check_error( cudaMemcpyAsync ( (void*)h_Rk, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost, curStream) );
         check_error( cudaGetLastError() );
         start_timing(curStream);
         

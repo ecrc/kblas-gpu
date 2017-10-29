@@ -37,6 +37,7 @@
 #include <cublas_v2.h>
 #include "kblas.h"
 #include "operators.h"
+#include "Xtr_common.ch"
 
 //==============================================================================================
 extern "C"{
@@ -133,12 +134,15 @@ cublasStatus_t cublasXgemm( cublasHandle_t handle,
                             const float *alpha, const float *A, int lda,
                                                 const float *B, int ldb,
                             const float *beta,        float *C, int ldc){
-  return cublasSgemm(handle,
-                     transa, transb,
-                     m, n, k,
-                     alpha, A, lda,
-                            B, ldb,
-                     beta,  C, ldc);
+  cublasStatus_t status;
+  check_error( status = cublasSgemm(handle,
+                                    transa, transb,
+                                    m, n, k,
+                                    alpha, A, lda,
+                                           B, ldb,
+                                    beta,  C, ldc), status);
+  check_error( cudaGetLastError(), CUBLAS_STATUS_EXECUTION_FAILED );
+  return CUBLAS_STATUS_SUCCESS;
 }
 
 cublasStatus_t cublasXgemm( cublasHandle_t handle,
@@ -147,12 +151,15 @@ cublasStatus_t cublasXgemm( cublasHandle_t handle,
                             const double *alpha, const double *A, int lda,
                                                  const double *B, int ldb,
                             const double *beta,        double *C, int ldc){
-  return cublasDgemm(handle,
-                     transa, transb,
-                     m, n, k,
-                     alpha, A, lda,
-                            B, ldb,
-                     beta,  C, ldc);
+  cublasStatus_t status;
+  check_error( status = cublasDgemm(handle,
+                                    transa, transb,
+                                    m, n, k,
+                                    alpha, A, lda,
+                                           B, ldb,
+                                    beta,  C, ldc), status);
+  check_error( cudaGetLastError(), CUBLAS_STATUS_EXECUTION_FAILED );
+  return CUBLAS_STATUS_SUCCESS;
 }
 cublasStatus_t cublasXgemm(cublasHandle_t handle,
                            cublasOperation_t transa, cublasOperation_t transb,
@@ -160,12 +167,15 @@ cublasStatus_t cublasXgemm(cublasHandle_t handle,
                            const cuComplex *alpha, const cuComplex *A, int lda,
                                                    const cuComplex *B, int ldb,
                            const cuComplex *beta,        cuComplex *C, int ldc){
-  return cublasCgemm(handle,
-                     transa, transb,
-                     m, n, k,
-                     alpha, A, lda,
-                            B, ldb,
-                     beta,  C, ldc);
+  cublasStatus_t status;
+  check_error( status = cublasCgemm(handle,
+                                    transa, transb,
+                                    m, n, k,
+                                    alpha, A, lda,
+                                           B, ldb,
+                                    beta,  C, ldc), status);
+  check_error( cudaGetLastError(), CUBLAS_STATUS_EXECUTION_FAILED );
+  return CUBLAS_STATUS_SUCCESS;
 }
 cublasStatus_t cublasXgemm(cublasHandle_t handle,
                            cublasOperation_t transa, cublasOperation_t transb,
@@ -173,12 +183,15 @@ cublasStatus_t cublasXgemm(cublasHandle_t handle,
                            const cuDoubleComplex *alpha, const cuDoubleComplex *A, int lda,
                                                          const cuDoubleComplex *B, int ldb,
                            const cuDoubleComplex *beta,        cuDoubleComplex *C, int ldc){
-  return cublasZgemm(handle,
-                     transa, transb,
-                     m, n, k,
-                     alpha, A, lda,
-                            B, ldb,
-                     beta,  C, ldc);
+  cublasStatus_t status;
+  check_error( status = cublasZgemm(handle,
+                                    transa, transb,
+                                    m, n, k,
+                                    alpha, A, lda,
+                                           B, ldb,
+                                    beta,  C, ldc), status);
+  check_error( cudaGetLastError(), CUBLAS_STATUS_EXECUTION_FAILED );
+  return CUBLAS_STATUS_SUCCESS;
 }
 
 

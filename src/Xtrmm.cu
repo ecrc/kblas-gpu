@@ -4,11 +4,11 @@
   Ali Charara (ali.charara@kaust.edu.sa)
   David Keyes (david.keyes@kaust.edu.sa)
   Hatem Ltaief (hatem.ltaief@kaust.edu.sa)
-  
+
   Redistribution  and  use  in  source and binary forms, with or without
   modification,  are  permitted  provided  that the following conditions
   are met:
-  
+
   * Redistributions  of  source  code  must  retain  the above copyright
   * notice,  this  list  of  conditions  and  the  following  disclaimer.
   * Redistributions  in  binary  form must reproduce the above copyright
@@ -18,7 +18,7 @@
   * Technology nor the names of its contributors may be used to endorse
   * or promote products derived from this software without specific prior
   * written permission.
-  * 
+  *
   THIS  SOFTWARE  IS  PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
   ``AS IS''  AND  ANY  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
   LIMITED  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -51,12 +51,15 @@ cublasStatus_t cublasXtrmm(cublasHandle_t handle,
                            const float *alpha,
                            const float *A, int lda,
                                  float *B, int ldb){
-  return cublasStrmm(handle,
-                     side, uplo, trans, diag,
-                     m, n,
-                     alpha, A, lda,
-                            B, ldb,
-                            B, ldb );
+  cublasStatus_t status;
+  check_error( status = cublasStrmm(handle,
+                                    side, uplo, trans, diag,
+                                    m, n,
+                                    alpha, A, lda,
+                                           B, ldb,
+                                           B, ldb ), status);
+  check_error( cudaGetLastError(), CUBLAS_STATUS_EXECUTION_FAILED );
+  return CUBLAS_STATUS_SUCCESS;
 }
 cublasStatus_t cublasXtrmm(cublasHandle_t handle,
                            cublasSideMode_t side, cublasFillMode_t uplo,
@@ -65,12 +68,15 @@ cublasStatus_t cublasXtrmm(cublasHandle_t handle,
                            const double *alpha,
                            const double *A, int lda,
                                  double *B, int ldb){
-  return cublasDtrmm(handle,
-                     side, uplo, trans, diag,
-                     m, n,
-                     alpha, A, lda,
-                            B, ldb,
-                            B, ldb );
+  cublasStatus_t status;
+  check_error( status = cublasDtrmm(handle,
+                                    side, uplo, trans, diag,
+                                    m, n,
+                                    alpha, A, lda,
+                                           B, ldb,
+                                           B, ldb ), status);
+  check_error( cudaGetLastError(), CUBLAS_STATUS_EXECUTION_FAILED );
+  return CUBLAS_STATUS_SUCCESS;
 }
 cublasStatus_t cublasXtrmm (cublasHandle_t handle,
                             cublasSideMode_t side, cublasFillMode_t uplo,
@@ -79,12 +85,15 @@ cublasStatus_t cublasXtrmm (cublasHandle_t handle,
                             const cuComplex *alpha,
                             const cuComplex *A, int lda,
                                   cuComplex *B, int ldb){
-  return cublasCtrmm(handle,
-                     side, uplo, trans, diag,
-                     m, n,
-                     alpha, A, lda,
-                            B, ldb,
-                            B, ldb );
+  cublasStatus_t status;
+  check_error( status = cublasCtrmm(handle,
+                                    side, uplo, trans, diag,
+                                    m, n,
+                                    alpha, A, lda,
+                                           B, ldb,
+                                           B, ldb ), status);
+  check_error( cudaGetLastError(), CUBLAS_STATUS_EXECUTION_FAILED );
+  return CUBLAS_STATUS_SUCCESS;
 }
 cublasStatus_t cublasXtrmm (cublasHandle_t handle,
                             cublasSideMode_t side, cublasFillMode_t uplo,
@@ -93,12 +102,15 @@ cublasStatus_t cublasXtrmm (cublasHandle_t handle,
                             const cuDoubleComplex *alpha,
                             const cuDoubleComplex *A, int lda,
                                   cuDoubleComplex *B, int ldb){
-  return cublasZtrmm(handle,
-                     side, uplo, trans, diag,
-                     m, n,
-                     alpha, A, lda,
-                            B, ldb,
-                            B, ldb );
+  cublasStatus_t status;
+  check_error( status = cublasZtrmm(handle,
+                                    side, uplo, trans, diag,
+                                    m, n,
+                                    alpha, A, lda,
+                                           B, ldb,
+                                           B, ldb ), status);
+  check_error( cudaGetLastError(), CUBLAS_STATUS_EXECUTION_FAILED );
+  return CUBLAS_STATUS_SUCCESS;
 }
 
 
@@ -122,25 +134,25 @@ bool kblas_trmm_use_custom = 0;
 template<typename T, int WARPS_PER_BLOCK, int B_COLS_PER_WARP, bool LOWER, bool TRANS, bool CONJG>
 __global__ void //__launch_bounds__(256)
 trmm_mul32_L(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int incB, int mb){
-  
+
   const int A_COL_PER_WARP = WARP / WARPS_PER_BLOCK;
   const bool forward = (LOWER == TRANS);
-  
+
   int txyw = tx + ty*WARP1/*, tyxw = ty + tx*WARP1*/, txyiA = tx + ty*incA, txyiB = tx + ty*incB;
-  
+
   //setup shared memory
   __shared__ T sA[WARP * WARP1];//strided to avoid bank conflict
   T rB[B_COLS_PER_WARP], rBj[B_COLS_PER_WARP], s[B_COLS_PER_WARP], a[4], b[4], *sAA, *BB;
   int c, j, r, l, i, startB = 0, active_col;
-  
+
   for(startB = 0; startB < N; startB += gridDim.x * WARPS_PER_BLOCK * B_COLS_PER_WARP)
   {
 
     if( (startB + blockIdx.x * WARPS_PER_BLOCK * B_COLS_PER_WARP) >= N) return;
-    
+
     BB = B + (startB + blockIdx.x * WARPS_PER_BLOCK * B_COLS_PER_WARP) * incB;
     active_col = 0;//an inactive warp will still contribute to data fetching but not to computation
-    
+
     #pragma unroll
     for(l = 0; l < B_COLS_PER_WARP; l++)
       active_col += ((startB + blockIdx.x * (WARPS_PER_BLOCK * B_COLS_PER_WARP) + ty + l * WARPS_PER_BLOCK) < N);
@@ -154,13 +166,13 @@ trmm_mul32_L(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int
       #pragma unroll
       for(l = 0; l < A_COL_PER_WARP; l++)
         sA[txyw + l * WARPS_PER_BLOCK * WARP1] = A[txyiA + WARP * c * (incA+1) + l * WARPS_PER_BLOCK * incA];
-      
+
       //load B(c) into registers
       #pragma unroll
       for(l = 0; l < B_COLS_PER_WARP; l++)
         if(active_col > l)
           rB[l] = BB[txyiB + WARP * c + l * WARPS_PER_BLOCK * incB];
-      
+
       /*__syncthreads();
       if(forward){
         #pragma unroll
@@ -286,23 +298,23 @@ trmm_mul32_R(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int
   const int A_COL_PER_WARP = WARP / WARPS_PER_BLOCK;
   const int B_ROWS_PER_BLOCK = WARPS_PER_BLOCK * B_ROWS_PER_WARP;
   const bool forward = (LOWER != TRANS);
-  
+
   int txyw = tx + ty*WARP1, tyxw = ty + tx*WARP1, txyiA = tx + ty*incA;
   //int txyiB = tx % B_ROWS_PER_BLOCK + (tx / B_ROWS_PER_BLOCK + ty * WARP / B_ROWS_PER_BLOCK) * incB;
-  
+
   //setup shared memory
   __shared__ T sA[WARP * WARP1];//strided to avoid bank conflict
   T rB[B_ROWS_PER_WARP], rBj[B_ROWS_PER_WARP], s[B_ROWS_PER_WARP], a[4], b[4], *sAA, *BB;
   int c, j, r, l, i, startB = 0, active_row = 0;
-  
+
   for(startB = 0; startB < M; startB += gridDim.x * B_ROWS_PER_BLOCK)
   {
-    
+
     if( (startB + blockIdx.x * B_ROWS_PER_BLOCK) >= M) return;
-    
+
     BB = B + (startB + blockIdx.x * B_ROWS_PER_BLOCK);
     active_row = 0;//an inactive warp will still contribute to data fetching but not to computation
-    
+
     #pragma unroll
     for(l = 0; l < B_ROWS_PER_WARP; l++)
       active_row += ( (startB + blockIdx.x * B_ROWS_PER_BLOCK + ty + l * WARPS_PER_BLOCK) < M);
@@ -320,7 +332,7 @@ trmm_mul32_R(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int
       for(l = 0; l < B_ROWS_PER_WARP; l++)
         rB[l] = sA[tyxw + l * WARPS_PER_BLOCK];
       __syncthreads();
-      
+
       #pragma unroll
       for(l = 0; l < B_ROWS_PER_WARP; l++)
         s[l] = make_zero<T>();
@@ -354,7 +366,7 @@ trmm_mul32_R(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int
       __syncthreads();
 
       for(r = (forward ? c+1 : 0); (forward && (r < nb)) || (!forward && (r < c)); r++){
-        
+
         //load B(r) into registers in 2 steps: 1. read coalesced into shared memory. 2. read into registers
         if( (blockIdx.x * B_ROWS_PER_BLOCK + tx % B_ROWS_PER_BLOCK) < M){
           #pragma unroll
@@ -366,7 +378,7 @@ trmm_mul32_R(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int
         for(l = 0; l < B_ROWS_PER_WARP; l++)
           rB[l] = sA[tyxw + l * WARPS_PER_BLOCK];
         __syncthreads();
-        
+
         #pragma unroll
         for(l = 0; l < A_COL_PER_WARP; l++){
           if(!TRANS)//load A(r,c)
@@ -410,7 +422,7 @@ trmm_mul32_R(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int
         }
         __syncthreads();
       }
-      
+
       //store back B(c) to global mem in 2 steps: 1. store in shared memory 2. read from shared memory to global memory
       #pragma unroll
       for(l = 0; l < B_ROWS_PER_WARP; l++)
@@ -445,12 +457,12 @@ cublasStatus_t Xtrmm(cublasHandle_t handle,
                        alpha, A, incA,
                               B, incB );
   }
-  
+
   typedef void (*trmm_kernels_type)(int M, int N, T alpha, const T* A, int incA, T* B, int incB, int mb);
 
   #define WARPS_PER_BLOCK 8
   #define B_COLS_PER_WARP 1
-  
+
   trmm_kernels_type trmm_kernels[8] = {// T, WARPS_PER_BLOCK, B_COLS_PER_WARP, LEFT, LOWER, TRANS, CONJG
     trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true, false, false>,
     trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true,  true, false>,
@@ -461,12 +473,12 @@ cublasStatus_t Xtrmm(cublasHandle_t handle,
     trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false, false, false>,
     trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false,  true, false>
   };
-  
+
   cudaStream_t curStream;
   cublasStatus_t status;
 
   check_error( status = cublasGetStream( handle, &curStream ), status);
-  
+
   if( ((side == CUBLAS_SIDE_LEFT) && (m % WARP == 0)) || ((side == CUBLAS_SIDE_RIGHT) && (n % WARP == 0)))
   {
     int func_idx = 4*(side == CUBLAS_SIDE_RIGHT) + 2*(uplo == CUBLAS_FILL_MODE_UPPER) + (trans != CUBLAS_OP_N);// + (diag == CUBLAS_DIAG_UNIT);
@@ -479,8 +491,7 @@ cublasStatus_t Xtrmm(cublasHandle_t handle,
     int mb = (side == CUBLAS_SIDE_LEFT) * m / WARP + (side == CUBLAS_SIDE_RIGHT) * n / WARP;
     //TODO validate with this run from magma ./testing/testing_dpotri_gpu --dev 1 --range 512:15360:512
     trmm_kernels[func_idx]<<< gridDim, blockDim, 0, curStream>>> (m, n, *alpha, A, incA, B, incB, mb);
-    if(!_kblas_error( (cudaGetLastError()), __func__, __FILE__, __LINE__ ))
-      return CUBLAS_STATUS_EXECUTION_FAILED;
+    check_error( cudaGetLastError(),  CUBLAS_STATUS_EXECUTION_FAILED );
   }else{
     //error: we should not reach this case
     return CUBLAS_STATUS_INTERNAL_ERROR;
@@ -496,12 +507,11 @@ cublasStatus_t Xtrmm(cublasHandle_t handle,
                      const T *alpha, const T *A, int incA,
                      T *B, int incB)
 {
-  //handle with cublas
-  return cublasXtrmm(handle,
+  return cublasXtrmm( handle,
                       side, uplo, trans, diag,
                       m, n,
                       alpha, A, incA,
-                      B, incB );
+                             B, incB );
 }
 
 #endif //(SM >= 30)
@@ -518,7 +528,7 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle,
 {
   T one = make_one<T>();
   cublasStatus_t status;
-  
+
   if( (*alpha == make_zero<T>())//TODO
    || ( (side == CUBLAS_SIDE_LEFT) && (SIMPLE_SIZE(m)) )
    || ( (side == CUBLAS_SIDE_RIGHT) && (SIMPLE_SIZE(n)) ) ){
@@ -774,9 +784,9 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
   check_error( cudaEventCreateWithFlags(&eComp, cudaEventDisableTiming), CUBLAS_STATUS_EXECUTION_FAILED);
   cudaStream_t strComp;
   check_error( cublasGetStream_v2(handle, &strComp), CUBLAS_STATUS_INTERNAL_ERROR);
-  
+
   if( ( *alpha == make_zero<T>() ) //TODO
-   || ( (side == CUBLAS_SIDE_LEFT) && (SIMPLE_SIZE(m)) ) 
+   || ( (side == CUBLAS_SIDE_LEFT) && (SIMPLE_SIZE(m)) )
    || ( (side == CUBLAS_SIDE_RIGHT) && (SIMPLE_SIZE(n)) ) ){
 
     int Am = (side == CUBLAS_SIDE_LEFT) ? m : n;
@@ -826,7 +836,7 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
       }
       //wait for data to arrive
       check_error( cudaEventRecord(eDataIn, strIn), CUBLAS_STATUS_INTERNAL_ERROR);
-      check_error( cudaStreamWaitEvent(strComp, eDataIn, 0), CUBLAS_STATUS_INTERNAL_ERROR);      
+      check_error( cudaStreamWaitEvent(strComp, eDataIn, 0), CUBLAS_STATUS_INTERNAL_ERROR);
     }
     if(uplo == CUBLAS_FILL_MODE_UPPER){
 
@@ -1027,7 +1037,7 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
       n1 = CLOSEST_REG_SIZE(n);
       n2 = n-n1;
     }
-    
+
     if( (!AIsIn && SIMPLE_SIZE_DATA(n)) || (!BIsIn && SIMPLE_SIZE_DATA(n)) ){
       if( (!AIsIn && SIMPLE_SIZE_DATA(n)) ){
         check_error( status = cublasSetMatrixAsync( n, n, sizeof(T), h_A, ldA, d_A, lddA, strIn), status);
@@ -1230,12 +1240,13 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
 
   check_error( cudaEventDestroy( eDataIn ), CUBLAS_STATUS_INTERNAL_ERROR);
   check_error( cudaEventDestroy( eComp ), CUBLAS_STATUS_INTERNAL_ERROR);
+  check_error( cudaGetLastError(), CUBLAS_STATUS_EXECUTION_FAILED );
   return CUBLAS_STATUS_SUCCESS;
 }
 
 //==============================================================================================
 template<class T>
-cublasStatus_t kblasXtrmm_cpu(cublasHandle_t handle, 
+cublasStatus_t kblasXtrmm_cpu(cublasHandle_t handle,
                               cublasSideMode_t side, cublasFillMode_t uplo,
                               cublasOperation_t trans, cublasDiagType_t diag,
                               int m, int n,
@@ -1263,18 +1274,20 @@ cublasStatus_t kblasXtrmm_cpu(cublasHandle_t handle,
   check_error( cudaGetDevice(&devID), CUBLAS_STATUS_INTERNAL_ERROR);
   check_error( cudaDeviceGetAttribute(&AsyncEngineCount, cudaDevAttrAsyncEngineCount, devID), CUBLAS_STATUS_INTERNAL_ERROR);
   bool DO_INLINE_BOUT = AsyncEngineCount > 1;
-  
+
   check_error( cudaMalloc( (void**)&d_A, (lddA*An)*sizeof(T) ), CUBLAS_STATUS_INTERNAL_ERROR);
+  if(d_A == NULL) return CUBLAS_STATUS_ALLOC_FAILED;
   check_error( cudaMalloc( (void**)&d_B, (lddB*Bn)*sizeof(T) ), CUBLAS_STATUS_INTERNAL_ERROR);
+  if(d_B == NULL) return CUBLAS_STATUS_ALLOC_FAILED;
 
   //setup streams
   cudaStream_t inStream, outStream;
   check_error( cudaStreamCreateWithFlags( &inStream, cudaStreamNonBlocking), CUBLAS_STATUS_INTERNAL_ERROR );
   if(DO_INLINE_BOUT)
     check_error( cudaStreamCreateWithFlags( &outStream, cudaStreamNonBlocking), CUBLAS_STATUS_INTERNAL_ERROR );
-  
+
   //call cpu API trmm
-  check_error( 
+  check_error(
     (status = kblasXtrmm(handle, inStream, outStream,
                          side, uplo, trans,diag,
                          m, n,
@@ -1300,8 +1313,10 @@ cublasStatus_t kblasXtrmm_cpu(cublasHandle_t handle,
   check_error( cudaHostUnregister( (void*)h_B ), CUBLAS_STATUS_INTERNAL_ERROR );*/
 
   //free device memory
+  //TODO should free aslo in case some other funtions above failed (don't just return)
   check_error( cudaFree( d_A ), CUBLAS_STATUS_INTERNAL_ERROR );
-  check_error( cudaFree( d_B ), CUBLAS_STATUS_INTERNAL_ERROR );  
+  check_error( cudaFree( d_B ), CUBLAS_STATUS_INTERNAL_ERROR );
+  check_error( cudaGetLastError(), CUBLAS_STATUS_EXECUTION_FAILED );
   return CUBLAS_STATUS_SUCCESS;
 }
 //==============================================================================================
@@ -1416,7 +1431,7 @@ cublasStatus_t kblasXtrmm_cpu_m(cublasHandle_t handle,
   }
   for(int g = 0; g < ngpu; g++){
     check_error( cudaSetDevice(g), CUBLAS_STATUS_INTERNAL_ERROR );
-  
+
     //sync streams
     if(DO_INLINE_BOUT[g]){
       check_error( cudaStreamSynchronize( outStream[g] ), CUBLAS_STATUS_INTERNAL_ERROR);
@@ -1441,7 +1456,7 @@ cublasStatus_t kblasXtrmm_cpu_m(cublasHandle_t handle,
 
     //free device memory
     check_error( cudaFree( d_A[g] ), CUBLAS_STATUS_INTERNAL_ERROR );
-    check_error( cudaFree( d_B[g] ), CUBLAS_STATUS_INTERNAL_ERROR );   
+    check_error( cudaFree( d_B[g] ), CUBLAS_STATUS_INTERNAL_ERROR );
     if(g > 0){
       check_error( cublasDestroy(cub_handle[g]), CUBLAS_STATUS_INTERNAL_ERROR);
     }
@@ -1515,9 +1530,9 @@ int kblas_ztrmm_async(
 
 #define kblasXtrmm_async_BODY {                                                                           \
   cublasHandle_t cublas_handle;                                                                           \
-  if( cublasCreate(&cublas_handle) != CUBLAS_STATUS_SUCCESS ) return;                                     \
+  check_error( cublasCreate(&cublas_handle), void() );                                                      \
   if( cublasSetStream_v2(cublas_handle, stream) != CUBLAS_STATUS_SUCCESS ){                               \
-    cublasDestroy_v2(cublas_handle);                                                                      \
+    check_error( cublasDestroy_v2(cublas_handle), void());                                                  \
     return;                                                                                               \
   }                                                                                                       \
   cublasSideMode_t  side_v2  = (side  == KBLAS_Left  ? CUBLAS_SIDE_LEFT : CUBLAS_SIDE_RIGHT);             \
@@ -1525,13 +1540,13 @@ int kblas_ztrmm_async(
   cublasOperation_t trans_v2 = (trans == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);                        \
   cublasDiagType_t  diag_v2  = (diag  == KBLAS_Unit  ? CUBLAS_DIAG_UNIT : CUBLAS_DIAG_NON_UNIT);          \
                                                                                                           \
-  kblasXtrmm(cublas_handle,                                                                               \
-             side_v2, uplo_v2, trans_v2, diag_v2,                                                         \
-             m, n,                                                                                        \
-             &alpha, A, lda,                                                                              \
-                     B, ldb);                                                                             \
+  check_error( kblasXtrmm(cublas_handle,                                                                  \
+                          side_v2, uplo_v2, trans_v2, diag_v2,                                            \
+                          m, n,                                                                           \
+                          &alpha, A, lda,                                                                 \
+                                  B, ldb), void());                                                         \
                                                                                                           \
-  cublasDestroy_v2(cublas_handle);                                                                        \
+  check_error( cublasDestroy_v2(cublas_handle), void());                                                    \
 }
 
 extern "C"{

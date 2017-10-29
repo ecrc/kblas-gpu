@@ -7,26 +7,23 @@
 _CUDA_ROOT_=$(CUDA_ROOT)
 
 # specify compilers
-CXX=icpc
-CC=icpc
+CXX ?= g++
+CC ?= gcc
 NVCC=$(_CUDA_ROOT_)/bin/nvcc
 
 #customize the name of the static kblas library
 LIB_KBLAS_NAME=kblas-gpu
 
-NVOPTS =-O3 --compiler-options -fno-strict-aliasing#-E --ptx#
-ifeq (${CC}, gcc)
-  COPTS+=-std=c99
-endif
-#COPTS+= -qopenmp 
+NVOPTS =-O3 --compiler-options -fno-strict-aliasing #-E --ptx#
+COPTS = -std=c99
 
-NVOPTS_3 = -DSM=35 -arch sm_35 -Xcompiler -fopenmp -lineinfo -Xptxas -v
+NVOPTS_3 = -DSM=35 -arch sm_35 -Xcompiler -fopenmp #-lineinfo -Xptxas -v
 
 # specify the gpu architecture for BLAS2 routines (fermi, kepler)
 GPU_ARCH_2=kepler
 
 ifeq (${GPU_ARCH_2}, kepler)
-  NVOPTS_2 = -DSM=35 -arch sm_35 
+  NVOPTS_2 = -DSM=35 -arch sm_35
 else ifeq (${GPU_ARCH_2}, fermi)
   NVOPTS_2 = -DSM=20 -arch sm_20
 else

@@ -29,8 +29,8 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
   USING
   cudaError_t err;
 
-  cudaEventCreate(&start);
-  cudaEventCreate(&stop);
+  check_error( cudaEventCreate(&start) );
+  check_error( cudaEventCreate(&stop) );
   
   cublasSideMode_t  side  = (opts.side   == KBLAS_Left  ? CUBLAS_SIDE_LEFT : CUBLAS_SIDE_RIGHT);
   cublasFillMode_t  uplo  = (opts.uplo   == KBLAS_Lower ? CUBLAS_FILL_MODE_LOWER : CUBLAS_FILL_MODE_UPPER);
@@ -75,8 +75,9 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
 
       if(opts.check)
       {
-        nruns = 1;
         TESTING_MALLOC_CPU( h_R, T, sizeB);
+        nruns = 1;
+        opts.time = 0;
       }
       // Initialize matrix and vector
       //printf("Initializing on cpu .. \n");
@@ -85,10 +86,12 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       kblas_make_hpd( Am, h_A, lda );
       
       cudaStream_t curStream;
-      check_error( cudaStreamCreateWithFlags( &curStream, cudaStreamNonBlocking) );
-      check_error(cublasSetStream(cublas_handle, curStream));
+      //check_error( cudaStreamCreateWithFlags( &curStream, cudaStreamNonBlocking) );
+      //check_error(cublasSetStream(cublas_handle, curStream));
+      check_error( cublasGetStream(cublas_handle, &curStream ) );
       
       check_error( cublasSetMatrixAsync( Am, An, sizeof(T), h_A, lda, d_A, ldda, curStream ) );
+      check_error( cudaGetLastError() );
       
       if(opts.warmup){
         check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb, curStream ) );
@@ -97,14 +100,35 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
                                   M, N,
                                   &alpha, d_A, ldda,
                                   d_B, lddb) );
+        check_error( cudaStreamSynchronize(curStream) );
+        check_error( cudaGetLastError() );
       }
       
       float time = 0;
+      
+      kblas_trsm_use_custom = true;
+      for(int r = 0; r < nruns; r++)
+      {
+        check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb, curStream ) );
+        check_error( cudaGetLastError() );
+
+        start_timing(curStream);
+        check_error( kblasXtrsm(cublas_handle,
+                                side, uplo, trans, diag,
+                                M, N,
+                                &alpha, d_A, ldda,
+                                        d_B, lddb) );
+        time = get_elapsed_time(curStream);
+        kblas_time_cus += time;
+      }
+      kblas_time_cus /= nruns;
+      kblas_perf_cus = gflops / (kblas_time_cus / 1000.);
       
       kblas_trsm_use_custom = false;
       for(int r = 0; r < nruns; r++)
       {
         check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb, curStream ) );
+        check_error( cudaGetLastError() );
         
         start_timing(curStream);
         check_error( kblasXtrsm(cublas_handle,
@@ -118,27 +142,13 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       kblas_time_rec /= nruns;
       kblas_perf_rec = gflops / (kblas_time_rec / 1000.);
 
-      
-      kblas_trsm_use_custom = true;
-      for(int r = 0; r < nruns; r++)
-      {
-        check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb, curStream ) );
-
-        start_timing(curStream);
-        check_error( kblasXtrsm(cublas_handle,
-                                side, uplo, trans, diag,
-                                M, N,
-                                &alpha, d_A, ldda,
-                                        d_B, lddb) );
-        time = get_elapsed_time(curStream);
-        kblas_time_cus += time;
-      }
-      kblas_time_cus /= nruns;
-      kblas_perf_cus = gflops / (kblas_time_cus / 1000.);
 
       if(opts.check){
         double normA = kblas_lange<T,double>('M', Am, An, h_A, lda);
         check_error( cublasGetMatrixAsync( Bm, Bn, sizeof(T), d_B, lddb, h_R, ldb, curStream ) );
+        check_error( cudaGetLastError() );
+        check_error( cudaStreamSynchronize(curStream) );
+        check_error( cudaGetLastError() );
         double normX = kblas_lange<T,double>('M', Bm, Bn, h_R, ldb);
 
         T one = make_one<T>();
@@ -150,6 +160,9 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
                                 &invAlpha, d_A, ldda,
                                            d_B, lddb) );
         check_error( cublasGetMatrixAsync( Bm, Bn, sizeof(T), d_B, lddb, h_R, ldb, curStream ) );
+        check_error( cudaGetLastError() );
+        check_error( cudaStreamSynchronize(curStream) );
+        check_error( cudaGetLastError() );
         kblasXaxpy( Bm * Bn, mone, h_B, 1, h_R, 1 );
         double normR = kblas_lange<T,double>('M', Bm, Bn, h_R, ldb);
         ref_error = normR / (normX * normA);
@@ -157,11 +170,11 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         free( h_R );
       }
       if(opts.time){
-        cudaDeviceSynchronize();
       
         for(int r = 0; r < nruns; r++)
         {
           check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb, curStream ) );
+          check_error( cudaGetLastError() );
           
           start_timing(curStream);
           check_error( cublasXtrsm( cublas_handle,
@@ -174,14 +187,14 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         }
         ref_time /= nruns;
         ref_perf = gflops / (ref_time / 1000.);
-
-        check_error( cublasGetMatrixAsync( Bm, Bn, sizeof(T), d_B, lddb, h_B, ldb, curStream ) );
       }
       
       free( h_A );
       free( h_B );
-      check_error(  cudaFree( d_A ) );
-      check_error(  cudaFree( d_B ) );
+      check_error( cudaFree( d_A ) );
+      check_error( cudaGetLastError() );
+      check_error( cudaFree( d_B ) );
+      check_error( cudaGetLastError() );
       
       printf(" %7.2f %7.2f      %7.2f %7.2f        %7.2f %7.2f     %2.2f   %2.2f   %8.2e\n",
              kblas_perf_rec, kblas_time_rec,
@@ -190,7 +203,9 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
              ref_time / kblas_time_rec, ref_time / kblas_time_cus,
              ref_error );
       
-      check_error( cudaStreamDestroy( curStream ) );
+      //check_error( cudaStreamDestroy( curStream ) );
+      check_error( cudaDeviceSynchronize() );
+      check_error( cudaGetLastError() );
     }
     if ( opts.niter > 1 ) {
       printf( "\n" );
@@ -198,8 +213,9 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
   }
     	
 
-  cudaEventDestroy(start);
-  cudaEventDestroy(stop);
+  check_error( cudaEventDestroy(start) );
+  check_error( cudaEventDestroy(stop) );
+  check_error( cudaGetLastError() );
 }
 
 

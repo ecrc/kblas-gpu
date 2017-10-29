@@ -16,6 +16,7 @@ LIB_PATH+= -L${_KBLAS_ROOT_}/lib
 LIB= -lm -l${LIB_KBLAS_NAME}
 LIB+= -lcublas -lcudart
 # LIB+= -liomp5
+LIB+= -lstdc++
 
 KBLAS_LIB=../lib/lib${LIB_KBLAS_NAME}.a
 

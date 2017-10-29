@@ -15,7 +15,7 @@ LIB_PATH+= -L${_KBLAS_ROOT_}/lib
 # libraries to link against
 LIB= -lm -l${LIB_KBLAS_NAME}
 LIB+= -lcublas -lcudart
-LIB+= -liomp5
+# LIB+= -liomp5
 
 KBLAS_LIB=../lib/lib${LIB_KBLAS_NAME}.a
 
@@ -128,8 +128,8 @@ $(OBJ_DIR)/test_%gemm.o: test_%gemm.c test_gemm.ch testing_Xtr_common.h $(INC_SR
 $(OBJ_DIR)/%.o: %.c $(INC_SRC) $(KBLAS_LIB)
 	$(CC) $(COPTS) $(INCLUDES) -c $< -o $@
 
-$(BIN_DIR)/test_%: $(OBJ_DIR)/test_%.o 
-	$(CC) $< -o $@ $(LIB_PATH) $(LIB)
+$(BIN_DIR)/test_%: $(OBJ_DIR)/test_%.o
+	$(CC) $(COPTS) $< -o $@ $(LIB_PATH) $(LIB)
 
 all: $(EXE)
 

@@ -38,7 +38,7 @@
 #include <cuda_runtime_api.h>
 #include "cublas_v2.h"
 #include "kblas.h"
-#include "Xtr_common.ch"
+#include "kblas_common.h"
 #include "operators.h"
 #include "omp.h"
 

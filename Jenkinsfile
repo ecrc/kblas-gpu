@@ -24,20 +24,20 @@ pipeline {
     stages {
         stage ('cuda-7.0') {
             steps {
-                sh "#!/bin/bash -le
-                    module load gcc/4.8.5 cuda/7.0; make clean; make all"
+                sh '''#!/bin/bash -le
+                    module load gcc/4.8.5 cuda/7.0; make clean; make all'''
             }
         }
         stage ('cuda-7.5') {
             steps {
-                sh "#!/bin/bash -le
-                    module load gcc/4.8.5 cuda/7.5; make clean; make all"
+                sh '''#!/bin/bash -le
+                    module load gcc/4.8.5 cuda/7.5; make clean; make all'''
             }
         }
         stage ('cuda-8.0') {
             steps {
-                sh "#!/bin/bash -le
-                    module load gcc/4.8.5 cuda/8.0; make clean; make all"
+                sh '''#!/bin/bash -le
+                    module load gcc/4.8.5 cuda/8.0; make clean; make all'''
             }
         }
     }

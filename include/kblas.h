@@ -298,14 +298,6 @@ int get_zgemv_mgpu_bs(char trans);
 //============================================================================
 //BLAS3 routines
 //============================================================================
-#define KBLAS_Lower 'L'
-#define KBLAS_Upper 'U'
-#define KBLAS_Left 'L'
-#define KBLAS_Right 'R'
-#define KBLAS_Trans 'T'
-#define KBLAS_NoTrans 'N'
-#define KBLAS_Unit 'U'
-#define KBLAS_NonUnit 'N'
 
 /*/CPU API
 #if defined(KBLAS_CPU_API)
@@ -455,6 +447,38 @@ int kblas_ztrsm_async(
                                 const cuDoubleComplex *alpha,
                                 const cuDoubleComplex *A, int lda,
                                       cuDoubleComplex *B, int ldb);
+      cublasStatus_t kblas_strmm_mgpu(cublasHandle_t handle,
+                                      cublasSideMode_t side, cublasFillMode_t uplo,
+                                      cublasOperation_t trans, cublasDiagType_t diag,
+                                      int m, int n,
+                                      const float *alpha,
+                                      const float *A, int lda,
+                                            float *B, int ldb,
+                                      int ngpu);
+      cublasStatus_t kblas_dtrmm_mgpu(cublasHandle_t handle,
+                                      cublasSideMode_t side, cublasFillMode_t uplo,
+                                      cublasOperation_t trans, cublasDiagType_t diag,
+                                      int m, int n,
+                                      const double *alpha,
+                                      const double *A, int lda,
+                                            double *B, int ldb,
+                                      int ngpu);
+      cublasStatus_t kblas_ctrmm_mgpu(cublasHandle_t handle,
+                                      cublasSideMode_t side, cublasFillMode_t uplo,
+                                      cublasOperation_t trans, cublasDiagType_t diag,
+                                      int m, int n,
+                                      const cuComplex *alpha,
+                                      const cuComplex *A, int lda,
+                                            cuComplex *B, int ldb,
+                                      int ngpu);
+      cublasStatus_t kblas_ztrmm_mgpu(cublasHandle_t handle,
+                                      cublasSideMode_t side, cublasFillMode_t uplo,
+                                      cublasOperation_t trans, cublasDiagType_t diag,
+                                      int m, int n,
+                                      const cuDoubleComplex *alpha,
+                                      const cuDoubleComplex *A, int lda,
+                                            cuDoubleComplex *B, int ldb,
+                                      int ngpu);
     //}
   //}
   //TRSM {
@@ -517,6 +541,38 @@ int kblas_ztrsm_async(
                                 const cuDoubleComplex *alpha,
                                 const cuDoubleComplex *A, int lda,
                                       cuDoubleComplex *B, int ldb);
+      cublasStatus_t kblas_strsm_mgpu(cublasHandle_t handle,
+                                      cublasSideMode_t side, cublasFillMode_t uplo,
+                                      cublasOperation_t trans, cublasDiagType_t diag,
+                                      int m, int n,
+                                      const float *alpha,
+                                      const float *A, int lda,
+                                            float *B, int ldb,
+                                      int ngpu);
+      cublasStatus_t kblas_dtrsm_mgpu(cublasHandle_t handle,
+                                      cublasSideMode_t side, cublasFillMode_t uplo,
+                                      cublasOperation_t trans, cublasDiagType_t diag,
+                                      int m, int n,
+                                      const double *alpha,
+                                      const double *A, int lda,
+                                            double *B, int ldb,
+                                      int ngpu);
+      cublasStatus_t kblas_ctrsm_mgpu(cublasHandle_t handle,
+                                      cublasSideMode_t side, cublasFillMode_t uplo,
+                                      cublasOperation_t trans, cublasDiagType_t diag,
+                                      int m, int n,
+                                      const cuComplex *alpha,
+                                      const cuComplex *A, int lda,
+                                            cuComplex *B, int ldb,
+                                      int ngpu);
+      cublasStatus_t kblas_ztrsm_mgpu(cublasHandle_t handle,
+                                      cublasSideMode_t side, cublasFillMode_t uplo,
+                                      cublasOperation_t trans, cublasDiagType_t diag,
+                                      int m, int n,
+                                      const cuDoubleComplex *alpha,
+                                      const cuDoubleComplex *A, int lda,
+                                            cuDoubleComplex *B, int ldb,
+                                      int ngpu);
     //}
   //}
 #else//CUBLAS_V2_H_

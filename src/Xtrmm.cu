@@ -4,11 +4,11 @@
   Ali Charara (ali.charara@kaust.edu.sa)
   David Keyes (david.keyes@kaust.edu.sa)
   Hatem Ltaief (hatem.ltaief@kaust.edu.sa)
-  
+
   Redistribution  and  use  in  source and binary forms, with or without
   modification,  are  permitted  provided  that the following conditions
   are met:
-  
+
   * Redistributions  of  source  code  must  retain  the above copyright
   * notice,  this  list  of  conditions  and  the  following  disclaimer.
   * Redistributions  in  binary  form must reproduce the above copyright
@@ -18,7 +18,7 @@
   * Technology nor the names of its contributors may be used to endorse
   * or promote products derived from this software without specific prior
   * written permission.
-  * 
+  *
   THIS  SOFTWARE  IS  PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
   ``AS IS''  AND  ANY  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
   LIMITED  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -40,6 +40,7 @@
 #include "kblas.h"
 #include "Xtr_common.ch"
 #include "operators.h"
+#include "omp.h"
 
 //==============================================================================================
 
@@ -133,25 +134,25 @@ bool kblas_trmm_use_custom = 0;
 template<typename T, int WARPS_PER_BLOCK, int B_COLS_PER_WARP, bool LOWER, bool TRANS, bool CONJG>
 __global__ void //__launch_bounds__(256)
 trmm_mul32_L(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int incB, int mb){
-  
+
   const int A_COL_PER_WARP = WARP / WARPS_PER_BLOCK;
   const bool forward = (LOWER == TRANS);
-  
+
   int txyw = tx + ty*WARP1/*, tyxw = ty + tx*WARP1*/, txyiA = tx + ty*incA, txyiB = tx + ty*incB;
-  
+
   //setup shared memory
   __shared__ T sA[WARP * WARP1];//strided to avoid bank conflict
   T rB[B_COLS_PER_WARP], rBj[B_COLS_PER_WARP], s[B_COLS_PER_WARP], a[4], b[4], *sAA, *BB;
   int c, j, r, l, i, startB = 0, active_col;
-  
+
   for(startB = 0; startB < N; startB += gridDim.x * WARPS_PER_BLOCK * B_COLS_PER_WARP)
   {
 
     if( (startB + blockIdx.x * WARPS_PER_BLOCK * B_COLS_PER_WARP) >= N) return;
-    
+
     BB = B + (startB + blockIdx.x * WARPS_PER_BLOCK * B_COLS_PER_WARP) * incB;
     active_col = 0;//an inactive warp will still contribute to data fetching but not to computation
-    
+
     #pragma unroll
     for(l = 0; l < B_COLS_PER_WARP; l++)
       active_col += ((startB + blockIdx.x * (WARPS_PER_BLOCK * B_COLS_PER_WARP) + ty + l * WARPS_PER_BLOCK) < N);
@@ -165,13 +166,13 @@ trmm_mul32_L(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int
       #pragma unroll
       for(l = 0; l < A_COL_PER_WARP; l++)
         sA[txyw + l * WARPS_PER_BLOCK * WARP1] = A[txyiA + WARP * c * (incA+1) + l * WARPS_PER_BLOCK * incA];
-      
+
       //load B(c) into registers
       #pragma unroll
       for(l = 0; l < B_COLS_PER_WARP; l++)
         if(active_col > l)
           rB[l] = BB[txyiB + WARP * c + l * WARPS_PER_BLOCK * incB];
-      
+
       /*__syncthreads();
       if(forward){
         #pragma unroll
@@ -297,23 +298,23 @@ trmm_mul32_R(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int
   const int A_COL_PER_WARP = WARP / WARPS_PER_BLOCK;
   const int B_ROWS_PER_BLOCK = WARPS_PER_BLOCK * B_ROWS_PER_WARP;
   const bool forward = (LOWER != TRANS);
-  
+
   int txyw = tx + ty*WARP1, tyxw = ty + tx*WARP1, txyiA = tx + ty*incA;
   //int txyiB = tx % B_ROWS_PER_BLOCK + (tx / B_ROWS_PER_BLOCK + ty * WARP / B_ROWS_PER_BLOCK) * incB;
-  
+
   //setup shared memory
   __shared__ T sA[WARP * WARP1];//strided to avoid bank conflict
   T rB[B_ROWS_PER_WARP], rBj[B_ROWS_PER_WARP], s[B_ROWS_PER_WARP], a[4], b[4], *sAA, *BB;
   int c, j, r, l, i, startB = 0, active_row = 0;
-  
+
   for(startB = 0; startB < M; startB += gridDim.x * B_ROWS_PER_BLOCK)
   {
-    
+
     if( (startB + blockIdx.x * B_ROWS_PER_BLOCK) >= M) return;
-    
+
     BB = B + (startB + blockIdx.x * B_ROWS_PER_BLOCK);
     active_row = 0;//an inactive warp will still contribute to data fetching but not to computation
-    
+
     #pragma unroll
     for(l = 0; l < B_ROWS_PER_WARP; l++)
       active_row += ( (startB + blockIdx.x * B_ROWS_PER_BLOCK + ty + l * WARPS_PER_BLOCK) < M);
@@ -331,7 +332,7 @@ trmm_mul32_R(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int
       for(l = 0; l < B_ROWS_PER_WARP; l++)
         rB[l] = sA[tyxw + l * WARPS_PER_BLOCK];
       __syncthreads();
-      
+
       #pragma unroll
       for(l = 0; l < B_ROWS_PER_WARP; l++)
         s[l] = make_zero<T>();
@@ -365,7 +366,7 @@ trmm_mul32_R(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int
       __syncthreads();
 
       for(r = (forward ? c+1 : 0); (forward && (r < nb)) || (!forward && (r < c)); r++){
-        
+
         //load B(r) into registers in 2 steps: 1. read coalesced into shared memory. 2. read into registers
         if( (blockIdx.x * B_ROWS_PER_BLOCK + tx % B_ROWS_PER_BLOCK) < M){
           #pragma unroll
@@ -377,7 +378,7 @@ trmm_mul32_R(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int
         for(l = 0; l < B_ROWS_PER_WARP; l++)
           rB[l] = sA[tyxw + l * WARPS_PER_BLOCK];
         __syncthreads();
-        
+
         #pragma unroll
         for(l = 0; l < A_COL_PER_WARP; l++){
           if(!TRANS)//load A(r,c)
@@ -421,7 +422,7 @@ trmm_mul32_R(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int
         }
         __syncthreads();
       }
-      
+
       //store back B(c) to global mem in 2 steps: 1. store in shared memory 2. read from shared memory to global memory
       #pragma unroll
       for(l = 0; l < B_ROWS_PER_WARP; l++)
@@ -456,12 +457,12 @@ cublasStatus_t Xtrmm(cublasHandle_t handle,
                        alpha, A, incA,
                               B, incB );
   }
-  
+
   typedef void (*trmm_kernels_type)(int M, int N, T alpha, const T* A, int incA, T* B, int incB, int mb);
 
   #define WARPS_PER_BLOCK 8
   #define B_COLS_PER_WARP 1
-  
+
   trmm_kernels_type trmm_kernels[8] = {// T, WARPS_PER_BLOCK, B_COLS_PER_WARP, LEFT, LOWER, TRANS, CONJG
     trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true, false, false>,
     trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true,  true, false>,
@@ -472,12 +473,12 @@ cublasStatus_t Xtrmm(cublasHandle_t handle,
     trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false, false, false>,
     trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false,  true, false>
   };
-  
+
   cudaStream_t curStream;
   cublasStatus_t status;
 
   check_error( status = cublasGetStream( handle, &curStream ), status);
-  
+
   if( ((side == CUBLAS_SIDE_LEFT) && (m % WARP == 0)) || ((side == CUBLAS_SIDE_RIGHT) && (n % WARP == 0)))
   {
     int func_idx = 4*(side == CUBLAS_SIDE_RIGHT) + 2*(uplo == CUBLAS_FILL_MODE_UPPER) + (trans != CUBLAS_OP_N);// + (diag == CUBLAS_DIAG_UNIT);
@@ -527,7 +528,7 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle,
 {
   T one = make_one<T>();
   cublasStatus_t status;
-  
+
   if( (*alpha == make_zero<T>())//TODO
    || ( (side == CUBLAS_SIDE_LEFT) && (SIMPLE_SIZE(m)) )
    || ( (side == CUBLAS_SIDE_RIGHT) && (SIMPLE_SIZE(n)) ) ){
@@ -772,8 +773,8 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
                           cublasOperation_t trans, cublasDiagType_t diag,
                           int m, int n,
                           const T *alpha,
-                          const T *h_A, int incA, T* d_A, 
-                                T *h_B, int incB, T* d_B,
+                          const T *h_A, int ldA, T* d_A, int lddA,
+                                T *h_B, int ldB, T* d_B, int lddB,
                           bool BIsIn, bool getBOut, bool AIsIn)
 {
   T one = make_one<T>();
@@ -783,18 +784,18 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
   check_error( cudaEventCreateWithFlags(&eComp, cudaEventDisableTiming), CUBLAS_STATUS_EXECUTION_FAILED);
   cudaStream_t strComp;
   check_error( cublasGetStream_v2(handle, &strComp), CUBLAS_STATUS_INTERNAL_ERROR);
-  
+
   if( ( *alpha == make_zero<T>() ) //TODO
-   || ( (side == CUBLAS_SIDE_LEFT) && (SIMPLE_SIZE(m)) ) 
+   || ( (side == CUBLAS_SIDE_LEFT) && (SIMPLE_SIZE(m)) )
    || ( (side == CUBLAS_SIDE_RIGHT) && (SIMPLE_SIZE(n)) ) ){
 
     int Am = (side == CUBLAS_SIDE_LEFT) ? m : n;
     //if B is not already in, copy in B block
     if(!BIsIn)
-      check_error( status = cublasSetMatrixAsync( m, n, sizeof(T), h_B, incB, d_B, incB, strIn ), status);
+      check_error( status = cublasSetMatrixAsync( m, n, sizeof(T), h_B, ldB, d_B, lddB, strIn ), status);
     //copy in A block
     if(!AIsIn)
-      check_error( status = cublasSetMatrixAsync( Am, Am, sizeof(T), h_A, incA, d_A, incA, strIn ), status);
+      check_error( status = cublasSetMatrixAsync( Am, Am, sizeof(T), h_A, ldA, d_A, lddA, strIn ), status);
     //wait for data to arrive
     if(!AIsIn || !BIsIn){
       check_error( cudaEventRecord(eDataIn, strIn), CUBLAS_STATUS_INTERNAL_ERROR);
@@ -803,14 +804,14 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
     if( (status = Xtrmm( handle,
                          side, uplo, trans, diag,
                          m, n,
-                         alpha, d_A, incA,
-                                d_B, incB ) ) != CUBLAS_STATUS_SUCCESS ) return status;
+                         alpha, d_A, lddA,
+                                d_B, lddB ) ) != CUBLAS_STATUS_SUCCESS ) return status;
 
     //if stream is done computing and getBOut, copy B back.
     if(getBOut){
       check_error( cudaEventRecord(eComp, strComp), CUBLAS_STATUS_INTERNAL_ERROR);
       check_error( cudaStreamWaitEvent(strOut, eComp, 0), CUBLAS_STATUS_INTERNAL_ERROR);
-      check_error( status = cublasGetMatrixAsync( m, n, sizeof(T), d_B, incB, h_B, incB, strOut), status);
+      check_error( status = cublasGetMatrixAsync( m, n, sizeof(T), d_B, lddB, h_B, ldB, strOut), status);
     }
   }else
   if(side == CUBLAS_SIDE_LEFT){
@@ -826,16 +827,16 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
 
     if( (!AIsIn && SIMPLE_SIZE_DATA(m)) || (!BIsIn && SIMPLE_SIZE_DATA(m)) ){
       if( (!AIsIn && SIMPLE_SIZE_DATA(m)) ){
-        check_error( status = cublasSetMatrixAsync( m, m, sizeof(T), h_A, incA, d_A, incA, strIn), status);
+        check_error( status = cublasSetMatrixAsync( m, m, sizeof(T), h_A, ldA, d_A, lddA, strIn), status);
         AIsIn = true;
       }
       if( (!BIsIn && SIMPLE_SIZE_DATA(m)) ){
-        check_error( status = cublasSetMatrixAsync( m, n, sizeof(T), h_B, incB, d_B, incB, strIn), status);
+        check_error( status = cublasSetMatrixAsync( m, n, sizeof(T), h_B, ldB, d_B, lddB, strIn), status);
         BIsIn = true;
       }
       //wait for data to arrive
       check_error( cudaEventRecord(eDataIn, strIn), CUBLAS_STATUS_INTERNAL_ERROR);
-      check_error( cudaStreamWaitEvent(strComp, eDataIn, 0), CUBLAS_STATUS_INTERNAL_ERROR);      
+      check_error( cudaStreamWaitEvent(strComp, eDataIn, 0), CUBLAS_STATUS_INTERNAL_ERROR);
     }
     if(uplo == CUBLAS_FILL_MODE_UPPER){
 
@@ -844,8 +845,8 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
         if((status = kblasXtrmm(handle, strIn, strOut,
                                 side, uplo, trans, diag,
                                 m1, n,
-                                alpha, h_A, incA, d_A,
-                                       h_B, incB, d_B,
+                                alpha, h_A, ldA, d_A, lddA,
+                                       h_B, ldB, d_B, lddB,
                                 BIsIn, false, AIsIn
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
 
@@ -853,12 +854,12 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
         if(!AIsIn || !BIsIn){
           //if B is not already in, copy B block
           if(!BIsIn){
-            check_error( status = cublasSetMatrixAsync( m2, n, sizeof(T), h_B + m1, incB, d_B + m1, incB, strIn), status);
+            check_error( status = cublasSetMatrixAsync( m2, n, sizeof(T), h_B + m1, ldB, d_B + m1, lddB, strIn), status);
             BIsIn = true;
           }
           //copy in A block
           if(!AIsIn)
-            check_error( status = cublasSetMatrixAsync( m1, m2, sizeof(T), h_A + m1 * incA, incA, d_A + m1 * incA, incA, strIn), status);
+            check_error( status = cublasSetMatrixAsync( m1, m2, sizeof(T), h_A + m1 * ldA, ldA, d_A + m1 * lddA, lddA, strIn), status);
           //wait for data to arrive
           check_error( cudaEventRecord(eDataIn, strIn), CUBLAS_STATUS_INTERNAL_ERROR);
           check_error( cudaStreamWaitEvent(strComp, eDataIn, 0), CUBLAS_STATUS_INTERNAL_ERROR);
@@ -866,22 +867,22 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
         if((status = cublasXgemm(handle,
                                  trans, noTrans,
                                  m1, n, m2,
-                                 alpha, d_A + m1 * incA, incA,
-                                        d_B + m1, incB,
-                                 &one,  d_B, incB)) != CUBLAS_STATUS_SUCCESS) return status;
+                                 alpha, d_A + m1 * lddA, lddA,
+                                        d_B + m1, lddB,
+                                 &one,  d_B, lddB)) != CUBLAS_STATUS_SUCCESS) return status;
         //if stream is done computing and getBOut, copy B back.
         if(getBOut){
           check_error( cudaEventRecord(eComp, strComp), CUBLAS_STATUS_INTERNAL_ERROR);
           check_error( cudaStreamWaitEvent(strOut, eComp, 0), CUBLAS_STATUS_INTERNAL_ERROR);
-          check_error( status = cublasGetMatrixAsync( m1, n, sizeof(T), d_B, incB, h_B, incB, strOut), status);
+          check_error( status = cublasGetMatrixAsync( m1, n, sizeof(T), d_B, lddB, h_B, ldB, strOut), status);
         }
 
         //B is already in, no need to copy in
         if((status = kblasXtrmm(handle, strIn, strOut,
                                 side, uplo, trans, diag,
                                 m2, n,
-                                alpha, h_A + m1 + m1 * incA, incA, d_A + m1 + m1 * incA,
-                                       h_B + m1, incB, d_B + m1,
+                                alpha, h_A + m1 + m1 * ldA, ldA, d_A + m1 + m1 * lddA, lddA,
+                                       h_B + m1, ldB, d_B + m1, lddB,
                                 BIsIn, getBOut, AIsIn
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
       }
@@ -890,20 +891,20 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
         if((status = kblasXtrmm(handle, strIn, strOut,
                                 side, uplo, trans, diag,
                                 m2, n,
-                                alpha, h_A+m1+m1*incA, incA, d_A+m1+m1*incA,
-                                       h_B+m1, incB, d_B+m1,
+                                alpha, h_A+m1+m1*ldA, ldA, d_A+m1+m1*lddA, lddA,
+                                       h_B+m1, ldB, d_B+m1, lddB,
                                 BIsIn, false, AIsIn
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
         //prepare needed data
         if(!AIsIn || !BIsIn){
           //if B is not already in, copy B block
           if(!BIsIn){
-            check_error( status = cublasSetMatrixAsync( m1, n, sizeof(T), h_B, incB, d_B, incB, strIn), status);
+            check_error( status = cublasSetMatrixAsync( m1, n, sizeof(T), h_B, ldB, d_B, lddB, strIn), status);
             BIsIn = true;
           }
           //copy in A block
           if(!AIsIn)
-            check_error( status = cublasSetMatrixAsync( m1, m2, sizeof(T), h_A + m1 * incA, incA, d_A + m1 * incA, incA, strIn), status);
+            check_error( status = cublasSetMatrixAsync( m1, m2, sizeof(T), h_A + m1 * ldA, ldA, d_A + m1 * lddA, lddA, strIn), status);
           //wait for data to arrive
           check_error( cudaEventRecord(eDataIn, strIn), CUBLAS_STATUS_INTERNAL_ERROR);
           check_error( cudaStreamWaitEvent(strComp, eDataIn, 0), CUBLAS_STATUS_INTERNAL_ERROR);
@@ -911,23 +912,23 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
         if((status = cublasXgemm(handle,
                                  trans, noTrans,
                                  m2, n, m1,
-                                 alpha, d_A+m1*incA, incA,
-                                        d_B, incB,
-                                 &one,  d_B+m1, incB
+                                 alpha, d_A+m1*lddA, lddA,
+                                        d_B, lddB,
+                                 &one,  d_B+m1, lddB
                                  )) != CUBLAS_STATUS_SUCCESS) return status;
 
         //if stream is done computing and getBOut, copy B back.
         if(getBOut){
           check_error( cudaEventRecord(eComp, strComp), CUBLAS_STATUS_INTERNAL_ERROR);
           check_error( cudaStreamWaitEvent(strOut, eComp, 0), CUBLAS_STATUS_INTERNAL_ERROR);
-          check_error( status = cublasGetMatrixAsync( m2, n, sizeof(T), d_B+m1, incB, h_B+m1, incB, strOut), status);
+          check_error( status = cublasGetMatrixAsync( m2, n, sizeof(T), d_B+m1, lddB, h_B+m1, ldB, strOut), status);
         }
 
         if((status = kblasXtrmm(handle, strIn, strOut,
                                 side, uplo, trans, diag,
                                 m1, n,
-                                alpha, h_A, incA, d_A,
-                                       h_B, incB, d_B,
+                                alpha, h_A, ldA, d_A, lddA,
+                                       h_B, ldB, d_B, lddB,
                                 BIsIn, getBOut, AIsIn
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
       }
@@ -939,20 +940,20 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
         if((status = kblasXtrmm(handle, strIn, strOut,
                                 side, uplo, trans, diag,
                                 m2, n,
-                                alpha, h_A+m1+m1*incA, incA, d_A+m1+m1*incA, 
-                                       h_B+m1, incB, d_B+m1,
+                                alpha, h_A+m1+m1*ldA, ldA, d_A+m1+m1*lddA, lddA,
+                                       h_B+m1, ldB, d_B+m1, lddB,
                                 BIsIn, false, AIsIn
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
         //prepare needed data
         if(!AIsIn || !BIsIn){
           //if B is not already in, copy B block
           if(!BIsIn){
-            check_error( status = cublasSetMatrixAsync( m1, n, sizeof(T), h_B, incB, d_B, incB, strIn), status);
+            check_error( status = cublasSetMatrixAsync( m1, n, sizeof(T), h_B, ldB, d_B, lddB, strIn), status);
             BIsIn = true;
           }
           //copy in A block
           if(!AIsIn)
-            check_error( status = cublasSetMatrixAsync( m2, m1, sizeof(T), h_A + m1, incA, d_A + m1, incA, strIn), status);
+            check_error( status = cublasSetMatrixAsync( m2, m1, sizeof(T), h_A + m1, ldA, d_A + m1, lddA, strIn), status);
           //wait for data to arrive
           check_error( cudaEventRecord(eDataIn, strIn), CUBLAS_STATUS_INTERNAL_ERROR);
           check_error( cudaStreamWaitEvent(strComp, eDataIn, 0), CUBLAS_STATUS_INTERNAL_ERROR);
@@ -960,22 +961,22 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
         if((status = cublasXgemm(handle,
                                  trans, noTrans,
                                  m2, n, m1,
-                                 alpha, d_A+m1, incA,
-                                        d_B, incB,
-                                 &one,  d_B+m1, incB
+                                 alpha, d_A+m1, lddA,
+                                        d_B, lddB,
+                                 &one,  d_B+m1, lddB
                                  )) != CUBLAS_STATUS_SUCCESS) return status;
         //if stream is done computing and getBOut, copy B back.
         if(getBOut){
           check_error( cudaEventRecord(eComp, strComp), CUBLAS_STATUS_INTERNAL_ERROR);
           check_error( cudaStreamWaitEvent(strOut, eComp, 0), CUBLAS_STATUS_INTERNAL_ERROR);
-          check_error( status = cublasGetMatrixAsync( m2, n, sizeof(T), d_B+m1, incB, h_B+m1, incB, strOut), status);
+          check_error( status = cublasGetMatrixAsync( m2, n, sizeof(T), d_B+m1, lddB, h_B+m1, ldB, strOut), status);
         }
 
         if((status = kblasXtrmm(handle, strIn, strOut,
                                 side, uplo, trans, diag,
                                 m1, n,
-                                alpha, h_A, incA, d_A,
-                                       h_B, incB, d_B,
+                                alpha, h_A, ldA, d_A, lddA,
+                                       h_B, ldB, d_B, lddB,
                                 BIsIn, getBOut, AIsIn
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
       }
@@ -984,20 +985,20 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
         if((status = kblasXtrmm(handle, strIn, strOut,
                                 side, uplo, trans, diag,
                                 m1, n,
-                                alpha, h_A, incA, d_A,
-                                       h_B, incB, d_B,
+                                alpha, h_A, ldA, d_A, lddA,
+                                       h_B, ldB, d_B, lddB,
                                 BIsIn, false, AIsIn
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
         //prepare needed data
         if(!AIsIn || !BIsIn){
           //if B is not already in, copy B block
           if(!BIsIn){
-            check_error( status = cublasSetMatrixAsync( m2, n, sizeof(T), h_B + m1, incB, d_B + m1, incB, strIn), status);
+            check_error( status = cublasSetMatrixAsync( m2, n, sizeof(T), h_B + m1, ldB, d_B + m1, lddB, strIn), status);
             BIsIn = true;
           }
           //copy in A block
           if(!AIsIn)
-            check_error( status = cublasSetMatrixAsync( m2, m1, sizeof(T), h_A + m1, incA, d_A + m1, incA, strIn), status);
+            check_error( status = cublasSetMatrixAsync( m2, m1, sizeof(T), h_A + m1, ldA, d_A + m1, lddA, strIn), status);
           //wait for data to arrive
           check_error( cudaEventRecord(eDataIn, strIn), CUBLAS_STATUS_INTERNAL_ERROR);
           check_error( cudaStreamWaitEvent(strComp, eDataIn, 0), CUBLAS_STATUS_INTERNAL_ERROR);
@@ -1006,22 +1007,22 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
         if((status = cublasXgemm(handle,
                                  trans, noTrans,
                                  m1, n, m2,
-                                 alpha, d_A+m1, incA,
-                                        d_B+m1, incB,
-                                 &one,  d_B, incB
+                                 alpha, d_A+m1, lddA,
+                                        d_B+m1, lddB,
+                                 &one,  d_B, lddB
                                  )) != CUBLAS_STATUS_SUCCESS) return status;
         //if stream is done computing and getBOut, copy B back.
         if(getBOut){
           check_error( cudaEventRecord(eComp, strComp), CUBLAS_STATUS_INTERNAL_ERROR);
           check_error( cudaStreamWaitEvent(strOut, eComp, 0), CUBLAS_STATUS_INTERNAL_ERROR);
-          check_error( status = cublasGetMatrixAsync( m1, n, sizeof(T), d_B, incB, h_B, incB, strOut), status);
+          check_error( status = cublasGetMatrixAsync( m1, n, sizeof(T), d_B, lddB, h_B, ldB, strOut), status);
         }
 
         if((status = kblasXtrmm(handle, strIn, strOut,
                                 side, uplo, trans, diag,
                                 m2, n,
-                                alpha, h_A+m1+m1*incA, incA, d_A+m1+m1*incA, 
-                                       h_B+m1, incB, d_B+m1,
+                                alpha, h_A+m1+m1*ldA, ldA, d_A+m1+m1*lddA, lddA,
+                                       h_B+m1, ldB, d_B+m1, lddB,
                                 BIsIn, getBOut, AIsIn
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
       }//trans == Trans
@@ -1036,14 +1037,14 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
       n1 = CLOSEST_REG_SIZE(n);
       n2 = n-n1;
     }
-    
+
     if( (!AIsIn && SIMPLE_SIZE_DATA(n)) || (!BIsIn && SIMPLE_SIZE_DATA(n)) ){
       if( (!AIsIn && SIMPLE_SIZE_DATA(n)) ){
-        check_error( status = cublasSetMatrixAsync( n, n, sizeof(T), h_A, incA, d_A, incA, strIn), status);
+        check_error( status = cublasSetMatrixAsync( n, n, sizeof(T), h_A, ldA, d_A, lddA, strIn), status);
         AIsIn = true;
       }
       if( (!BIsIn && SIMPLE_SIZE_DATA(n)) ){
-        check_error( status = cublasSetMatrixAsync( m, n, sizeof(T), h_B, incB, d_B, incB, strIn), status);
+        check_error( status = cublasSetMatrixAsync( m, n, sizeof(T), h_B, ldB, d_B, lddB, strIn), status);
         BIsIn = true;
       }
       //wait for data to arrive
@@ -1056,8 +1057,8 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
         if((status = kblasXtrmm(handle, strIn, strOut,
                                 side, uplo, trans, diag,
                                 m, n2,
-                                alpha, h_A+n1+n1*incA, incA, d_A+n1+n1*incA, 
-                                       h_B+n1*incB, incB, d_B+n1*incB,
+                                alpha, h_A+n1+n1*ldA, ldA, d_A+n1+n1*lddA, lddA,
+                                       h_B+n1*ldB, ldB, d_B+n1*lddB, lddB,
                                 BIsIn, false, AIsIn
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
 
@@ -1065,12 +1066,12 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
         if(!AIsIn || !BIsIn){
           //if B is not already in, copy B block
           if(!BIsIn){
-            check_error( status = cublasSetMatrixAsync( m, n1, sizeof(T), h_B, incB, d_B, incB, strIn), status);
+            check_error( status = cublasSetMatrixAsync( m, n1, sizeof(T), h_B, ldB, d_B, lddB, strIn), status);
             BIsIn = true;
           }
           //copy in A block
           if(!AIsIn)
-            check_error( status = cublasSetMatrixAsync( n1, n2, sizeof(T), h_A + n1 * incA, incA, d_A + n1 * incA, incA, strIn), status);
+            check_error( status = cublasSetMatrixAsync( n1, n2, sizeof(T), h_A + n1 * ldA, ldA, d_A + n1 * lddA, lddA, strIn), status);
           //wait for data to arrive
           check_error( cudaEventRecord(eDataIn, strIn), CUBLAS_STATUS_INTERNAL_ERROR);
           check_error( cudaStreamWaitEvent(strComp, eDataIn, 0), CUBLAS_STATUS_INTERNAL_ERROR);
@@ -1078,22 +1079,22 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
         if((status = cublasXgemm(handle,
                                  CUBLAS_OP_N, trans,
                                  m, n2, n1,
-                                 alpha, d_B, incB,
-                                        d_A+n1*incA, incA,
-                                 &one,  d_B+n1*incB, incB
+                                 alpha, d_B, lddB,
+                                        d_A+n1*lddA, lddA,
+                                 &one,  d_B+n1*lddB, lddB
                                  )) != CUBLAS_STATUS_SUCCESS) return status;
         //if stream is done computing and getBOut, copy B back.
         if(getBOut){
           check_error( cudaEventRecord(eComp, strComp), CUBLAS_STATUS_INTERNAL_ERROR);
           check_error( cudaStreamWaitEvent(strOut, eComp, 0), CUBLAS_STATUS_INTERNAL_ERROR);
-          check_error( status = cublasGetMatrixAsync( m, n2, sizeof(T), d_B+n1*incB, incB, h_B+n1*incB, incB, strOut), status);
+          check_error( status = cublasGetMatrixAsync( m, n2, sizeof(T), d_B+n1*lddB, lddB, h_B+n1*ldB, ldB, strOut), status);
         }
 
         if((status = kblasXtrmm(handle, strIn, strOut,
                                 side, uplo, trans, diag,
                                 m, n1,
-                                alpha, h_A, incA, d_A,
-                                       h_B, incB, d_B,
+                                alpha, h_A, ldA, d_A, lddA,
+                                       h_B, ldB, d_B, lddB,
                                 BIsIn, getBOut, AIsIn
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
       }
@@ -1102,20 +1103,20 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
         if((status = kblasXtrmm(handle, strIn, strOut,
                                 side, uplo, trans, diag,
                                 m, n1,
-                                alpha, h_A, incA, d_A,
-                                       h_B, incB, d_B,
+                                alpha, h_A, ldA, d_A, lddA,
+                                       h_B, ldB, d_B, lddB,
                                 BIsIn, false, AIsIn
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
         //prepare needed data
         if(!AIsIn || !BIsIn){
           //if B is not already in, copy B block
           if(!BIsIn){
-            check_error( status = cublasSetMatrixAsync( m, n2, sizeof(T), h_B+n1*incB, incB, d_B+n1*incB, incB, strIn), status);
+            check_error( status = cublasSetMatrixAsync( m, n2, sizeof(T), h_B+n1*ldB, ldB, d_B+n1*lddB, lddB, strIn), status);
             BIsIn = true;
           }
           //copy in A block
           if(!AIsIn)
-            check_error( status = cublasSetMatrixAsync( n1, n2, sizeof(T), h_A+n1*incA, incA, d_A+n1*incA, incA, strIn), status);
+            check_error( status = cublasSetMatrixAsync( n1, n2, sizeof(T), h_A+n1*ldA, ldA, d_A+n1*lddA, lddA, strIn), status);
           //wait for data to arrive
           check_error( cudaEventRecord(eDataIn, strIn), CUBLAS_STATUS_INTERNAL_ERROR);
           check_error( cudaStreamWaitEvent(strComp, eDataIn, 0), CUBLAS_STATUS_INTERNAL_ERROR);
@@ -1123,22 +1124,22 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
         if((status = cublasXgemm(handle,
                                  CUBLAS_OP_N, trans,
                                  m, n1, n2,
-                                 alpha, d_B+n1*incB, incB,
-                                        d_A+n1*incA, incA,
-                                 &one,  d_B, incB
+                                 alpha, d_B+n1*lddB, lddB,
+                                        d_A+n1*lddA, lddA,
+                                 &one,  d_B, lddB
                                  )) != CUBLAS_STATUS_SUCCESS) return status;
         //if stream is done computing and getBOut, copy B back.
         if(getBOut){
           check_error( cudaEventRecord(eComp, strComp), CUBLAS_STATUS_INTERNAL_ERROR);
           check_error( cudaStreamWaitEvent(strOut, eComp, 0), CUBLAS_STATUS_INTERNAL_ERROR);
-          check_error( status = cublasGetMatrixAsync( m, n1, sizeof(T), d_B, incB, h_B, incB, strOut), status);
+          check_error( status = cublasGetMatrixAsync( m, n1, sizeof(T), d_B, lddB, h_B, ldB, strOut), status);
         }
 
         if((status = kblasXtrmm(handle, strIn, strOut,
                                 side, uplo, trans, diag,
                                 m, n2,
-                                alpha, h_A+n1+n1*incA, incA, d_A+n1+n1*incA, 
-                                       h_B+n1*incB, incB, d_B+n1*incB,
+                                alpha, h_A+n1+n1*ldA, ldA, d_A+n1+n1*lddA, lddA,
+                                       h_B+n1*ldB, ldB, d_B+n1*lddB, lddB,
                                 BIsIn, getBOut, AIsIn
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
       }
@@ -1148,20 +1149,20 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
         if((status = kblasXtrmm(handle, strIn, strOut,
                                 side, uplo, trans, diag,
                                 m, n1,
-                                alpha, h_A, incA, d_A, 
-                                       h_B, incB, d_B,
+                                alpha, h_A, ldA, d_A, lddA,
+                                       h_B, ldB, d_B, lddB,
                                 BIsIn, false, AIsIn
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
         //prepare needed data
         if(!AIsIn || !BIsIn){
           //if B is not already in, copy B block
           if(!BIsIn){
-            check_error( status = cublasSetMatrixAsync( m, n2, sizeof(T), h_B+n1*incB, incB, d_B+n1*incB, incB, strIn), status);
+            check_error( status = cublasSetMatrixAsync( m, n2, sizeof(T), h_B+n1*ldB, ldB, d_B+n1*lddB, lddB, strIn), status);
             BIsIn = true;
           }
           //copy in A block
           if(!AIsIn)
-            check_error( status = cublasSetMatrixAsync( n2, n1, sizeof(T), h_A+n1, incA, d_A+n1, incA, strIn), status);
+            check_error( status = cublasSetMatrixAsync( n2, n1, sizeof(T), h_A+n1, ldA, d_A+n1, lddA, strIn), status);
           //wait for data to arrive
           check_error( cudaEventRecord(eDataIn, strIn), CUBLAS_STATUS_INTERNAL_ERROR);
           check_error( cudaStreamWaitEvent(strComp, eDataIn, 0), CUBLAS_STATUS_INTERNAL_ERROR);
@@ -1169,22 +1170,22 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
         if((status = cublasXgemm(handle,
                                  CUBLAS_OP_N, trans,
                                  m, n1, n2,
-                                 alpha, d_B+n1*incB, incB,
-                                        d_A+n1, incA,
-                                 &one,  d_B, incB
+                                 alpha, d_B+n1*lddB, lddB,
+                                        d_A+n1, lddA,
+                                 &one,  d_B, lddB
                                  )) != CUBLAS_STATUS_SUCCESS) return status;
         //if stream is done computing and getBOut, copy B back.
         if(getBOut){
           check_error( cudaEventRecord(eComp, strComp), CUBLAS_STATUS_INTERNAL_ERROR);
           check_error( cudaStreamWaitEvent(strOut, eComp, 0), CUBLAS_STATUS_INTERNAL_ERROR);
-          check_error( status = cublasGetMatrixAsync( m, n1, sizeof(T), d_B, incB, h_B, incB, strOut), status);
+          check_error( status = cublasGetMatrixAsync( m, n1, sizeof(T), d_B, lddB, h_B, ldB, strOut), status);
         }
 
         if((status = kblasXtrmm(handle, strIn, strOut,
                                 side, uplo, trans, diag,
                                 m, n2,
-                                alpha, h_A+n1+n1*incA, incA, d_A+n1+n1*incA, 
-                                       h_B+n1*incB, incB, d_B+n1*incB,
+                                alpha, h_A+n1+n1*ldA, ldA, d_A+n1+n1*lddA, lddA,
+                                       h_B+n1*ldB, ldB, d_B+n1*lddB, lddB,
                                 BIsIn, getBOut, AIsIn
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
       }
@@ -1193,20 +1194,20 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
         if((status = kblasXtrmm(handle, strIn, strOut,
                                 side, uplo, trans, diag,
                                 m, n2,
-                                alpha, h_A+n1+n1*incA, incA, d_A+n1+n1*incA, 
-                                       h_B+n1*incB, incB, d_B+n1*incB,
+                                alpha, h_A+n1+n1*ldA, ldA, d_A+n1+n1*lddA, lddA,
+                                       h_B+n1*ldB, ldB, d_B+n1*lddB, lddB,
                                 BIsIn, false, AIsIn
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
         //prepare needed data
         if(!AIsIn || !BIsIn){
           //if B is not already in, copy B block
           if(!BIsIn){
-            check_error( status = cublasSetMatrixAsync( m, n1, sizeof(T), h_B, incB, d_B, incB, strIn), status);
+            check_error( status = cublasSetMatrixAsync( m, n1, sizeof(T), h_B, ldB, d_B, lddB, strIn), status);
             BIsIn = true;
           }
           //copy in A block
           if(!AIsIn)
-            check_error( status = cublasSetMatrixAsync( n1, n2, sizeof(T), h_A+n1, incA, d_A+n1, incA, strIn), status);
+            check_error( status = cublasSetMatrixAsync( n1, n2, sizeof(T), h_A+n1, ldA, d_A+n1, lddA, strIn), status);
           //wait for data to arrive
           check_error( cudaEventRecord(eDataIn, strIn), CUBLAS_STATUS_INTERNAL_ERROR);
           check_error( cudaStreamWaitEvent(strComp, eDataIn, 0), CUBLAS_STATUS_INTERNAL_ERROR);
@@ -1214,22 +1215,22 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
         if((status = cublasXgemm(handle,
                                  CUBLAS_OP_N, trans,
                                  m, n2, n1,
-                                 alpha, d_B, incB,
-                                        d_A+n1, incA,
-                                 &one,  d_B+n1*incB, incB
+                                 alpha, d_B, lddB,
+                                        d_A+n1, lddA,
+                                 &one,  d_B+n1*lddB, lddB
                                  )) != CUBLAS_STATUS_SUCCESS) return status;
         //if stream is done computing and getBOut, copy B back.
         if(getBOut){
           check_error( cudaEventRecord(eComp, strComp), CUBLAS_STATUS_INTERNAL_ERROR);
           check_error( cudaStreamWaitEvent(strOut, eComp, 0), CUBLAS_STATUS_INTERNAL_ERROR);
-          check_error( status = cublasGetMatrixAsync( m, n2, sizeof(T), d_B+n1*incB, incB, h_B+n1*incB, incB, strOut), status);
+          check_error( status = cublasGetMatrixAsync( m, n2, sizeof(T), d_B+n1*lddB, lddB, h_B+n1*ldB, ldB, strOut), status);
         }
 
         if((status = kblasXtrmm(handle, strIn, strOut,
                                 side, uplo, trans, diag,
                                 m, n1,
-                                alpha, h_A, incA, d_A,
-                                       h_B, incB, d_B,
+                                alpha, h_A, ldA, d_A, lddA,
+                                       h_B, ldB, d_B, lddB,
                                 BIsIn, getBOut, AIsIn
                                 )) != CUBLAS_STATUS_SUCCESS) return status;
       }
@@ -1243,312 +1244,18 @@ cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream
   return CUBLAS_STATUS_SUCCESS;
 }
 
-
-/*/==============================================================================================
+//==============================================================================================
 template<class T>
-cublasStatus_t kblasXtrmm(cublasHandle_t handle, cudaStream_t &strIn, cudaStream_t &strOut,
-                          cublasSideMode_t side, cublasFillMode_t uplo,
-                          cublasOperation_t trans, cublasDiagType_t diag,
-                          int m, int n,
-                          const T *alpha,
-                          const T *Ac, int incA, T* Ad, 
-                                T *Bc, int incB, T* Bd, bool Bin, bool Bout)//TODO wait on intial event
-{
-  T one = make_one<T>();
-  cublasStatus_t status;
-  cudaEvent_t eDataIn, eComp;
-  cudaStream_t inStream;
-  check_error( cudaStreamCreateWithFlags( &inStream, cudaStreamNonBlocking), CUBLAS_STATUS_EXECUTION_FAILED );
-  check_error( cudaEventCreateWithFlags(&eDataIn, cudaEventDisableTiming), CUBLAS_STATUS_EXECUTION_FAILED);
-  check_error( cudaEventCreateWithFlags(&eComp, cudaEventDisableTiming), CUBLAS_STATUS_EXECUTION_FAILED);
-  cudaStream_t compStream;
-  check_error( cublasGetStream_v2(handle, &compStream), CUBLAS_STATUS_INTERNAL_ERROR);
-  
-  if( ( *alpha == make_zero<T>() ) //TODO
-   || ( (side == CUBLAS_SIDE_LEFT) && (SIMPLE_SIZE(m)) ) 
-   || ( (side == CUBLAS_SIDE_RIGHT) && (SIMPLE_SIZE(n)) ) ){
-
-    int Am = (side == CUBLAS_SIDE_LEFT) ? m : n;
-    //if B is not already in, copy in B block
-    if(!Bin)
-      check_error( status = cublasSetMatrixAsync( m, n, sizeof(T), Bc, incB, Bd, incB, inStream ), status);
-    //copy in A block
-    check_error( status = cublasSetMatrixAsync( Am, Am, sizeof(T), Ac, incA, Ad, incA, inStream ), status);
-    //wait for data to arrive
-    check_error( cudaEventRecord(eDataIn, inStream), CUBLAS_STATUS_INTERNAL_ERROR);
-    check_error( cudaStreamWaitEvent(compStream, eDataIn, 0), CUBLAS_STATUS_INTERNAL_ERROR);
-  
-    if( (status = Xtrmm( handle,
-                         side, uplo, trans, diag,
-                         m, n,
-                         alpha, Ad, incA,
-                                Bd, incB ) ) != CUBLAS_STATUS_SUCCESS ) return status;
-
-    //if stream is done computing and Bout, copy B back.
-    if(Bout){
-      check_error( cudaEventRecord(eComp, compStream), CUBLAS_STATUS_INTERNAL_ERROR);
-      check_error( cudaStreamWaitEvent(strOut, eComp, 0), CUBLAS_STATUS_INTERNAL_ERROR);
-      check_error( status = cublasGetMatrixAsync( m, n, sizeof(T), Bd, incB, Bc, incB, strOut), status);
-    }
-  }else
-  if(side == CUBLAS_SIDE_LEFT){
-
-    int m1, m2;
-    if(REG_SIZE(m))
-      m1 = m2 = m/2;
-    else{
-      m1 = CLOSEST_REG_SIZE(m);
-      m2 = m-m1;
-    }
-    cublasOperation_t noTrans = CUBLAS_OP_N;//Trans = CUBLAS_OP_T,
-
-    if(uplo == CUBLAS_FILL_MODE_UPPER){
-
-      //Left / Upper / NoTrans
-      if(trans == CUBLAS_OP_N){
-        if((status = kblasXtrmm(handle, strIn, strOut,
-                                side, uplo, trans, diag,
-                                m1, n,
-                                alpha, Ac, incA, Ad,
-                                       Bc, incB, Bd, false, false
-                                )) != CUBLAS_STATUS_SUCCESS) return status;
-
-        //if B is not already in, copy B block
-        if(!Bin)
-          check_error( status = cublasSetMatrixAsync( m2, n, sizeof(T), Bc + m1, incB, Bd + m1, incB, inStream), status);
-        //copy in A block
-        check_error( status = cublasSetMatrixAsync( m1, m2, sizeof(T), Ac + m1 * incA, incA, Ad + m1 * incA, incA, inStream), status);
-        //wait for data to arrive
-        check_error( cudaEventRecord(eDataIn, inStream), CUBLAS_STATUS_INTERNAL_ERROR);
-        check_error( cudaStreamWaitEvent(compStream, eDataIn, 0), CUBLAS_STATUS_INTERNAL_ERROR);
-
-        if((status = cublasXgemm(handle,
-                                 trans, noTrans,
-                                 m1, n, m2,
-                                 alpha, Ad + m1 * incA, incA,
-                                        Bd + m1, incB,
-                                 &one,  Bd, incB)) != CUBLAS_STATUS_SUCCESS) return status;
-        //if stream is done computing and Bout, copy B back.
-        if(Bout){
-          check_error( cudaEventRecord(eComp, compStream), CUBLAS_STATUS_INTERNAL_ERROR);
-          check_error( cudaStreamWaitEvent(strOut, eComp, 0), CUBLAS_STATUS_INTERNAL_ERROR);
-          check_error( status = cublasGetMatrixAsync( m1, n, sizeof(T), Bd, incB, Bc, incB, strOut), status);
-        }
-
-        //B is already in, no need to copy in
-        if((status = kblasXtrmm(handle, strIn, strOut,
-                                side, uplo, trans, diag,
-                                m2, n,
-                                alpha, Ac + m1 + m1 * incA, incA, Ad + m1 + m1 * incA,
-                                       Bc + m1, incB, Bd + m1, true, Bout
-                                )) != CUBLAS_STATUS_SUCCESS) return status;
-      }
-      //Left / Upper / [Conj]Trans
-      else{
-        if((status = kblasXtrmm(handle,
-                                side, uplo, trans, diag,
-                                m2, n,
-                                alpha, Ac+m1+m1*incA, incA,
-                                       Bc+m1, incB
-                                )) != CUBLAS_STATUS_SUCCESS) return status;
-
-        if((status = cublasXgemm(handle,
-                                 trans, noTrans,
-                                 m2, n, m1,
-                                 alpha, Ac+m1*incA, incA,
-                                        Bc, incB,
-                                 &one,  Bc+m1, incB
-                                 )) != CUBLAS_STATUS_SUCCESS) return status;
-
-        if((status = kblasXtrmm(handle,
-                                side, uplo, trans, diag,
-                                m1, n,
-                                alpha, Ac, incA,
-                                       Bc, incB
-                                )) != CUBLAS_STATUS_SUCCESS) return status;
-      }
-
-    }else{//uplo == Lower
-
-      //Left / Lower / NoTrans
-      if(trans == CUBLAS_OP_N){
-        if((status = kblasXtrmm(handle,
-                                side, uplo, trans, diag,
-                                m2, n,
-                                alpha, Ac+m1+m1*incA, incA,
-                                       Bc+m1, incB
-                                )) != CUBLAS_STATUS_SUCCESS) return status;
-
-        if((status = cublasXgemm(handle,
-                                 trans, noTrans,
-                                 m2, n, m1,
-                                 alpha, Ac+m1, incA,
-                                        Bc, incB,
-                                 &one,  Bc+m1, incB
-                                 )) != CUBLAS_STATUS_SUCCESS) return status;
-
-        if((status = kblasXtrmm(handle,
-                                side, uplo, trans, diag,
-                                m1, n,
-                                alpha, Ac, incA,
-                                       Bc, incB
-                                )) != CUBLAS_STATUS_SUCCESS) return status;
-      }
-      //Left / Lower / [Conj]Trans
-      else{//trans == Trans
-        if((status = kblasXtrmm(handle,
-                                side, uplo, trans, diag,
-                                m1, n,
-                                alpha, Ac, incA,
-                                       Bc, incB
-                                )) != CUBLAS_STATUS_SUCCESS) return status;
-
-        if((status = cublasXgemm(handle,
-                                 trans, noTrans,
-                                 m1, n, m2,
-                                 alpha, Ac+m1, incA,
-                                        Bc+m1, incB,
-                                 &one,  Bc, incB
-                                 )) != CUBLAS_STATUS_SUCCESS) return status;
-
-        if((status = kblasXtrmm(handle,
-                                side, uplo, trans, diag,
-                                m2, n,
-                                alpha, Ac+m1+m1*incA, incA,
-                                       Bc+m1, incB
-                                )) != CUBLAS_STATUS_SUCCESS) return status;
-      }//trans == Trans
-    }//uplo == Lower
-
-  }else{//side == Right
-    int n1, n2;
-
-    if(REG_SIZE(n))
-      n1 = n2 = n/2;
-    else{
-      n1 = CLOSEST_REG_SIZE(n);
-      n2 = n-n1;
-    }
-
-    if(uplo == CUBLAS_FILL_MODE_UPPER){
-      //Right / Upper / NoTrans
-      if(trans == CUBLAS_OP_N){
-        if((status = kblasXtrmm(handle,
-                                side, uplo, trans, diag,
-                                m, n2,
-                                alpha, Ac+n1+n1*incA, incA,
-                                       Bc+n1*incB, incB
-                                )) != CUBLAS_STATUS_SUCCESS) return status;
-
-        if((status = cublasXgemm(handle,
-                                 CUBLAS_OP_N, trans,
-                                 m, n2, n1,
-                                 alpha, Bc, incB,
-                                        Ac+n1*incA, incA,
-                                 &one,  Bc+n1*incB, incB
-                                 )) != CUBLAS_STATUS_SUCCESS) return status;
-
-        if((status = kblasXtrmm(handle,
-                                side, uplo, trans, diag,
-                                m, n1,
-                                alpha, Ac, incA,
-                                       Bc, incB
-                                )) != CUBLAS_STATUS_SUCCESS) return status;
-      }
-      //Right / Upper / [Conj]Trans
-      else{
-        if((status = kblasXtrmm(handle,
-                                side, uplo, trans, diag,
-                                m, n1,
-                                alpha, Ac, incA,
-                                       Bc, incB
-                                )) != CUBLAS_STATUS_SUCCESS) return status;
-
-        if((status = cublasXgemm(handle,
-                                 CUBLAS_OP_N, trans,
-                                 m, n1, n2,
-                                 alpha, Bc+n1*incB, incB,
-                                        Ac+n1*incA, incA,
-                                 &one,  Bc, incB
-                                 )) != CUBLAS_STATUS_SUCCESS) return status;
-
-        if((status = kblasXtrmm(handle,
-                                side, uplo, trans, diag,
-                                m, n2,
-                                alpha, Ac+n1+n1*incA, incA,
-                                       Bc+n1*incB, incB
-                                )) != CUBLAS_STATUS_SUCCESS) return status;
-      }
-    }else{
-      //Right / Lower / NoTrans
-      if(trans == CUBLAS_OP_N){
-        if((status = kblasXtrmm(handle,
-                                side, uplo, trans, diag,
-                                m, n1,
-                                alpha, Ac, incA,
-                                       Bc, incB
-                                )) != CUBLAS_STATUS_SUCCESS) return status;
-
-        if((status = cublasXgemm(handle,
-                                 CUBLAS_OP_N, trans,
-                                 m, n1, n2,
-                                 alpha, Bc+n1*incB, incB,
-                                        Ac+n1, incA,
-                                 &one,  Bc, incB
-                                 )) != CUBLAS_STATUS_SUCCESS) return status;
-
-        if((status = kblasXtrmm(handle,
-                                side, uplo, trans, diag,
-                                m, n2,
-                                alpha, Ac+n1+n1*incA, incA,
-                                       Bc+n1*incB, incB
-                                )) != CUBLAS_STATUS_SUCCESS) return status;
-      }
-      //Right / Lower / [Conj]Trans
-      else{
-        if((status = kblasXtrmm(handle,
-                                side, uplo, trans, diag,
-                                m, n2,
-                                alpha, Ac+n1+n1*incA, incA,
-                                       Bc+n1*incB, incB
-                                )) != CUBLAS_STATUS_SUCCESS) return status;
-
-        if((status = cublasXgemm(handle,
-                                 CUBLAS_OP_N, trans,
-                                 m, n2, n1,
-                                 alpha, Bc, incB,
-                                        Ac+n1, incA,
-                                 &one,  Bc+n1*incB, incB
-                                 )) != CUBLAS_STATUS_SUCCESS) return status;
-
-        if((status = kblasXtrmm(handle,
-                                side, uplo, trans, diag,
-                                m, n1,
-                                alpha, Ac, incA,
-                                       Bc, incB
-                                )) != CUBLAS_STATUS_SUCCESS) return status;
-      }
-    }
-
-  }//side == Right
-
-  check_error( cudaStreamDestroy( inStream ), CUBLAS_STATUS_INTERNAL_ERROR );
-  check_error( cudaEventDestroy( eDataIn ), CUBLAS_STATUS_INTERNAL_ERROR);
-  check_error( cudaEventDestroy( eComp ), CUBLAS_STATUS_INTERNAL_ERROR);
-  return CUBLAS_STATUS_SUCCESS;
-}
-*/
-template<class T>
-cublasStatus_t kblasXtrmm_cpu(cublasHandle_t handle, 
+cublasStatus_t kblasXtrmm_cpu(cublasHandle_t handle,
                               cublasSideMode_t side, cublasFillMode_t uplo,
                               cublasOperation_t trans, cublasDiagType_t diag,
                               int m, int n,
                               const T *alpha,
-                              const T *h_A, int incA,
-                                    T *h_B, int incB){
+                              const T *h_A, int ldA,
+                                    T *h_B, int ldB){
   //allocate memory on device
   T *d_A, *d_B;
-  int Am, An, Bm, Bn;
+  int Am, An, Bm, Bn, lddA, lddB;
   if ( side == CUBLAS_SIDE_LEFT ) {
     Am = An = m;
   } else {
@@ -1556,6 +1263,8 @@ cublasStatus_t kblasXtrmm_cpu(cublasHandle_t handle,
   }
   Bm = m;
   Bn = n;
+  lddA = ((Am+31)/32)*32;
+  lddB = ((Bm+31)/32)*32;
 
   /*check_error( cudaHostRegister((void*)h_A, Am * An * sizeof(T), cudaHostRegisterDefault), CUBLAS_STATUS_INTERNAL_ERROR);
   check_error( cudaHostRegister((void*)h_B, Bm * Bn * sizeof(T), cudaHostRegisterDefault), CUBLAS_STATUS_INTERNAL_ERROR);*/
@@ -1565,25 +1274,25 @@ cublasStatus_t kblasXtrmm_cpu(cublasHandle_t handle,
   check_error( cudaGetDevice(&devID), CUBLAS_STATUS_INTERNAL_ERROR);
   check_error( cudaDeviceGetAttribute(&AsyncEngineCount, cudaDevAttrAsyncEngineCount, devID), CUBLAS_STATUS_INTERNAL_ERROR);
   bool DO_INLINE_BOUT = AsyncEngineCount > 1;
-  
-  check_error( cudaMalloc( (void**)&d_A, (Am*An)*sizeof(T) ), CUBLAS_STATUS_ALLOC_FAILED);
+
+  check_error( cudaMalloc( (void**)&d_A, (lddA*An)*sizeof(T) ), CUBLAS_STATUS_INTERNAL_ERROR);
   if(d_A == NULL) return CUBLAS_STATUS_ALLOC_FAILED;
-  check_error( cudaMalloc( (void**)&d_B, (Bm*Bn)*sizeof(T) ), CUBLAS_STATUS_ALLOC_FAILED);
+  check_error( cudaMalloc( (void**)&d_B, (lddB*Bn)*sizeof(T) ), CUBLAS_STATUS_INTERNAL_ERROR);
   if(d_B == NULL) return CUBLAS_STATUS_ALLOC_FAILED;
-  
+
   //setup streams
   cudaStream_t inStream, outStream;
   check_error( cudaStreamCreateWithFlags( &inStream, cudaStreamNonBlocking), CUBLAS_STATUS_INTERNAL_ERROR );
   if(DO_INLINE_BOUT)
     check_error( cudaStreamCreateWithFlags( &outStream, cudaStreamNonBlocking), CUBLAS_STATUS_INTERNAL_ERROR );
-  
+
   //call cpu API trmm
-  check_error( 
+  check_error(
     (status = kblasXtrmm(handle, inStream, outStream,
                          side, uplo, trans,diag,
                          m, n,
-                         alpha, h_A, incA, d_A,
-                                h_B, incB, d_B,
+                         alpha, h_A, ldA, d_A, lddA,
+                                h_B, ldB, d_B, lddB,
                          false, DO_INLINE_BOUT, false)
     ), status);
   //sync streams
@@ -1593,7 +1302,7 @@ cublasStatus_t kblasXtrmm_cpu(cublasHandle_t handle,
     cudaStream_t compStream;
     check_error( cublasGetStream_v2(handle, &compStream), CUBLAS_STATUS_INTERNAL_ERROR);
     check_error( cudaStreamSynchronize( compStream ), CUBLAS_STATUS_INTERNAL_ERROR);
-    check_error( status = cublasGetMatrixAsync( m, n, sizeof(T), d_B, incB, h_B, incB, inStream), status);
+    check_error( status = cublasGetMatrixAsync( m, n, sizeof(T), d_B, lddB, h_B, ldB, inStream), status);
   }
   //revoke streams
   check_error( cudaStreamDestroy( inStream ), CUBLAS_STATUS_INTERNAL_ERROR);
@@ -1606,8 +1315,153 @@ cublasStatus_t kblasXtrmm_cpu(cublasHandle_t handle,
   //free device memory
   //TODO should free aslo in case some other funtions above failed (don't just return)
   check_error( cudaFree( d_A ), CUBLAS_STATUS_INTERNAL_ERROR );
-  check_error( cudaFree( d_B ), CUBLAS_STATUS_INTERNAL_ERROR );  
+  check_error( cudaFree( d_B ), CUBLAS_STATUS_INTERNAL_ERROR );
   check_error( cudaGetLastError(), CUBLAS_STATUS_EXECUTION_FAILED );
+  return CUBLAS_STATUS_SUCCESS;
+}
+//==============================================================================================
+template<class T>
+cublasStatus_t kblasXtrmm_cpu_m(cublasHandle_t handle,
+                              cublasSideMode_t side, cublasFillMode_t uplo,
+                              cublasOperation_t trans, cublasDiagType_t diag,
+                              int m, int n,
+                              const T *alpha,
+                              const T *h_A, int ldA,
+                                    T *h_B, int ldB,
+                              //TODO should accept an array of device IDs or a set of cublas handles intead
+                              int ngpu){
+  //allocate memory on device
+  T *d_A[ngpu], *d_B[ngpu];
+  int Am, An, Bm, Bn, lddA, lddB;
+  if ( side == CUBLAS_SIDE_LEFT ) {
+    Am = An = m;
+  } else {
+    Am = An = n;
+  }
+  Bm = m;
+  Bn = n;
+
+  /*check_error( cudaHostRegister((void*)h_A, Am * An * sizeof(T), cudaHostRegisterDefault), CUBLAS_STATUS_INTERNAL_ERROR);
+  check_error( cudaHostRegister((void*)h_B, Bm * Bn * sizeof(T), cudaHostRegisterDefault), CUBLAS_STATUS_INTERNAL_ERROR);*/
+
+  cudaStream_t inStream[ngpu], outStream[ngpu];
+  cublasStatus_t status[ngpu];
+  cublasHandle_t cub_handle[ngpu];
+  cub_handle[0] = handle;
+  //*
+  bool DO_INLINE_BOUT[ngpu];
+  for(int g = 0; g < ngpu; g++){
+    check_error( cudaSetDevice(g), CUBLAS_STATUS_INTERNAL_ERROR);
+    int AsyncEngineCount;
+    check_error( cudaDeviceGetAttribute(&AsyncEngineCount, cudaDevAttrAsyncEngineCount, g), CUBLAS_STATUS_INTERNAL_ERROR);
+    DO_INLINE_BOUT[g] = AsyncEngineCount > 1;
+
+    if(g > 0){
+      check_error( cublasCreate(&cub_handle[g]), CUBLAS_STATUS_INTERNAL_ERROR);
+    }
+
+    //setup streams
+    check_error( cudaStreamCreateWithFlags( &inStream[g], cudaStreamNonBlocking), CUBLAS_STATUS_INTERNAL_ERROR);
+    if(DO_INLINE_BOUT[g])
+      check_error( cudaStreamCreateWithFlags( &outStream[g], cudaStreamNonBlocking), CUBLAS_STATUS_INTERNAL_ERROR);
+  }
+  //*/
+  //TODO IMPORTANT: handle when data does not fit on all gpus
+  int Bn_gpu, Bm_gpu;
+  bool left = (side == CUBLAS_SIDE_LEFT);
+  if(left){
+    Bn_gpu = Bn / ngpu;//TODO handle odd cases
+    Bm_gpu = Bm;
+  }else{
+    Bm_gpu = Bm / ngpu;
+    Bn_gpu = Bn;
+  }
+  lddA = ((Am+31)/32)*32;
+  lddB = ((Bm_gpu+31)/32)*32;
+
+  omp_set_num_threads(ngpu);
+  #pragma omp parallel
+  {
+    #pragma omp for
+    for(int g = 0; g < ngpu; g++){
+      //TODO check status
+      cudaSetDevice(g);
+      cudaMalloc( (void**)&d_A[g], (lddA*An)*sizeof(T) );
+      cudaMalloc( (void**)&d_B[g], (lddB*Bn_gpu)*sizeof(T) );
+
+      //call cpu API trsm
+      status[g] = kblasXtrmm(cub_handle[g], inStream[g], outStream[g],
+                            side, uplo, trans,diag,
+                            Bm_gpu, Bn_gpu,
+                            alpha, h_A, ldA, d_A[g], lddA,
+                                   h_B+g*(left ? Bn_gpu*ldB : Bm_gpu), ldB, d_B[g], lddB,
+                            false, DO_INLINE_BOUT[g], false);
+
+      //sync streams
+      if(DO_INLINE_BOUT[g]){
+        cudaStreamSynchronize( outStream[g] );
+      }else{
+        cudaStream_t compStream;
+        cublasGetStream_v2(cub_handle[g], &compStream);
+        cudaStreamSynchronize( compStream );
+        status[g] = cublasGetMatrixAsync( Bm_gpu, Bn_gpu, sizeof(T), d_B[g], lddB, h_B+g*(left ? Bn_gpu*ldB : Bm_gpu), ldB, inStream[g]);
+        cudaStreamSynchronize( inStream[g] );
+      }
+    }
+  }
+  /*/for(int g = 0; g < ngpu; g++){
+    check_error( cudaSetDevice(g), CUBLAS_STATUS_INTERNAL_ERROR);
+    check_error( cudaMalloc( (void**)&d_A[g], (Am*An)*sizeof(T) ), CUBLAS_STATUS_INTERNAL_ERROR);
+    check_error( cudaMalloc( (void**)&d_B[g], (Bm_gpu*Bn_gpu)*sizeof(T) ), CUBLAS_STATUS_INTERNAL_ERROR);
+
+    //setup streams
+    check_error( cudaStreamCreateWithFlags( &inStream[g], cudaStreamNonBlocking), CUBLAS_STATUS_INTERNAL_ERROR );
+    if(DO_INLINE_BOUT[g])
+      check_error( cudaStreamCreateWithFlags( &outStream[g], cudaStreamNonBlocking), CUBLAS_STATUS_INTERNAL_ERROR );
+
+    //call cpu API trsm
+    check_error(
+      (status[g] = kblasXtrmm(cub_handle[g], inStream[g], outStream[g],
+                           side, uplo, trans,diag,
+                           Bm_gpu, Bn_gpu,
+                           alpha, h_A, incA, d_A[g],
+                                  h_B+g*(left ? Bn_gpu*incB : Bm_gpu), incB, d_B[g],
+                           false, DO_INLINE_BOUT[g], false)
+      ), status[g]);
+  }
+  for(int g = 0; g < ngpu; g++){
+    check_error( cudaSetDevice(g), CUBLAS_STATUS_INTERNAL_ERROR );
+
+    //sync streams
+    if(DO_INLINE_BOUT[g]){
+      check_error( cudaStreamSynchronize( outStream[g] ), CUBLAS_STATUS_INTERNAL_ERROR);
+    }else{
+      cudaStream_t compStream;
+      check_error( cublasGetStream_v2(cub_handle[g], &compStream), CUBLAS_STATUS_INTERNAL_ERROR);
+      check_error( cudaStreamSynchronize( compStream ), CUBLAS_STATUS_INTERNAL_ERROR);
+      check_error( status[g] = cublasGetMatrixAsync( Bm_gpu, Bn_gpu, sizeof(T), d_B[g], incB, h_B+g*(left ? Bn_gpu*incB : Bm_gpu), incB, inStream[g]), status[g]);
+    }
+  }//*/
+
+
+  for(int g = 0; g < ngpu; g++){
+    check_error( cudaSetDevice(g), CUBLAS_STATUS_INTERNAL_ERROR);
+    check_error( cudaDeviceSynchronize(), CUBLAS_STATUS_INTERNAL_ERROR );
+    //revoke streams
+    check_error( cudaStreamDestroy( inStream[g] ), CUBLAS_STATUS_INTERNAL_ERROR);
+    if(DO_INLINE_BOUT[g])
+      check_error( cudaStreamDestroy( outStream[g] ), CUBLAS_STATUS_INTERNAL_ERROR);
+  /*check_error( cudaHostUnregister( (void*)h_A ), CUBLAS_STATUS_INTERNAL_ERROR );
+  check_error( cudaHostUnregister( (void*)h_B ), CUBLAS_STATUS_INTERNAL_ERROR );*/
+
+    //free device memory
+    check_error( cudaFree( d_A[g] ), CUBLAS_STATUS_INTERNAL_ERROR );
+    check_error( cudaFree( d_B[g] ), CUBLAS_STATUS_INTERNAL_ERROR );
+    if(g > 0){
+      check_error( cublasDestroy(cub_handle[g]), CUBLAS_STATUS_INTERNAL_ERROR);
+    }
+
+  }
   return CUBLAS_STATUS_SUCCESS;
 }
 
@@ -1883,6 +1737,69 @@ cublasStatus_t kblas_ztrmm(cublasHandle_t handle,
                         m, n,
                         alpha, A, lda,
                                B, ldb);
+}
+
+//==============================================================================================
+cublasStatus_t kblas_strmm_mgpu(cublasHandle_t handle,
+                                cublasSideMode_t side, cublasFillMode_t uplo,
+                                cublasOperation_t trans, cublasDiagType_t diag,
+                                int m, int n,
+                                const float *alpha,
+                                const float *A, int lda,
+                                      float *B, int ldb,
+                                int ngpu){
+  return kblasXtrmm_cpu_m(handle,
+                        side, uplo, trans, diag,
+                        m, n,
+                        alpha, A, lda,
+                              B, ldb,
+                        ngpu);
+}
+cublasStatus_t kblas_dtrmm_mgpu(cublasHandle_t handle,
+                                cublasSideMode_t side, cublasFillMode_t uplo,
+                                cublasOperation_t trans, cublasDiagType_t diag,
+                                int m, int n,
+                                const double *alpha,
+                                const double *A, int lda,
+                                      double *B, int ldb,
+                                int ngpu){
+  return kblasXtrmm_cpu_m(handle,
+                        side, uplo, trans, diag,
+                        m, n,
+                        alpha, A, lda,
+                              B, ldb,
+                        ngpu);
+}
+
+cublasStatus_t kblas_ctrmm_mgpu(cublasHandle_t handle,
+                                cublasSideMode_t side, cublasFillMode_t uplo,
+                                cublasOperation_t trans, cublasDiagType_t diag,
+                                int m, int n,
+                                const cuComplex *alpha,
+                                const cuComplex *A, int lda,
+                                      cuComplex *B, int ldb,
+                                int ngpu){
+  return kblasXtrmm_cpu_m(handle,
+                        side, uplo, trans, diag,
+                        m, n,
+                        alpha, A, lda,
+                              B, ldb,
+                        ngpu);
+}
+cublasStatus_t kblas_ztrmm_mgpu(cublasHandle_t handle,
+                                cublasSideMode_t side, cublasFillMode_t uplo,
+                                cublasOperation_t trans, cublasDiagType_t diag,
+                                int m, int n,
+                                const cuDoubleComplex *alpha,
+                                const cuDoubleComplex *A, int lda,
+                                      cuDoubleComplex *B, int ldb,
+                                int ngpu){
+  return kblasXtrmm_cpu_m(handle,
+                        side, uplo, trans, diag,
+                        m, n,
+                        alpha, A, lda,
+                              B, ldb,
+                        ngpu);
 }
 
 //}

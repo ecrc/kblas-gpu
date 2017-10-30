@@ -38,4 +38,23 @@ pipeline {
             }
         }
     }
+    // Post build actions
+    post {
+        //always {
+        //}
+        //success {
+        //}
+        //unstable {
+        //}
+        //failure {
+        //}
+        unstable {
+                emailext body: "${env.JOB_NAME} - Please go to ${env.BUILD_URL}", subject: "Jenkins Pipeline build is UNSTABLE", recipientProviders: [[$class: 'CulpritsRecipientProvider'], [$class: 'RequesterRecipientProvider']]
+        }
+        failure {
+                emailext body: "${env.JOB_NAME} - Please go to ${env.BUILD_URL}", subject: "Jenkins Pipeline build FAILED", recipientProviders: [[$class: 'CulpritsRecipientProvider'], [$class: 'RequesterRecipientProvider']]
+        }
+    }
+}
+
 }

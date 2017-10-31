@@ -25,19 +25,34 @@ pipeline {
         stage ('cuda-7.0') {
             steps {
                 sh '''#!/bin/bash -le
-                    module load gcc/4.8.5 cuda/7.0; make clean; make all'''
+                    module load gcc/4.8.5 cuda/7.0; make clean; make all
+                    export CUDA_VISIBLE_DEVICES=0; export NGPUS=1
+                    sed -i s/STEP_DIM=.*/STEP_DIM=1024/ ./kblas-test-l2.sh
+                    sed -i s/STOP_DIM=.*/STOP_DIM=4096/ ./kblas-test-l2.sh
+                    ./kblas-test-l2.sh
+                '''
             }
         }
         stage ('cuda-7.5') {
             steps {
                 sh '''#!/bin/bash -le
-                    module load gcc/4.8.5 cuda/7.5; make clean; make all'''
+                    module load gcc/4.8.5 cuda/7.5; make clean; make all
+                    export CUDA_VISIBLE_DEVICES=0; export NGPUS=1
+                    sed -i s/STEP_DIM=.*/STEP_DIM=1024/ ./kblas-test-l2.sh
+                    sed -i s/STOP_DIM=.*/STOP_DIM=4096/ ./kblas-test-l2.sh
+                    ./kblas-test-l2.sh
+                '''
             }
         }
         stage ('cuda-8.0') {
             steps {
                 sh '''#!/bin/bash -le
-                    module load gcc/4.8.5 cuda/8.0; make clean; make all'''
+                    module load gcc/4.8.5 cuda/8.0; make clean; make all
+                    export CUDA_VISIBLE_DEVICES=0; export NGPUS=1
+                    sed -i s/STEP_DIM=.*/STEP_DIM=1024/ ./kblas-test-l2.sh
+                    sed -i s/STOP_DIM=.*/STOP_DIM=4096/ ./kblas-test-l2.sh
+                    ./kblas-test-l2.sh
+                '''
             }
         }
     }

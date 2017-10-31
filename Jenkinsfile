@@ -30,7 +30,8 @@ pipeline {
                     sed -i s/STEP_DIM=.*/STEP_DIM=1024/ ./kblas-test-l2.sh
                     sed -i s/STOP_DIM=.*/STOP_DIM=4096/ ./kblas-test-l2.sh
                     ./kblas-test-l2.sh
-                    sed -i "/--range 2048:15360:1024/d" ./kblas-test-l3.py
+                    sed -i s/"ranges = "/"ranges=\[\"--range 128:1024:128\"\]\nranges = "/ ./kblas-test-l3.py
+                    sed -i "/ranges = /,/\]/d" ./kblas-test-l3.py
                     ./kblas-test-l3.py
                 '''
             }

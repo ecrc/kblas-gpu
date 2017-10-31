@@ -15,8 +15,8 @@
     notice,  this list of conditions and the following disclaimer in the
     documentation  and/or other materials provided with the distribution.
   * Neither  the  name of the King Abdullah University of Science and
-    Technology nor the names of its contributors may be used to endorse 
-    or promote products derived from this software without specific prior 
+    Technology nor the names of its contributors may be used to endorse
+    or promote products derived from this software without specific prior
     written permission.
 
   THIS  SOFTWARE  IS  PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -32,8 +32,8 @@
   OF  THIS  SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
 
-#ifndef	_DEFS_
-#define _DEFS_
+#ifndef	_KBLAS_DEFS_
+#define _KBLAS_DEFS_
 
 #define KBLAS_Lower 'L'
 #define KBLAS_Upper 'U'
@@ -43,6 +43,8 @@
 #define KBLAS_NoTrans 'N'
 #define KBLAS_Unit 'U'
 #define KBLAS_NonUnit 'N'
+#define KBLAS_Symm 'S'
+#define KBLAS_NonSymm 'N'
 
 #define MAX_NGPUS	(16)
 #define MAX_STREAMS	(1)
@@ -50,4 +52,4 @@
 const int gpu_lid[MAX_NGPUS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
 const int gpu_gid[MAX_NGPUS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
 
-#endif	// _DEFS_
+#endif	// _KBLAS_DEFS_

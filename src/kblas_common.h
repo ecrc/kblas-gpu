@@ -4,11 +4,11 @@
   Ali Charara (ali.charara@kaust.edu.sa)
   David Keyes (david.keyes@kaust.edu.sa)
   Hatem Ltaief (hatem.ltaief@kaust.edu.sa)
-  
+
   Redistribution  and  use  in  source and binary forms, with or without
   modification,  are  permitted  provided  that the following conditions
   are met:
-  
+
   * Redistributions  of  source  code  must  retain  the above copyright
   * notice,  this  list  of  conditions  and  the  following  disclaimer.
   * Redistributions  in  binary  form must reproduce the above copyright
@@ -18,7 +18,7 @@
   * Technology nor the names of its contributors may be used to endorse
   * or promote products derived from this software without specific prior
   * written permission.
-  * 
+  *
   THIS  SOFTWARE  IS  PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
   ``AS IS''  AND  ANY  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
   LIMITED  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -32,18 +32,7 @@
   OF  THIS  SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   **/
 
-//==============================================================================================
-
-// ----------------------------------------
-// C++ function is overloaded for different error types,
-// which depends on error types being enums to be differentiable.
-//inline
-int _kblas_error( cudaError_t err, const char* func, const char* file, int line );
-int _kblas_error( cublasStatus_t err, const char* func, const char* file, int line );
-
-//int _kblas_error( int stat, const char* func, const char* file, int line );
-#define check_error( err_, ret_ ) \
-{if(!_kblas_error( (err_), __func__, __FILE__, __LINE__ )) return ret_;}
+#include "kblas_error.h"
 
 //==============================================================================================
 bool REG_SIZE(int n);

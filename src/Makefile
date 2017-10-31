@@ -15,10 +15,10 @@ KBLAS_SRC3_DIR=blas_l3
 include $(KBLAS_SRC2_DIR)/Makefile
 include $(KBLAS_SRC3_DIR)/Makefile
 
-KBLAS3_COM_SRC= Xtr_common.cu
+KBLAS3_COM_SRC= kblas_common.cu
 ALL_OBJ+= $(patsubst %.cu,$(OBJ_DIR)/%.cu_o,$(KBLAS3_COM_SRC))
 
-$(OBJ_DIR)/%tr_common.cu_o: %tr_common.cu %tr_common.ch
+$(OBJ_DIR)/%blas_common.cu_o: %blas_common.cu kblas_common.h
 	$(NVCC) $(NVOPTS) $(NVOPTS_3) $(INC) -c $< -o $@
 
 

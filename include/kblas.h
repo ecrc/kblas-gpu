@@ -38,6 +38,8 @@
 //TODO is this include necessary here?
 #include "defs.h"
 
+typedef struct KBlasHandle *kblasHandle_t;
+
 //============================================================================
 //BLAS2 routines
 //============================================================================

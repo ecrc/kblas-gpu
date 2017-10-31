@@ -38,6 +38,7 @@
 #include "kblas.h"
 #include "operators.h"
 #include "kblas_common.h"
+#include "kblas_struct.h"
 
 //==============================================================================================
 // extern "C"{
@@ -162,6 +163,10 @@ int CLOSEST_REG_SIZE(int n){
   }
 }
 
+//==============================================================================================
+#ifdef KBLAS_ENABLE_BACKDOORS
+int kblas_back_door[KBLAS_BACKDOORS] = {-1};
+#endif
 //==============================================================================================
 
 cublasStatus_t cublasXgemm( cublasHandle_t handle,

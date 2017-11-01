@@ -1396,6 +1396,7 @@ cublasStatus_t kblasXtrmm_cpu_m(cublasHandle_t handle,
                             alpha, h_A, ldA, d_A[g], lddA,
                                    h_B+g*(left ? Bn_gpu*ldB : Bm_gpu), ldB, d_B[g], lddB,
                             false, DO_INLINE_BOUT[g], false);
+      //TODO check this status for error
 
       //sync streams
       if(DO_INLINE_BOUT[g]){

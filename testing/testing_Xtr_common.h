@@ -2,11 +2,12 @@
 #define _TESTING_TR_COMMON_
 
 
+#include "flops.h"
 #include "testing_utils.h"
 #include "operators.h"
 
 //==============================================================================================
-#define FMULS_GEMM(m_, n_, k_) ((m_) * (n_) * (k_))
+/*#define FMULS_GEMM(m_, n_, k_) ((m_) * (n_) * (k_))
 #define FADDS_GEMM(m_, n_, k_) ((m_) * (n_) * (k_))
 
 double FLOPS_GEMM(float p, char side, int m, int n, int k){
@@ -59,7 +60,7 @@ double FLOPS_TRSM(cuFloatComplex p, char side, int m, int n){
 }
 double FLOPS_TRSM(cuDoubleComplex p, char side, int m, int n){
   return 6. * FMULS_TRSM(side, (double)(m), (double)(n)) + 2. * FADDS_TRSM(side, (double)(m), (double)(n));
-}
+}*/
 
 //==============================================================================================
 cublasStatus_t kblasXtrmm(cublasHandle_t handle,
@@ -350,6 +351,6 @@ float get_elapsed_time(cudaStream_t curStream){
 
 #define TESTING_MALLOC_PIN( ptr, T, size)                       \
   check_error( cudaMallocHost((void**)&ptr, (size)*sizeof( T ) ))
-  
+
 
 #endif

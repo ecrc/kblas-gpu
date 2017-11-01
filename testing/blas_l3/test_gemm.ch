@@ -8,9 +8,9 @@
 template<class T>
 int test_gemm(kblas_opts& opts, T alpha, T beta, cublasHandle_t cublas_handle){
 
-  
+
   int nruns = opts.nruns;
-  double  gflops, 
+  double  gflops,
           ref_perf = 0.0, ref_time = 0.0;
   int M, N, K;
   int Am, An, Bm, Bn, Cm, Cn;
@@ -18,17 +18,17 @@ int test_gemm(kblas_opts& opts, T alpha, T beta, cublasHandle_t cublas_handle){
   int lda, ldda, ldb, lddb, ldc, lddc;
   int ione     = 1;
   int ISEED[4] = {0,0,0,1};
-  
+
   T *h_A, *h_B, *h_C;
   T *d_A, *d_B, *d_C;
-  
-  
+
+
   USING
   cudaError_t err;
 
   cudaEventCreate(&start);
   cudaEventCreate(&stop);
-  
+
   cublasOperation_t transA = (opts.transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);
   cublasOperation_t transB = (opts.transB == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);
 
@@ -41,12 +41,12 @@ int test_gemm(kblas_opts& opts, T alpha, T beta, cublasHandle_t cublas_handle){
       N = opts.nsize[i];
       K = opts.ksize[i];
 
-      gflops = FLOPS_GEMM(alpha, opts.side, M, N, K ) / 1e9;
-      
+      gflops = FLOPS_GEMM<T>(M, N, K ) / 1e9;
+
       printf("%5d %5d %5d   ",
              (int) M, (int) N, (int) K);
       fflush( stdout );
-      
+
       if ( opts.transA == KBLAS_Trans ) {
         lda = Am = M;
         An = K;
@@ -63,7 +63,7 @@ int test_gemm(kblas_opts& opts, T alpha, T beta, cublasHandle_t cublas_handle){
       }
       Cm = ldc = M;
       Cn = N;
-      
+
       ldda = ((lda+31)/32)*32;
       lddb = ((ldb+31)/32)*32;
       lddc = ((ldc+31)/32)*32;
@@ -92,7 +92,7 @@ int test_gemm(kblas_opts& opts, T alpha, T beta, cublasHandle_t cublas_handle){
 
       cudaStream_t curStream = NULL;
       check_error( cublasSetStream(cublas_handle, curStream));
-      
+
       check_error( cublasSetMatrix( Am, An, sizeof(T), h_A, lda, d_A, ldda ) );
       check_error( cublasSetMatrix( Bm, Bn, sizeof(T), h_B, ldb, d_B, lddb ) );
 
@@ -105,8 +105,8 @@ int test_gemm(kblas_opts& opts, T alpha, T beta, cublasHandle_t cublas_handle){
                                   &beta,  d_C, lddc) );
       }
       float time = 0;
-      
-        
+
+
       for(int r = 0; r < nruns; r++)
       {
         check_error( cublasSetMatrix( Cm, Cn, sizeof(T), h_C, ldb, d_C, lddc ) );
@@ -131,7 +131,7 @@ int test_gemm(kblas_opts& opts, T alpha, T beta, cublasHandle_t cublas_handle){
       check_error(  cudaFree( d_A ) );
       check_error(  cudaFree( d_B ) );
       check_error(  cudaFree( d_C ) );
-      
+
       printf(" %7.2f %7.2f    \n",
              ref_perf, ref_time);
     }
@@ -139,7 +139,7 @@ int test_gemm(kblas_opts& opts, T alpha, T beta, cublasHandle_t cublas_handle){
       printf( "\n" );
     }
   }
-    	
+
 
   cudaEventDestroy(start);
   cudaEventDestroy(stop);

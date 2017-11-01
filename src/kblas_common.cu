@@ -41,6 +41,28 @@
 #include "kblas_struct.h"
 
 //==============================================================================================
+int kblasCreate(kblasHandle_t *handle){
+
+  int dev_id;
+  check_error(cudaGetDevice(&dev_id));
+  *handle = new KBlasHandle(0, 0, dev_id);
+
+
+  #ifdef KBLAS_ENABLE_BACKDOORS
+    (*handle)->back_door = kblas_back_door;
+  #endif
+
+  return KBLAS_Success;
+}
+
+int kblasDestroy(kblasHandle_t *handle){
+
+  free((*handle));
+
+  return KBLAS_Success;
+}
+
+//==============================================================================================
 // extern "C"{
 const char* cublasGetErrorString( cublasStatus_t error )
 {

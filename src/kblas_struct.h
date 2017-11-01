@@ -110,7 +110,7 @@ struct KBlasWorkspace
     }
 
     if(h_ptrs_bytes_req > 0 && h_ptrs_bytes < h_ptrs_bytes_req ){
-      h_ptrs_bytes < h_ptrs_bytes_req;
+      h_ptrs_bytes = h_ptrs_bytes_req;
       if(h_ptrs != NULL)
         check_error( cudaFreeHost(h_ptrs) );
       check_error_ret( cudaHostAlloc ( (void**)&h_ptrs, h_ptrs_bytes, cudaHostAllocPortable  ), KBLAS_Error_Allocation);

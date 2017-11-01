@@ -39,6 +39,8 @@
 #include "defs.h"
 
 typedef struct KBlasHandle *kblasHandle_t;
+int kblasCreate(kblasHandle_t *handle);
+int kblasDestroy(kblasHandle_t *handle);
 
 //============================================================================
 //BLAS2 routines

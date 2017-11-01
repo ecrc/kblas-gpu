@@ -12,6 +12,9 @@
 
 #include "kblas.h"
 #include "testing_utils.h"
+
+#define kblasXtrsm kblasStrsm
+
 #include "test_trsm.ch"
 
 
@@ -34,7 +37,7 @@ int main(int argc, char** argv)
   kblas_trsm_ib_cublas = opts.nb;
   kblas_trsm_use_custom = (bool)opts.custom;
   test_trsm<float>(opts, alpha, cublas_handle);
-  
+
   cublasDestroy(cublas_handle);
 }
 

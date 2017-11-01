@@ -12,6 +12,7 @@
 
 #include "kblas.h"
 #include "testing_utils.h"
+#include "testing_Xtr_common.h"
 
 
 //#define USAGE printf("usage: x-dim y-dim\n");
@@ -21,7 +22,7 @@
 
 
 int main(int argc, char* argv[]){
-  
+
   double   gflops, cublas_perf, cublas_time, cpu_perf, cpu_time, cublas_error;
   int M, N, K;
   int Am, An, Bm, Bn;
@@ -30,7 +31,7 @@ int main(int argc, char* argv[]){
   int ione     = 1;
   int ISEED[4] = {0,0,0,1};
   int blockDim;
-  
+
   double *h_A, *h_B, *h_C, *h_R;
   double alpha = 0.29, beta  = -0.48, c_neg_one = -1;
 
@@ -51,7 +52,7 @@ int main(int argc, char* argv[]){
   cudaEvent_t start, stop;
   cudaEventCreate(&start);
   cudaEventCreate(&stop);
-  
+
   printf("    M     N     K   CUBLAS Gflop/s (ms)   CPU Gflop/s (ms)  CUBLAS error\n");
   printf("========================================================================\n");
   for( int i = 0; i < opts.ntest; ++i ) {
@@ -105,7 +106,7 @@ int main(int argc, char* argv[]){
       fprintf( stderr, "!!!! cudaHostAlloc failed for: h_C\n" );
       exit(-1);
     }*/
-      
+
     for( int iter = 0; iter < opts.niter; ++iter ) {
       drand_matrix(Am, An, h_A, lda);
       drand_matrix(Bm, Bn, h_B, ldb);
@@ -124,7 +125,7 @@ int main(int argc, char* argv[]){
                       &beta,  h_C, lddc );
         drand_matrix(ldc, N, h_C, ldc);
       }
-      
+
       float time = 0, cublas_time = 0;
       for(int r = 0; r < nruns; r++)
       {
@@ -144,13 +145,13 @@ int main(int argc, char* argv[]){
       }
       cublas_time /= nruns;
       cublas_perf = gflops / cublas_time;
-      
-      
+
+
       printf("%7.2f (%7.2f)     %d    ---\n",
              cublas_perf, 1000.*cublas_time,
              blockDim );
     }
-      
+
     cudaFreeHost( h_A );
     cudaFreeHost( h_B );
     cudaFreeHost( h_C );

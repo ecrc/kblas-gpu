@@ -12,6 +12,7 @@
 
 #include "kblas.h"
 #include "testing_utils.h"
+#define kblasXtrsm kblasStrsm
 #include "test_trsm_mgpu.ch"
 
 extern int kblas_trsm_ib_cublas;
@@ -20,21 +21,21 @@ extern bool kblas_trsm_use_custom;
 //==============================================================================================
 int main(int argc, char** argv)
 {
-  
+
   cublasHandle_t cublas_handle;
   cublasCreate(&cublas_handle);
-  
+
   kblas_opts opts;
   if(!parse_opts( argc, argv, &opts )){
     USAGE;
     return -1;
   }
-  
+
   float alpha = 0.29f;
   kblas_trsm_ib_cublas = opts.nb;
   kblas_trsm_use_custom = (bool)opts.custom;
   test_trsm<float>(opts, alpha, cublas_handle);
-  
+
   cublasDestroy(cublas_handle);
 }
 

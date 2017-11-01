@@ -12,6 +12,7 @@
 
 #include "kblas.h"
 #include "testing_utils.h"
+#define kblasXtrsm kblasDtrsm
 #include "test_trsm.ch"
 
 extern int kblas_trsm_ib_cublas;
@@ -25,16 +26,16 @@ int main(int argc, char** argv)
     USAGE;
     return -1;
   }
-  
-  
+
+
   cublasHandle_t cublas_handle;
   cublasCreate(&cublas_handle);
-  
+
   double alpha = 0.29;
   kblas_trsm_ib_cublas = opts.nb;
   kblas_trsm_use_custom = (bool)opts.custom;
   test_trsm<double>(opts, alpha, cublas_handle);
-  
+
   cublasDestroy(cublas_handle);
 }
 

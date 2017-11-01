@@ -153,6 +153,24 @@ float sget_max_error_matrix(float* ref, float *res, long m, long n, long lda)
   return max_err;
 }
 
+float sget_max_error_matrix_uplo(float* ref, float *res, long m, long n, long lda, char uplo)
+{
+  long i, j;
+  float max_err = -1.0;
+  float err = -1.0;
+  for(i = 0; i < m; i++){
+    for(j = (uplo == KBLAS_Upper ? i : 0); j < (uplo == KBLAS_Lower ? i+1 : n); j++)
+    {
+      float ref_ = ref[j * lda + i];
+      float res_ = res[j * lda + i];
+      err = fabs(res_ - ref_);
+      if(ref_ != 0.0)err /= fabs(ref_);
+      if(err > max_err)max_err = err;
+      //printf("\n[%2d]   %-.2f   %-.2f   %-.2e \n", i, ref_, res_, err);
+    }
+  }
+  return max_err;
+}
 double dget_max_error_matrix(double* ref, double *res, long m, long n, long lda)
 {
   long i, j;
@@ -160,6 +178,25 @@ double dget_max_error_matrix(double* ref, double *res, long m, long n, long lda)
   double err = -1.0;
   for(i = 0; i < m; i++){
     for(j = 0; j < n; j++)
+    {
+      double ref_ = ref[j * lda + i];
+      double res_ = res[j * lda + i];
+      err = fabs(res_ - ref_);
+      if(ref_ != 0.0)err /= fabs(ref_);
+      if(err > max_err)max_err = err;
+      //printf("\n[%2d]   %-.2f   %-.2f   %-.2e \n", i, ref_, res_, err);
+    }
+  }
+  return max_err;
+}
+
+double dget_max_error_matrix_symm(double* ref, double *res, long m, long n, long lda, char uplo)
+{
+  long i, j;
+  double max_err = -1.0;
+  double err = -1.0;
+  for(i = 0; i < m; i++){
+    for(j = (uplo == KBLAS_Upper ? i : 0); j < (uplo == KBLAS_Lower ? i+1 : n); j++)
     {
       double ref_ = ref[j * lda + i];
       double res_ = res[j * lda + i];
@@ -239,7 +276,7 @@ void zrand_matrix(long rows, long cols, cuDoubleComplex* A, long LDA)
 {
 	// fill in the entire matrix with random values
 	long i;
-	long size_a = cols * LDA; 
+	long size_a = cols * LDA;
     for(i = 0; i < size_a; i++)
     {
     	A[i].x = ( (double)rand() ) / (double)RAND_MAX;
@@ -267,9 +304,16 @@ void Xrand_matrix(long rows, long cols, cuDoubleComplex* A, long LDA){
 float Xget_max_error_matrix(float* ref, float *res, long m, long n, long lda){
   return sget_max_error_matrix(ref, res, m, n, lda);
 }
+float Xget_max_error_matrix(float* ref, float *res, long m, long n, long lda, char uplo){
+  return sget_max_error_matrix_uplo(ref, res, m, n, lda, uplo);
+}
 
 double Xget_max_error_matrix(double* ref, double *res, long m, long n, long lda){
   return dget_max_error_matrix(ref, res, m, n, lda);
+}
+
+double Xget_max_error_matrix(double* ref, double *res, long m, long n, long lda, char uplo){
+  return dget_max_error_matrix_symm(ref, res, m, n, lda, uplo);
 }
 
 float Xget_max_error_matrix(cuFloatComplex* ref, cuFloatComplex *res, long m, long n, long lda){
@@ -286,9 +330,9 @@ double Xget_max_error_matrix(cuDoubleComplex* ref, cuDoubleComplex *res, long m,
 #if defined(__cplusplus)
 extern "C"{
 #endif
-
+/*
   const char* cublasGetErrorString( cublasStatus_t error );
-  
+
   void kblas_assert( int condition, const char* msg, ... )
   {
     if ( ! condition ) {
@@ -310,7 +354,7 @@ extern "C"{
     int nsize[ MAX_NTEST ];
     int ksize[ MAX_NTEST ];
     int qsize[ MAX_NTEST ];
-    
+
     // scalars
     int devices[MAX_NGPUS];
     int nstream;
@@ -333,9 +377,9 @@ extern "C"{
     char transB;
     char side;
     char diag;
-    
+
   } kblas_opts;
-  
+
   //adapted from magma/testings.cpp
   int parse_opts( int argc, char** argv, kblas_opts *opts )
   {
@@ -345,11 +389,11 @@ extern "C"{
     int k = -1;
     int n_start = 0, n_stop = 0, n_step = 0;
     int m_start = 0, m_stop = 0, m_step = 0;
-    
+
     // fill in default values
     for(int d = 0; d < MAX_NGPUS; d++)
       opts->devices[d] = d;
-    
+
     opts->nstream  = 1;
     opts->ngpu     = 1;
     opts->niter    = 1;
@@ -369,15 +413,15 @@ extern "C"{
     opts->transB    = 'N';    // gemm
     opts->side      = 'L';       // trsm, etc.
     opts->diag      = 'N';    // trsm, etc.
-    
+
     if(argc < 2){
       USAGE
       exit(0);
     }
-    
+
     int ndevices;
     cudaGetDeviceCount( &ndevices );
-    
+
     int info;
     int ntest = 0;
     for( int i = 1; i < argc; ++i ) {
@@ -489,7 +533,7 @@ extern "C"{
         k = atoi( argv[++i] );
         kblas_assert( k >= 0, "error: -k %s is invalid; ensure k >= 0.\n", argv[i] );
       }
-      
+
       // ----- scalar arguments
       else if ( strcmp("--dev", argv[i]) == 0 && i+1 < argc ) {
         int n;
@@ -578,7 +622,7 @@ extern "C"{
       else if ( strcmp("-v",  argv[i]) == 0 ) { opts->verbose= 1;  }
       else if ( strcmp("-cu",         argv[i]) == 0 ) { opts->custom  = 1; }
       else if ( strcmp("-w",  argv[i]) == 0 ) { opts->warmup = 1;  }
-      
+
       // ----- lapack flag arguments
       else if ( strcmp("-L",  argv[i]) == 0 ) { opts->uplo = KBLAS_Lower; }
       else if ( strcmp("-U",  argv[i]) == 0 ) { opts->uplo = KBLAS_Upper; }
@@ -587,13 +631,13 @@ extern "C"{
       else if ( strcmp("-TN", argv[i]) == 0 ) { opts->transA = KBLAS_Trans;     opts->transB = KBLAS_NoTrans;   }
       else if ( strcmp("-TT", argv[i]) == 0 ) { opts->transA = KBLAS_Trans;     opts->transB = KBLAS_Trans;     }
       else if ( strcmp("-T",  argv[i]) == 0 ) { opts->transA = KBLAS_Trans;     }
-      
+
       else if ( strcmp("-SL", argv[i]) == 0 ) { opts->side  = KBLAS_Left;  }
       else if ( strcmp("-SR", argv[i]) == 0 ) { opts->side  = KBLAS_Right; }
-      
+
       else if ( strcmp("-DN", argv[i]) == 0 ) { opts->diag  = KBLAS_NonUnit; }
       else if ( strcmp("-DU", argv[i]) == 0 ) { opts->diag  = KBLAS_Unit;    }
-      
+
       // ----- usage
       else if ( strcmp("-h",     argv[i]) == 0 || strcmp("--help", argv[i]) == 0 ) {
         USAGE
@@ -604,7 +648,7 @@ extern "C"{
         exit(1);
       }
     }
-    
+
     // fill in msize[:], nsize[:], ksize[:] if -m, -n, -k were given
     if(m_step != 0 && n_step != 0){
       for( int m = m_start; (m_step > 0 ? m <= m_stop : m >= m_stop); m += m_step ) {
@@ -628,7 +672,7 @@ extern "C"{
         }
         opts->msize[ ntest ] = m;
         opts->nsize[ ntest++ ] = n;
-        
+
       }
     }else
     if(n_step != 0 && m >= 0){
@@ -669,36 +713,23 @@ extern "C"{
     }
     kblas_assert( ntest <= MAX_NTEST, "error: tests exceeded max allowed tests!\n" );
     opts->ntest = ntest;
-    
-    
+
+
     // set device
     cudaError_t ed = cudaSetDevice( opts->devices[0] );
     if(ed != cudaSuccess){printf("Error setting device : %s \n", cudaGetErrorString(ed) ); exit(-1);}
-    
+
     return 1;
   }// end parse_opts
   // Make a matrix symmetric/symmetric positive definite.
   // Increases diagonal by N.
   // Sets Aji = ( Aij ) for j < i, that is, copy lower triangle to upper triangle.
+*/
 #if defined(__cplusplus)
 }
 #endif
 
 
-//==============================================================================================
-#if defined(__cplusplus)
-template<class T>
-void kblas_make_hpd( int N, T* A, int lda )
-{
-  int i, j;
-  for( i=0; i<N; ++i ) {
-    A[i*(1+lda)] = A[i*(1+lda)] + N;
-    for( j=0; j<i; ++j ) {
-      A[j + i*lda] = A[i + j*lda];
-    }
-  }
-}
-#endif//__cplusplus
 
 double gettime(void)
 {

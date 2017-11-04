@@ -13,9 +13,11 @@ DEPS_COM= ../make.inc kblas_common.h
 
 KBLAS_SRC2_DIR=blas_l2
 KBLAS_SRC3_DIR=blas_l3
+KBLAS_BATCH_DIR=batch_triangular
 
 include $(KBLAS_SRC2_DIR)/Makefile
 include $(KBLAS_SRC3_DIR)/Makefile
+include $(KBLAS_BATCH_DIR)/Makefile
 
 KBLAS3_COM_SRC= kblas_common.cpp
 ALL_OBJ+= $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(KBLAS3_COM_SRC))

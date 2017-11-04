@@ -45,9 +45,11 @@ BIN_DIR=./bin
 
 KBLAS_TEST2_DIR=blas_l2
 KBLAS_TEST3_DIR=blas_l3
+KBLAS_BATCH_DIR=batch_triangular
 
 include $(KBLAS_TEST2_DIR)/Makefile
 include $(KBLAS_TEST3_DIR)/Makefile
+include $(KBLAS_BATCH_DIR)/Makefile
 
 C_OBJ= $(patsubst %.c,$(OBJ_DIR)/%.o,$(C_SRC))
 

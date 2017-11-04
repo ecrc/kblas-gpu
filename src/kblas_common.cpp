@@ -169,6 +169,13 @@ int _kblas_error( int err, const char* func, const char* file, int line )
 }
 
 //==============================================================================================
+
+//TODO remove these flags and use instead the back_door flags
+//TODO have a smarter way to choose, auto tuning for example
+bool use_magma_gemm = 0;
+bool use_cublas_gemm = 1;
+
+//==============================================================================================
 bool REG_SIZE(int n){
   return ((n > 0) && !(n & (n - 1)));
 }

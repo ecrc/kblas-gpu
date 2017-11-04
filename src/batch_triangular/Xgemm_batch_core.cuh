@@ -303,16 +303,16 @@ int Xgemm_batch_strided_core( kblasHandle_t handle,
 
 
   T **A_array, **B_array, **C_array;
-  A_array = (T**)(ws_current->d_ws_ptrs);
+  A_array = (T**)(ws_current->d_ptrs);
   B_array = A_array + batchCount;
   C_array = B_array + batchCount;
 
   //if(use_cublas_gemm || use_magma_gemm)
   {
     check_error_ret( Xset_pointer_3(A_array, A, lda, strideA,
-                                B_array, B, ldb, strideB,
-                                C_array, C, ldc, strideC,
-                                batchCount, handle->stream), KBLAS_UnknownError);
+                                    B_array, B, ldb, strideB,
+                                    C_array, C, ldc, strideC,
+                                    batchCount, handle->stream), KBLAS_UnknownError);
   }
  //  int use_cublas = (m <= 64) || (n <= 64) || (k < 64);
   if(use_cublas_gemm){

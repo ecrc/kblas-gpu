@@ -50,6 +50,7 @@
 
 // #include "Xtr_common.ch"
 // #include "Xblas_core.ch"
+#include "Xhelper_funcs.ch"
 #include "Xgemm_batch_core.cuh"
 
 //=================================================================================

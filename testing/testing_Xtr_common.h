@@ -7,62 +7,6 @@
 #include "operators.h"
 
 //==============================================================================================
-/*#define FMULS_GEMM(m_, n_, k_) ((m_) * (n_) * (k_))
-#define FADDS_GEMM(m_, n_, k_) ((m_) * (n_) * (k_))
-
-double FLOPS_GEMM(float p, char side, int m, int n, int k){
-  return FMULS_GEMM((double)(m), (double)(n), (double)(k)) + FADDS_GEMM((double)(m), (double)(n), (double)(k));
-}
-double FLOPS_GEMM(double p, char side, int m, int n, int k){
-  return FMULS_GEMM((double)(m), (double)(n), (double)(k)) + FADDS_GEMM((double)(m), (double)(n), (double)(k));
-}
-double FLOPS_GEMM(cuFloatComplex p, char side, int m, int n, int k){
-  return 6. * FMULS_GEMM((double)(m), (double)(n), (double)(k)) + 2.0 * FADDS_GEMM((double)(m), (double)(n), (double)(k));
-}
-double FLOPS_GEMM(cuDoubleComplex p, char side, int m, int n, int k){
-  return 6. * FMULS_GEMM((double)(m), (double)(n), (double)(k)) + 2.0 * FADDS_GEMM((double)(m), (double)(n), (double)(k));
-}
-//==============================================================================================
-#define FMULS_TRMM_2(m_, n_) (0.5 * (n_) * (m_) * ((m_)+1))
-#define FADDS_TRMM_2(m_, n_) (0.5 * (n_) * (m_) * ((m_)-1))
-#define FMULS_TRMM(side_, m_, n_) ( ( (side_) == KBLAS_Left ) ? FMULS_TRMM_2((m_), (n_)) : FMULS_TRMM_2((n_), (m_)) )
-#define FADDS_TRMM(side_, m_, n_) ( ( (side_) == KBLAS_Left ) ? FADDS_TRMM_2((m_), (n_)) : FADDS_TRMM_2((n_), (m_)) )
-
-
-double FLOPS_TRMM(float p, char side, int m, int n){
-  return FMULS_TRMM(side, (double)(m), (double)(n)) + FADDS_TRMM(side, (double)(m), (double)(n));
-}
-double FLOPS_TRMM(double p, char side, int m, int n){
-  return FMULS_TRMM(side, (double)(m), (double)(n)) + FADDS_TRMM(side, (double)(m), (double)(n));
-}
-double FLOPS_TRMM(cuFloatComplex p, char side, int m, int n){
-  return 6. * FMULS_TRMM(side, (double)(m), (double)(n)) + 2. * FADDS_TRMM(side, (double)(m), (double)(n));
-}
-double FLOPS_TRMM(cuDoubleComplex p, char side, int m, int n){
-  return 6. * FMULS_TRMM(side, (double)(m), (double)(n)) + 2. * FADDS_TRMM(side, (double)(m), (double)(n));
-}
-
-//==============================================================================================
-#define FMULS_TRSM_2(m_, n_) (0.5 * (n_) * (m_) * ((m_)+1))
-#define FADDS_TRSM_2(m_, n_) (0.5 * (n_) * (m_) * ((m_)-1))
-#define FMULS_TRSM(side_, m_, n_) ( ( (side_) == KBLAS_Left ) ? FMULS_TRSM_2((m_), (n_)) : FMULS_TRSM_2((n_), (m_)) )
-#define FADDS_TRSM(side_, m_, n_) ( ( (side_) == KBLAS_Left ) ? FADDS_TRSM_2((m_), (n_)) : FADDS_TRSM_2((n_), (m_)) )
-
-
-double FLOPS_TRSM(float p, char side, int m, int n){
-  return FMULS_TRSM(side, (double)(m), (double)(n)) + FADDS_TRSM(side, (double)(m), (double)(n));
-}
-double FLOPS_TRSM(double p, char side, int m, int n){
-  return FMULS_TRSM(side, (double)(m), (double)(n)) + FADDS_TRSM(side, (double)(m), (double)(n));
-}
-double FLOPS_TRSM(cuFloatComplex p, char side, int m, int n){
-  return 6. * FMULS_TRSM(side, (double)(m), (double)(n)) + 2. * FADDS_TRSM(side, (double)(m), (double)(n));
-}
-double FLOPS_TRSM(cuDoubleComplex p, char side, int m, int n){
-  return 6. * FMULS_TRSM(side, (double)(m), (double)(n)) + 2. * FADDS_TRSM(side, (double)(m), (double)(n));
-}*/
-
-//==============================================================================================
 cublasStatus_t kblasXtrmm(cublasHandle_t handle,
                           cublasSideMode_t side, cublasFillMode_t uplo,
                           cublasOperation_t trans, cublasDiagType_t diag,
@@ -317,12 +261,13 @@ R kblas_lange(char type, int M, int N, T* arr, int lda){
 //==============================================================================================
 int _kblas_error( cudaError_t err, const char* func, const char* file, int line );
 int _kblas_error( cublasStatus_t err, const char* func, const char* file, int line );
-
+#ifndef check_error
 #define check_error( err ) \
 { \
   if(!_kblas_error( (err), __func__, __FILE__, __LINE__ )) \
     exit(1); \
 }
+#endif
  //   return 0;\
 
 cudaEvent_t start, stop;
@@ -435,7 +380,7 @@ extern "C"{
     int custom;
     int warmup;
     int time;
-    int cpu_only;
+    int lapack;
     //int bd[KBLAS_BACKDOORS];
     int batchCount;
     int strided;
@@ -482,7 +427,7 @@ extern "C"{
     opts->custom     = 0;
     opts->warmup     = 0;
     opts->time       = 0;
-    opts->cpu_only   = 0;
+    opts->lapack     = 0;
     opts->batchCount = 4;
     opts->strided    = 0;
     opts->btest      = 1;
@@ -803,6 +748,7 @@ extern "C"{
       // check results
       else if ( strcmp("-c",         argv[i]) == 0 ) { opts->check  = 1; }
       else if ( strcmp("-t",         argv[i]) == 0 ) { opts->time  = 1; }
+      else if ( strcmp("-l",         argv[i]) == 0 ) { opts->lapack  = 1; }
       else if ( strcmp("-v",  argv[i]) == 0 ) { opts->verbose= 1;  }
       else if ( strcmp("-cu",         argv[i]) == 0 ) { opts->custom  = 1; }
       else if ( strcmp("-w",  argv[i]) == 0 ) { opts->warmup = 1;  }

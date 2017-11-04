@@ -1,8 +1,9 @@
 
-#support CPU API
-#KBLAS_CPU_API=TRUE
+#-----------------------------------------
+_USE_MKL_=TRUE
 
 
+#-----------------------------------------
 #specify cuda directory
 _CUDA_ROOT_=$(CUDA_ROOT)
 
@@ -14,11 +15,13 @@ NVCC=$(_CUDA_ROOT_)/bin/nvcc
 #customize the name of the static kblas library
 LIB_KBLAS_NAME=kblas-gpu
 
+#-----------------------------------------
 NVOPTS =-O3 --compiler-options -fno-strict-aliasing #-E --ptx#
 COPTS = -std=c99 -fopenmp
 
 NVOPTS_3 = -DSM=35 -arch sm_35 -Xcompiler -fopenmp #-lineinfo -Xptxas -v
 
+#-----------------------------------------
 # specify the gpu architecture for BLAS2 routines (fermi, kepler)
 GPU_ARCH_2=kepler
 
@@ -28,4 +31,11 @@ else ifeq (${GPU_ARCH_2}, fermi)
   NVOPTS_2 = -DSM=20 -arch sm_20
 else
   $(error GPU_ARCH_2, currently ${GPU_TARGET_2}, must be either fermi or kepler for BLAS2 routines. Please edit your make.inc file)
+endif
+
+#-----------------------------------------
+ifdef _USE_MKL_
+  COPTS += -DUSE_MKL
+  NVOPTS += -DUSE_MKL
+  _MKL_ROOT_=${MKLROOT}
 endif

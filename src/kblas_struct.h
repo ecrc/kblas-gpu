@@ -43,9 +43,7 @@
 
 #include "kblas_error.h"
 
-#ifdef KBLAS_PROFILING_ENABLED
 #include "kblas_gpu_timer.h"
-#endif
 
 #ifdef KBLAS_ENABLE_BACKDOORS
 #define KBLAS_BACKDOORS       16
@@ -183,9 +181,7 @@ struct KBlasHandle
   #endif
   int use_magma, device_id, create_cublas;
 
-  #ifdef KBLAS_PROFILING_ENABLED
   kblas_gpu_timer timer;
-  #endif
   // Workspace in bytes
   void* workspace;
   unsigned int workspace_bytes;
@@ -220,9 +216,7 @@ struct KBlasHandle
       cusparse_handle = NULL;
     #endif
 
-    #ifdef KBLAS_PROFILING_ENABLED
     timer.init();
-    #endif
 
     this->device_id = device_id;
     this->stream = stream;
@@ -230,10 +224,8 @@ struct KBlasHandle
     workspace = NULL;
   }
   //-----------------------------------------------------------
-  #ifdef KBLAS_PROFILING_ENABLED
   void tic()   { timer.start(stream); }
   double toc() { return timer.stop(stream);  }
-  #endif
 
   //-----------------------------------------------------------
   KBlasHandle(cublasHandle_t& cublas_handle)
@@ -245,6 +237,8 @@ struct KBlasHandle
     #endif
     this->cublas_handle = cublas_handle;
     check_error( cublasGetStream(cublas_handle, &stream) );
+
+    timer.init();
 
     check_error( cudaGetDevice(&device_id) );
     workspace_bytes = 0;
@@ -266,9 +260,7 @@ struct KBlasHandle
     if(use_magma)
       magma_queue_destroy(magma_queue);
     #endif
-    #ifdef KBLAS_PROFILING_ENABLED
     timer.destroy();
-    #endif
 
     if(workspace)
       check_error( cudaFree(workspace) );

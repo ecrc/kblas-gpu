@@ -293,7 +293,12 @@ float get_elapsed_time(cudaStream_t curStream){
   }
 
 #define TESTING_MALLOC_DEV( ptr, T, size)                       \
-  check_error( cudaMalloc( (void**)&ptr, (size)*sizeof(T) ) )
+{ \
+  cudaError_t err = cudaMalloc( (void**)&ptr, (size)*sizeof(T) ); \
+  if(!_kblas_error( (err), __func__, __FILE__, __LINE__ )) \
+    return 0; \
+}
+//  check_error( cudaMalloc( (void**)&ptr, (size)*sizeof(T) ) )
 
 #define TESTING_MALLOC_PIN( ptr, T, size)                       \
   check_error( cudaHostAlloc ( (void**)&ptr, (size)*sizeof( T ), cudaHostAllocPortable  ))
@@ -302,7 +307,7 @@ float get_elapsed_time(cudaStream_t curStream){
 //=======================================================================
 #define KBLAS_BACKDOORS       16
 //extern int kblas_back_door[KBLAS_BACKDOORS];
-#endif
+
 /*
 const char *usage =
 "  --range start:stop:step\n"
@@ -959,3 +964,4 @@ void printMatrix(int m, int n, T* A, int lda, FILE* out){
 int kblas_roundup(int x, int y);
 extern bool use_magma_gemm;
 extern bool use_cublas_gemm;
+#endif

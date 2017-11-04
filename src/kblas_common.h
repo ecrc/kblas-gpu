@@ -39,7 +39,7 @@ bool REG_SIZE(int n);
 int CLOSEST_REG_SIZE(int n);
 
 //==============================================================================================
-
+#if 1
 /*void cublasXgemm(char transa, char transb, int m, int n, int k,
                  float alpha, const float *A, int lda,
                               const float *B, int ldb,
@@ -81,4 +81,4 @@ cublasStatus_t cublasXgemm(cublasHandle_t handle,
                            const cuDoubleComplex *alpha, const cuDoubleComplex *A, int lda,
                                                          const cuDoubleComplex *B, int ldb,
                            const cuDoubleComplex *beta,        cuDoubleComplex *C, int ldc);
-
+#endif

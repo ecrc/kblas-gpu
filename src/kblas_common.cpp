@@ -63,7 +63,7 @@ int kblasDestroy(kblasHandle_t *handle){
 }
 
 //==============================================================================================
-// extern "C"{
+extern "C"{
 const char* cublasGetErrorString( cublasStatus_t error )
 {
   switch( error ) {
@@ -101,6 +101,7 @@ const char* cublasGetErrorString( cublasStatus_t error )
       return "unknown CUBLAS error code";
   }
 }
+}//extern C
 const char* kblasGetErrorString( int error )
 {
   switch( error ) {
@@ -130,7 +131,6 @@ const char* kblasGetErrorString( int error )
       return "unknown KBLAS error code";
   }
 }
-// }
 
 // ----------------------------------------
 // C++ function is overloaded for different error types,
@@ -190,7 +190,7 @@ int CLOSEST_REG_SIZE(int n){
 int kblas_back_door[KBLAS_BACKDOORS] = {-1};
 #endif
 //==============================================================================================
-
+#if 1
 cublasStatus_t cublasXgemm( cublasHandle_t handle,
                             cublasOperation_t transa, cublasOperation_t transb,
                             int m, int n, int k,
@@ -256,6 +256,6 @@ cublasStatus_t cublasXgemm(cublasHandle_t handle,
   check_error_ret( cudaGetLastError(), CUBLAS_STATUS_EXECUTION_FAILED );
   return CUBLAS_STATUS_SUCCESS;
 }
-
+#endif
 
 

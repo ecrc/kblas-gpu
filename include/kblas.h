@@ -38,6 +38,7 @@
 //TODO is this include necessary here?
 #include "defs.h"
 
+typedef struct KBlasWorkspace *kblasWorkspace_t;
 typedef struct KBlasHandle *kblasHandle_t;
 int kblasCreate(kblasHandle_t *handle);
 int kblasDestroy(kblasHandle_t *handle);
@@ -53,5 +54,9 @@ int kblasDestroy(kblasHandle_t *handle);
 //============================================================================
 #include "kblas_l3.h"
 
+//============================================================================
+//BATCH routines
+//============================================================================
+#include "kblas_batch.h"
 
 #endif // _KBLAS_H_

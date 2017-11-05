@@ -41,7 +41,7 @@ pipeline {
         stage ('cuda-7.5') {
             steps {
                 sh '''#!/bin/bash -le
-                    module load gcc/4.8.5 cuda/7.0; module load intel/16; make clean; make
+                    module load gcc/4.8.5 cuda/7.5; module load intel/16; make clean; make
                     export CUDA_VISIBLE_DEVICES=2; export NGPUS=1
                     sed -i s/STEP_DIM=.*/STEP_DIM=1024/ ./kblas-test-l2.sh
                     sed -i s/STOP_DIM=.*/STOP_DIM=4096/ ./kblas-test-l2.sh
@@ -57,7 +57,7 @@ pipeline {
         stage ('cuda-8.0') {
             steps {
                 sh '''#!/bin/bash -le
-                    module load gcc/4.8.5 cuda/7.0; module load intel/16; make clean; make
+                    module load gcc/4.8.5 cuda/8.0; module load intel/16; make clean; make
                     export CUDA_VISIBLE_DEVICES=2; export NGPUS=1
                     sed -i s/STEP_DIM=.*/STEP_DIM=1024/ ./kblas-test-l2.sh
                     sed -i s/STOP_DIM=.*/STOP_DIM=4096/ ./kblas-test-l2.sh

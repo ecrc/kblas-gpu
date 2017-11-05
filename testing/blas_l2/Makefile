@@ -45,5 +45,5 @@ C_SRC+=	test_sscal.c \
 	test_dgemv2_dim.c
 
 
-$(OBJ_DIR)/test_%.o: $(KBLAS_TEST2_DIR)/test_%.c $(INC_SRC) $(KBLAS_LIB)
+$(OBJ_DIR)/test_%.o: $(KBLAS_TEST2_DIR)/test_%.c $(INC_SRC)
 	$(CC) $(COPTS) $(INCLUDES) -c $< -o $@

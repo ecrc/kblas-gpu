@@ -42,7 +42,7 @@ EXE= $(patsubst %.c,$(BIN_DIR)/%,$(C_SRC))
 
 all: $(EXE)
 
-$(EXE): $(BIN_DIR)/%: $(OBJ_DIR)/%.o
+$(EXE): $(BIN_DIR)/%: $(OBJ_DIR)/%.o $(KBLAS_LIB)
 	$(CC) $(COPTS) $< -o $@ $(LIB_PATH) $(LIB)
 clean:
 	rm -f $(OBJ_DIR)/*.o $(EXE)

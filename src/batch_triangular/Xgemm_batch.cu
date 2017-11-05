@@ -41,9 +41,9 @@
 #include "operators.h"
 #include <typeinfo>
 
-#ifdef USE_MAGMA
-#include "magma.h"
-#endif
+// #ifdef USE_MAGMA
+// #include "magma.h"
+// #endif
 
 #include "kblas_struct.h"
 #include "kblas_prec_def.h"

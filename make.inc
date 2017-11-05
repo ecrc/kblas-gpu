@@ -1,6 +1,12 @@
 
 #-----------------------------------------
+_SUPPORT_SVD_=TRUE
+#_SUPPORT_BLAS2_=TRUE
+
+
+#-----------------------------------------
 _USE_MKL_=TRUE
+_USE_MAGMA_=TRUE
 
 
 #-----------------------------------------
@@ -22,16 +28,33 @@ COPTS = -std=c99 -fopenmp
 NVOPTS_3 = -DSM=35 -arch sm_35 -Xcompiler -fopenmp #-lineinfo -Xptxas -v
 
 #-----------------------------------------
-# specify the gpu architecture for BLAS2 routines (fermi, kepler)
-GPU_ARCH_2=kepler
-
-ifeq (${GPU_ARCH_2}, kepler)
-  NVOPTS_2 = -DSM=35 -arch sm_35
-else ifeq (${GPU_ARCH_2}, fermi)
-  NVOPTS_2 = -DSM=20 -arch sm_20
-else
-  $(error GPU_ARCH_2, currently ${GPU_TARGET_2}, must be either fermi or kepler for BLAS2 routines. Please edit your make.inc file)
+ifdef _SUPPORT_SVD_
+  _USE_MAGMA_=TRUE
+  _CUB_DIR_=$(HOME)/git_codes/cub
+  COPTS += -DSUPPORT_SVD -D__NO_NCCL__
+  NVOPTS += -DSUPPORT_SVD -D__NO_NCCL__
 endif
+
+#-----------------------------------------
+ifdef _USE_MAGMA_
+  COPTS += -DUSE_MAGMA
+  _MAGMA_ROOT_=/home/chararam/codes/magma-2.2.0
+  NVOPTS += -DUSE_MAGMA
+endif
+
+#-----------------------------------------
+ifdef _SUPPORT_BLAS2_
+  # specify the gpu architecture for BLAS2 routines (fermi, kepler)
+  GPU_ARCH_2=kepler
+
+  ifeq (${GPU_ARCH_2}, kepler)
+    NVOPTS_2 = -DSM=35 -arch sm_35
+  else ifeq (${GPU_ARCH_2}, fermi)
+    NVOPTS_2 = -DSM=20 -arch sm_20
+  else
+    $(error GPU_ARCH_2, currently ${GPU_TARGET_2}, must be either fermi or kepler for BLAS2 routines. Please edit your make.inc file)
+  endif
+endif #_SUPPORT_BLAS2_
 
 #-----------------------------------------
 ifdef _USE_MKL_

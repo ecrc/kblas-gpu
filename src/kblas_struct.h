@@ -38,6 +38,7 @@
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
 #ifdef USE_MAGMA
+  #include "magma.h"
   #include <cusparse.h>
 #endif
 

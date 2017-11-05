@@ -10,6 +10,9 @@ INCLUDES=
 INCLUDES+= -I.
 INCLUDES+= -I${_CUDA_ROOT_}/include
 INCLUDES+= -I${_KBLAS_ROOT_}/include -I${_KBLAS_ROOT_}/src
+ifdef _USE_MAGMA_
+INCLUDES+= -I$(_MAGMA_ROOT_)/include
+endif
 ifdef _USE_MKL_
 INCLUDES+= -I${_MKL_ROOT_}/include
 endif
@@ -17,12 +20,18 @@ endif
 LIB_PATH=
 LIB_PATH+= -L${_CUDA_ROOT_}/lib64
 LIB_PATH+= -L${_KBLAS_ROOT_}/lib
+ifdef _USE_MAGMA_
+LIB_PATH+= -L${_MAGMA_ROOT_}/lib
+endif
 ifdef _USE_MKL_
 LIB_PATH+= -L${_MKL_ROOT_}/lib/intel64
 endif
 
 # libraries to link against
 LIB= -lm -l${LIB_KBLAS_NAME}
+ifdef _USE_MAGMA_
+LIB+= -lmagma
+endif
 LIB+= -lcublas -lcudart
 ifdef _USE_MKL_
 # LIB+= -lmkl_intel_ilp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
@@ -43,11 +52,15 @@ C_OBJ =
 
 BIN_DIR=./bin
 
+ifdef _SUPPORT_BLAS2_
 KBLAS_TEST2_DIR=blas_l2
+endif
 KBLAS_TEST3_DIR=blas_l3
 KBLAS_BATCH_DIR=batch_triangular
 
+ifdef _SUPPORT_BLAS2_
 include $(KBLAS_TEST2_DIR)/Makefile
+endif
 include $(KBLAS_TEST3_DIR)/Makefile
 include $(KBLAS_BATCH_DIR)/Makefile
 

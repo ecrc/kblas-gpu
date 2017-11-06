@@ -8,11 +8,6 @@
 #endif
 #include <curand.h>
 
-#ifdef HLIB_PROFILING_ENABLED
-// #include <timer_gpu.h>
-#include <perf_counter.h>
-#endif
-
 #include "kblas_struct.h"
 
 #if 0
@@ -240,32 +235,5 @@ inline void generateRandomMatrices(double* d_m, int rows, int cols, unsigned int
 
     curandDestroyGenerator(gen);
 }
-
-template<class T>
-inline __host__ __device__ T** advanceOperationPtr(T** array, int op_id, int stride) {return array + op_id;}
-template<class T>
-inline __host__ __device__ T* advanceOperationPtr(T* array, int op_id, int stride) {return array + op_id * stride;}
-
-template<class T>
-inline __host__ __device__ T* getOperationPtr(T* array, int op_id, int stride) { return array + op_id * stride; }
-template<class T>
-inline __host__ __device__ T* getOperationPtr(T** array, int op_id, int stride) { return array[op_id]; }
-
-template<class T, class T_ptr>
-inline __host__ __device__ T_ptr selectPointerData(T* strided_data, T** array_data);
-
-template<>
-inline __host__ __device__ float* selectPointerData<float, float*>(float* strided_data, float** array_data) { return strided_data; }
-template<>
-inline __host__ __device__ float** selectPointerData<float, float**>(float* strided_data, float** array_data) { return array_data; }
-
-template<>
-inline __host__ __device__ double* selectPointerData<double, double*>(double* strided_data, double** array_data) { return strided_data; }
-template<>
-inline __host__ __device__ double** selectPointerData<double, double**>(double* strided_data, double** array_data) { return array_data; }
-
-template<class T> struct KBlasEpsilon;
-template<> struct KBlasEpsilon<float>  {static const float  eps = 1.1920928955078125e-07; };
-template<> struct KBlasEpsilon<double> {static const double eps = 2.2204460492503131e-16; };
 
 #endif

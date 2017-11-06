@@ -1,20 +1,17 @@
 #include <stdio.h>
 #include <string.h>
 #include <cstdlib>
-
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
-#include <thrust/transform.h>
-#include <thrust/reduce.h>
 
-#include <mini_blas_gpu.h>
-#include <batch_qr.h>
+#include "gpu_err_check.h"
+#include "thrust_wrappers.h"
+#include <kblas.h>
 #include <magma.h>
 #include <mkl.h>
 
-#include <thrust_wrappers.h>
-#include <timer.h>
-// #include <timer_gpu.h>
+#include "kblas_gpu_timer.h"
+#include "timer.h"
 
 #define  vec_ptr(v)  thrust::raw_pointer_cast((v.data()))
 
@@ -23,19 +20,6 @@ typedef double Real;
 #else
 typedef float Real;
 #endif
-
-void printDenseMatrix(Real *matrix, int m, int n, int digits, const char* name)
-{
-    char format[10];
-    sprintf(format, "%%.%df ", digits);
-    printf("%s = [\n", name);
-    for(int i = 0; i < m; i++) {
-        for(int j = 0; j < n; j++)
-            printf(format, matrix[i + j * m]);
-        printf(";\n");
-    }
-    printf("];\n");
-}
 
 double batch_qr_magma(Real* m, Real* tau, int rows, int cols, int num_ops, magma_queue_t& queue)
 {
@@ -108,6 +92,7 @@ double batch_qr_cublas(Real* m, Real* tau, int rows, int cols, int num_ops)
 	return total_time;
 }
 
+
 double batch_qr_cpu(Real* m, Real* tau, int rows, int cols, int num_ops)
 {
 	Timer timer;
@@ -127,26 +112,27 @@ double batch_qr_cpu(Real* m, Real* tau, int rows, int cols, int num_ops)
 	return timer.getElapsedTimeInSec();
 }
 
+
 Real compare_results_R(Real* m1, Real* m2, int rows, int cols, int num_ops)
 {
-    Real err = 0;
+	Real err = 0;
     for(int op = 0; op < num_ops; op++)
     {
         Real* m1_op = m1 + op * rows * cols;
         Real* m2_op = m2 + op * rows * cols;
         Real err_op = 0, norm_f_op = 0;
-        for(int i = 0; i < cols; i++)
+	    for(int i = 0; i < cols; i++)
         {
             for(int j = i; j < cols; j++)
             {
                 Real diff_entry = abs(abs(m1_op[i + j * rows]) - abs(m2_op[i + j * rows]));
                 err_op += diff_entry * diff_entry;
                 norm_f_op += m1_op[i + j * rows] * m1_op[i + j * rows];
-            }
+	        }
         }
         err += sqrt(err_op / norm_f_op);
     }
-    return  err / num_ops;
+	return  err / num_ops;
 }
 
 void avg_and_stdev(Real* values, int num_vals, Real& avg, Real& std_dev)
@@ -196,11 +182,16 @@ int main(int argc, char** argv)
     Real cpu_time[RUNS], kblas_time[RUNS], magma_time[RUNS], cublas_time[RUNS];
     Real hh_ops = (Real)(2.0 * rows * columns * columns - (2.0 / 3.0) * columns * columns * columns) * num_ops * 1e-9;
 
-	cudaStream_t stream;
-	cudaStreamCreate(&stream);
+	// cudaStream_t stream;
+	// cudaStreamCreate(&stream);
 
-	GPUBlasHandle handle(1, stream);
+	kblasHandle_t handle;
+	kblasCreate(&handle);
 
+	kblas_gpu_timer timer;
+	timer.init();
+	timer.start();
+	
 	Real kblas_err = 0, magma_err = 0, cublas_err = 0;
 
 	for(int i = 0; i < RUNS; i++)
@@ -209,10 +200,10 @@ int main(int argc, char** argv)
         cpu_time[i] = batch_qr_cpu(vec_ptr(m), vec_ptr(tau), rows, columns, num_ops);
 
         d_m = m_original;
-        handle.tic();
-		kblas_geqrf_batched(rows, columns, vec_ptr(d_m), rows, rows * columns, vec_ptr(d_tau), columns, num_ops, handle);
-		//kblas_tsqrf_batched(rows, columns, vec_ptr(d_m), rows, rows * columns, vec_ptr(d_tau), columns, num_ops, handle);
-        kblas_time[i] = handle.toc();
+        timer.start();
+		// kblas_geqrf_batched(handle, rows, columns, vec_ptr(d_m), rows, rows * columns, vec_ptr(d_tau), columns, num_ops);
+		kblas_tsqrf_batch(handle, rows, columns, vec_ptr(d_m), rows, rows * columns, vec_ptr(d_tau), columns, num_ops);
+        kblas_time[i] = timer.stop();
         gpu_results = d_m; kblas_err += compare_results_R(vec_ptr(gpu_results), vec_ptr(m), rows, columns, num_ops);
 
         d_m = m_original;

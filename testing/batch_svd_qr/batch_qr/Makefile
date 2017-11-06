@@ -1,12 +1,12 @@
 ################################################################################
 # Location of the CUDA Toolkit
 CUDA_PATH=$(CUDA_ROOT)
-MAGMA_DIR=/home/chararam/codes/magma-2.2.0
+MAGMA_DIR=$(HOME)/magma
 KBLAS_DIR=../../..
 SRC_DIR=$(KBLAS_DIR)/src
 NVCC=nvcc
 CC=gcc
-KBLAS_LIB=-lkblas-gpu
+# KBLAS_LIB=-lkblas-gpu
 ################################################################################
 
 ################################################################################
@@ -15,7 +15,8 @@ NVCCFLAGS   := -m64 -O3
 NVCCLDFLAGS := -lcudart -lcublas -lmagma -lcusparse
 
 CCFLAGS     := -fopenmp -m64 -DMKL_INT=int -D__NO_NCCL__ -DHLIB_PROFILING_ENABLED -DDOUBLE_PRECISION
-LDFLAGS     := -ldl -lpthread -lm -lmkl_intel_lp64 -lmkl_core -lmkl_gnu_thread -liomp5 -lgomp
+LDFLAGS     := -ldl -lpthread -lm -lmkl_intel_lp64 -lmkl_core -lmkl_gnu_thread -lgomp
+# -liomp5
 
 ALL_CCFLAGS := $(NVCCFLAGS)
 ALL_CCFLAGS += $(addprefix -Xcompiler ,$(CCFLAGS))
@@ -50,8 +51,8 @@ VPATH = $(SRC_DIR)/:$(SRC_DIR)/batch_svd
 OBJ_LIST :=
 OBJS := $(addprefix $(OBJDIR)/,$(OBJ_LIST))
 
-CUDA_OBJ_LIST = test_batch_qr.o
-# CUDA_OBJ_LIST = test_batch_qr.o batch_qr.o thrust_wrappers.o
+# CUDA_OBJ_LIST = test_batch_qr.o
+CUDA_OBJ_LIST = test_batch_qr.o thrust_wrappers.o kblas_common.o batch_qr.o 
 
 CUDA_OBJS := $(addprefix $(OBJDIR)/,$(CUDA_OBJ_LIST))
 ################################################################################
@@ -72,7 +73,7 @@ test_batch_qr: $(OBJS) $(CUDA_OBJS)
 	$(NVCC) $(ALL_LDFLAGS) -o $@ $+ $(LIBRARIES)
 
 clean:
-	rm -f horthog $(OBJS) $(CUDA_OBJS)
+	rm -f test_batch_qr $(OBJS) $(CUDA_OBJS)
 
 clobber: clean
 ################################################################################

@@ -10,8 +10,8 @@
 #include <thrust/fill.h>
 #include <iostream>
 
-#include <thrust_wrappers.h>
-#include <mini_blas_gpu.h>
+#include "thrust_wrappers.h"
+#include "gpu_util.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Some hmatrix related stuff

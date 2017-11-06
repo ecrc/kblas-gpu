@@ -1,10 +1,11 @@
-#include <gpu_util.h>
-
 #include "kblas_struct.h"
-
-#include "mini_blas_gpu.h"
+#include "gpu_util.h"
 #include "batch_qr.h"
 #include "qr_kernels.cuh"
+
+#ifdef HLIB_PROFILING_ENABLED
+#include "perf_counter.h"
+#endif
 
 #define QR_LOAD(m) 			__ldg(&(m))
 
@@ -407,7 +408,7 @@ void batch_qr_clear_R_kernel(T_ptr m_batch, int ldm, int stride, int rows, int c
 }
 
 template<class T, class T_ptr>
-void driver_hh_panel(T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, int stride_tau, int rows, int cols, int num_ops, int row_offset, int col_offset, int panel_rows, GPUBlasHandle& handle)
+void driver_hh_panel(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, int stride_tau, int rows, int cols, int num_ops, int row_offset, int col_offset, int panel_rows)
 {
     int ops_per_block = OPS_PER_BLOCK;
 	const int HH_CB = QR_Config<T>::HH_CB;
@@ -429,38 +430,38 @@ void driver_hh_panel(T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, int st
 
     switch(warps)
     {
-        case  1: batch_qr_panel<T, T_ptr,   32><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-        case  2: batch_qr_panel<T, T_ptr,   64><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-        case  3: batch_qr_panel<T, T_ptr,   96><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-        case  4: batch_qr_panel<T, T_ptr,  128><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case  5: batch_qr_panel<T, T_ptr,  160><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case  6: batch_qr_panel<T, T_ptr,  192><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case  7: batch_qr_panel<T, T_ptr,  224><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case  8: batch_qr_panel<T, T_ptr,  256><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case  9: batch_qr_panel<T, T_ptr,  288><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-        case 10: batch_qr_panel<T, T_ptr,  320><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-        case 11: batch_qr_panel<T, T_ptr,  352><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-        case 12: batch_qr_panel<T, T_ptr,  384><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 13: batch_qr_panel<T, T_ptr,  416><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 14: batch_qr_panel<T, T_ptr,  448><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 15: batch_qr_panel<T, T_ptr,  480><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 16: batch_qr_panel<T, T_ptr,  512><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 17: batch_qr_panel<T, T_ptr,  544><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 18: batch_qr_panel<T, T_ptr,  576><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 19: batch_qr_panel<T, T_ptr,  608><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 20: batch_qr_panel<T, T_ptr,  640><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 21: batch_qr_panel<T, T_ptr,  672><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 22: batch_qr_panel<T, T_ptr,  704><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 23: batch_qr_panel<T, T_ptr,  736><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 24: batch_qr_panel<T, T_ptr,  768><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 25: batch_qr_panel<T, T_ptr,  800><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 26: batch_qr_panel<T, T_ptr,  832><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 27: batch_qr_panel<T, T_ptr,  864><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 28: batch_qr_panel<T, T_ptr,  896><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 29: batch_qr_panel<T, T_ptr,  928><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 30: batch_qr_panel<T, T_ptr,  960><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 31: batch_qr_panel<T, T_ptr,  992><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 32: batch_qr_panel<T, T_ptr, 1024><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+        case  1: batch_qr_panel<T, T_ptr,   32><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+        case  2: batch_qr_panel<T, T_ptr,   64><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+        case  3: batch_qr_panel<T, T_ptr,   96><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+        case  4: batch_qr_panel<T, T_ptr,  128><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case  5: batch_qr_panel<T, T_ptr,  160><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case  6: batch_qr_panel<T, T_ptr,  192><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case  7: batch_qr_panel<T, T_ptr,  224><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case  8: batch_qr_panel<T, T_ptr,  256><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case  9: batch_qr_panel<T, T_ptr,  288><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+        case 10: batch_qr_panel<T, T_ptr,  320><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+        case 11: batch_qr_panel<T, T_ptr,  352><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+        case 12: batch_qr_panel<T, T_ptr,  384><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 13: batch_qr_panel<T, T_ptr,  416><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 14: batch_qr_panel<T, T_ptr,  448><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 15: batch_qr_panel<T, T_ptr,  480><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 16: batch_qr_panel<T, T_ptr,  512><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 17: batch_qr_panel<T, T_ptr,  544><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 18: batch_qr_panel<T, T_ptr,  576><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 19: batch_qr_panel<T, T_ptr,  608><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 20: batch_qr_panel<T, T_ptr,  640><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 21: batch_qr_panel<T, T_ptr,  672><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 22: batch_qr_panel<T, T_ptr,  704><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 23: batch_qr_panel<T, T_ptr,  736><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 24: batch_qr_panel<T, T_ptr,  768><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 25: batch_qr_panel<T, T_ptr,  800><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 26: batch_qr_panel<T, T_ptr,  832><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 27: batch_qr_panel<T, T_ptr,  864><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 28: batch_qr_panel<T, T_ptr,  896><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 29: batch_qr_panel<T, T_ptr,  928><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 30: batch_qr_panel<T, T_ptr,  960><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 31: batch_qr_panel<T, T_ptr,  992><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 32: batch_qr_panel<T, T_ptr, 1024><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
         default: printf("Invalid row size %d\n", panel_rows);
     }
 
@@ -468,7 +469,7 @@ void driver_hh_panel(T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, int st
 }
 
 template<class T, class T_ptr>
-void driver_unpackQ_panel(T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, int stride_tau, int rows, int cols, int num_ops, int row_offset, int col_offset, int panel_rows, GPUBlasHandle& handle)
+void driver_unpackQ_panel(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, int stride_tau, int rows, int cols, int num_ops, int row_offset, int col_offset, int panel_rows)
 {
     int ops_per_block = OPS_PER_BLOCK;
 	const int HH_CB = QR_Config<T>::HH_CB;
@@ -489,38 +490,38 @@ void driver_unpackQ_panel(T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, i
 
     switch(warps)
     {
-        case  1: batch_unpackQ_panel<T, T_ptr,   32><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-        case  2: batch_unpackQ_panel<T, T_ptr,   64><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-        case  3: batch_unpackQ_panel<T, T_ptr,   96><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-        case  4: batch_unpackQ_panel<T, T_ptr,  128><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case  5: batch_unpackQ_panel<T, T_ptr,  160><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case  6: batch_unpackQ_panel<T, T_ptr,  192><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case  7: batch_unpackQ_panel<T, T_ptr,  224><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case  8: batch_unpackQ_panel<T, T_ptr,  256><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case  9: batch_unpackQ_panel<T, T_ptr,  288><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-        case 10: batch_unpackQ_panel<T, T_ptr,  320><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-        case 11: batch_unpackQ_panel<T, T_ptr,  352><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-        case 12: batch_unpackQ_panel<T, T_ptr,  384><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 13: batch_unpackQ_panel<T, T_ptr,  416><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 14: batch_unpackQ_panel<T, T_ptr,  448><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 15: batch_unpackQ_panel<T, T_ptr,  480><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 16: batch_unpackQ_panel<T, T_ptr,  512><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 17: batch_unpackQ_panel<T, T_ptr,  544><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-        case 18: batch_unpackQ_panel<T, T_ptr,  576><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-        case 19: batch_unpackQ_panel<T, T_ptr,  608><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-        case 20: batch_unpackQ_panel<T, T_ptr,  640><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 21: batch_unpackQ_panel<T, T_ptr,  672><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 22: batch_unpackQ_panel<T, T_ptr,  704><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 23: batch_unpackQ_panel<T, T_ptr,  736><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 24: batch_unpackQ_panel<T, T_ptr,  768><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 25: batch_unpackQ_panel<T, T_ptr,  800><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-        case 26: batch_unpackQ_panel<T, T_ptr,  832><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-        case 27: batch_unpackQ_panel<T, T_ptr,  864><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-        case 28: batch_unpackQ_panel<T, T_ptr,  896><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 29: batch_unpackQ_panel<T, T_ptr,  928><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 30: batch_unpackQ_panel<T, T_ptr,  960><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 31: batch_unpackQ_panel<T, T_ptr,  992><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-		case 32: batch_unpackQ_panel<T, T_ptr, 1024><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+        case  1: batch_unpackQ_panel<T, T_ptr,   32><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+        case  2: batch_unpackQ_panel<T, T_ptr,   64><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+        case  3: batch_unpackQ_panel<T, T_ptr,   96><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+        case  4: batch_unpackQ_panel<T, T_ptr,  128><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case  5: batch_unpackQ_panel<T, T_ptr,  160><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case  6: batch_unpackQ_panel<T, T_ptr,  192><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case  7: batch_unpackQ_panel<T, T_ptr,  224><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case  8: batch_unpackQ_panel<T, T_ptr,  256><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case  9: batch_unpackQ_panel<T, T_ptr,  288><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+        case 10: batch_unpackQ_panel<T, T_ptr,  320><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+        case 11: batch_unpackQ_panel<T, T_ptr,  352><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+        case 12: batch_unpackQ_panel<T, T_ptr,  384><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 13: batch_unpackQ_panel<T, T_ptr,  416><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 14: batch_unpackQ_panel<T, T_ptr,  448><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 15: batch_unpackQ_panel<T, T_ptr,  480><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 16: batch_unpackQ_panel<T, T_ptr,  512><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 17: batch_unpackQ_panel<T, T_ptr,  544><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+        case 18: batch_unpackQ_panel<T, T_ptr,  576><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+        case 19: batch_unpackQ_panel<T, T_ptr,  608><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+        case 20: batch_unpackQ_panel<T, T_ptr,  640><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 21: batch_unpackQ_panel<T, T_ptr,  672><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 22: batch_unpackQ_panel<T, T_ptr,  704><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 23: batch_unpackQ_panel<T, T_ptr,  736><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 24: batch_unpackQ_panel<T, T_ptr,  768><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 25: batch_unpackQ_panel<T, T_ptr,  800><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+        case 26: batch_unpackQ_panel<T, T_ptr,  832><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+        case 27: batch_unpackQ_panel<T, T_ptr,  864><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+        case 28: batch_unpackQ_panel<T, T_ptr,  896><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 29: batch_unpackQ_panel<T, T_ptr,  928><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 30: batch_unpackQ_panel<T, T_ptr,  960><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 31: batch_unpackQ_panel<T, T_ptr,  992><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		case 32: batch_unpackQ_panel<T, T_ptr, 1024><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
         default: printf("Invalid row size %d\n", panel_rows);
     }
 
@@ -528,7 +529,7 @@ void driver_unpackQ_panel(T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, i
 }
 
 template<class T, class T_ptr, int APPLY_FORWARD>
-void driver_apply_hh_panel(T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, int stride_tau, int rows, int cols, int num_ops, int row_offset, int col_offset, int panel_rows, GPUBlasHandle& handle)
+void driver_apply_hh_panel(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, int stride_tau, int rows, int cols, int num_ops, int row_offset, int col_offset, int panel_rows)
 {
     int ops_per_block = OPS_PER_BLOCK;
 	const int HH_CB = QR_Config<T>::HH_CB;
@@ -550,38 +551,38 @@ void driver_apply_hh_panel(T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, 
 
     switch(warps)
     {
-        case  1: batch_apply_hh_panel<T, T_ptr,   32, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-        case  2: batch_apply_hh_panel<T, T_ptr,   64, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-        case  3: batch_apply_hh_panel<T, T_ptr,   96, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-        case  4: batch_apply_hh_panel<T, T_ptr,  128, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-		case  5: batch_apply_hh_panel<T, T_ptr,  160, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-		case  6: batch_apply_hh_panel<T, T_ptr,  192, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-		case  7: batch_apply_hh_panel<T, T_ptr,  224, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-		case  8: batch_apply_hh_panel<T, T_ptr,  256, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-		case  9: batch_apply_hh_panel<T, T_ptr,  288, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-        case 10: batch_apply_hh_panel<T, T_ptr,  320, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-        case 11: batch_apply_hh_panel<T, T_ptr,  352, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-        case 12: batch_apply_hh_panel<T, T_ptr,  384, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-		case 13: batch_apply_hh_panel<T, T_ptr,  416, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-		case 14: batch_apply_hh_panel<T, T_ptr,  448, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-		case 15: batch_apply_hh_panel<T, T_ptr,  480, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-		case 16: batch_apply_hh_panel<T, T_ptr,  512, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-		case 17: batch_apply_hh_panel<T, T_ptr,  544, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-        case 18: batch_apply_hh_panel<T, T_ptr,  576, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-        case 19: batch_apply_hh_panel<T, T_ptr,  608, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-        case 20: batch_apply_hh_panel<T, T_ptr,  640, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-		case 21: batch_apply_hh_panel<T, T_ptr,  672, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-		case 22: batch_apply_hh_panel<T, T_ptr,  704, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-		case 23: batch_apply_hh_panel<T, T_ptr,  736, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-		case 24: batch_apply_hh_panel<T, T_ptr,  768, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-		case 25: batch_apply_hh_panel<T, T_ptr,  800, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-        case 26: batch_apply_hh_panel<T, T_ptr,  832, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-        case 27: batch_apply_hh_panel<T, T_ptr,  864, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-        case 28: batch_apply_hh_panel<T, T_ptr,  896, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-		case 29: batch_apply_hh_panel<T, T_ptr,  928, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-		case 30: batch_apply_hh_panel<T, T_ptr,  960, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-		case 31: batch_apply_hh_panel<T, T_ptr,  992, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-		case 32: batch_apply_hh_panel<T, T_ptr, 1024, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+        case  1: batch_apply_hh_panel<T, T_ptr,   32, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+        case  2: batch_apply_hh_panel<T, T_ptr,   64, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+        case  3: batch_apply_hh_panel<T, T_ptr,   96, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+        case  4: batch_apply_hh_panel<T, T_ptr,  128, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+		case  5: batch_apply_hh_panel<T, T_ptr,  160, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+		case  6: batch_apply_hh_panel<T, T_ptr,  192, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+		case  7: batch_apply_hh_panel<T, T_ptr,  224, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+		case  8: batch_apply_hh_panel<T, T_ptr,  256, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+		case  9: batch_apply_hh_panel<T, T_ptr,  288, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+        case 10: batch_apply_hh_panel<T, T_ptr,  320, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+        case 11: batch_apply_hh_panel<T, T_ptr,  352, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+        case 12: batch_apply_hh_panel<T, T_ptr,  384, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+		case 13: batch_apply_hh_panel<T, T_ptr,  416, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+		case 14: batch_apply_hh_panel<T, T_ptr,  448, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+		case 15: batch_apply_hh_panel<T, T_ptr,  480, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+		case 16: batch_apply_hh_panel<T, T_ptr,  512, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+		case 17: batch_apply_hh_panel<T, T_ptr,  544, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+        case 18: batch_apply_hh_panel<T, T_ptr,  576, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+        case 19: batch_apply_hh_panel<T, T_ptr,  608, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+        case 20: batch_apply_hh_panel<T, T_ptr,  640, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+		case 21: batch_apply_hh_panel<T, T_ptr,  672, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+		case 22: batch_apply_hh_panel<T, T_ptr,  704, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+		case 23: batch_apply_hh_panel<T, T_ptr,  736, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+		case 24: batch_apply_hh_panel<T, T_ptr,  768, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+		case 25: batch_apply_hh_panel<T, T_ptr,  800, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+        case 26: batch_apply_hh_panel<T, T_ptr,  832, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+        case 27: batch_apply_hh_panel<T, T_ptr,  864, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+        case 28: batch_apply_hh_panel<T, T_ptr,  896, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+		case 29: batch_apply_hh_panel<T, T_ptr,  928, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+		case 30: batch_apply_hh_panel<T, T_ptr,  960, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+		case 31: batch_apply_hh_panel<T, T_ptr,  992, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+		case 32: batch_apply_hh_panel<T, T_ptr, 1024, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
         default: printf("Invalid row size %d\n", panel_rows);
     }
 
@@ -589,7 +590,7 @@ void driver_apply_hh_panel(T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, 
 }
 
 template<class T, class T_ptr>
-void driver_dtsqrt_panel(T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, int stride_tau, int rows, int cols, int num_ops, int A1_row_off, int A1_col_off, int A2_row_off, int A2_rows, GPUBlasHandle& handle)
+void driver_dtsqrt_panel(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, int stride_tau, int rows, int cols, int num_ops, int A1_row_off, int A1_col_off, int A2_row_off, int A2_rows)
 {
     int ops_per_block = OPS_PER_BLOCK;
 	const int HH_CB = QR_Config<T>::HH_CB;
@@ -609,10 +610,10 @@ void driver_dtsqrt_panel(T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, in
 
     switch(warps)
     {
-        case 1: batch_dtsqrt_panel<T, T_ptr,  32><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, A1_row_off, A1_col_off, A2_row_off, A2_rows, smem_entries_per_op, num_ops); break;
-        case 2: batch_dtsqrt_panel<T, T_ptr,  64><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, A1_row_off, A1_col_off, A2_row_off, A2_rows, smem_entries_per_op, num_ops); break;
-        case 3: batch_dtsqrt_panel<T, T_ptr,  96><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, A1_row_off, A1_col_off, A2_row_off, A2_rows, smem_entries_per_op, num_ops); break;
-        case 4: batch_dtsqrt_panel<T, T_ptr, 128><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, A1_row_off, A1_col_off, A2_row_off, A2_rows, smem_entries_per_op, num_ops); break;
+        case 1: batch_dtsqrt_panel<T, T_ptr,  32><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, A1_row_off, A1_col_off, A2_row_off, A2_rows, smem_entries_per_op, num_ops); break;
+        case 2: batch_dtsqrt_panel<T, T_ptr,  64><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, A1_row_off, A1_col_off, A2_row_off, A2_rows, smem_entries_per_op, num_ops); break;
+        case 3: batch_dtsqrt_panel<T, T_ptr,  96><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, A1_row_off, A1_col_off, A2_row_off, A2_rows, smem_entries_per_op, num_ops); break;
+        case 4: batch_dtsqrt_panel<T, T_ptr, 128><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, A1_row_off, A1_col_off, A2_row_off, A2_rows, smem_entries_per_op, num_ops); break;
         default: printf("Invalid row size %d\n", A2_rows);
     }
 
@@ -620,7 +621,7 @@ void driver_dtsqrt_panel(T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, in
 }
 
 template<class T, class T_ptr>
-void driver_apply_dtsqrt_panel(T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, int stride_tau, int rows, int cols, int num_ops, int V_row_off, int V_col_off, int V_rows, int A1_row_off, GPUBlasHandle& handle)
+void driver_apply_dtsqrt_panel(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, int stride_tau, int rows, int cols, int num_ops, int V_row_off, int V_col_off, int V_rows, int A1_row_off)
 {
     int ops_per_block = OPS_PER_BLOCK;
     const int HH_CB = QR_Config<T>::HH_CB;
@@ -643,10 +644,10 @@ void driver_apply_dtsqrt_panel(T_ptr m_batch, int ldm, int stride, T_ptr tau_bat
 
     switch(warps)
     {
-        case 1: batch_apply_dtsqrt_panel<T, T_ptr,  32><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, V_row_off, V_col_off, V_rows, A1_row_off, trailing_blocks, smem_entries_per_op, num_ops); break;
-        case 2: batch_apply_dtsqrt_panel<T, T_ptr,  64><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, V_row_off, V_col_off, V_rows, A1_row_off, trailing_blocks, smem_entries_per_op, num_ops); break;
-        case 3: batch_apply_dtsqrt_panel<T, T_ptr,  96><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, V_row_off, V_col_off, V_rows, A1_row_off, trailing_blocks, smem_entries_per_op, num_ops); break;
-        case 4: batch_apply_dtsqrt_panel<T, T_ptr, 128><<< dimGrid, dimBlock, smem_per_block, handle.stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, V_row_off, V_col_off, V_rows, A1_row_off, trailing_blocks, smem_entries_per_op, num_ops); break;
+        case 1: batch_apply_dtsqrt_panel<T, T_ptr,  32><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, V_row_off, V_col_off, V_rows, A1_row_off, trailing_blocks, smem_entries_per_op, num_ops); break;
+        case 2: batch_apply_dtsqrt_panel<T, T_ptr,  64><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, V_row_off, V_col_off, V_rows, A1_row_off, trailing_blocks, smem_entries_per_op, num_ops); break;
+        case 3: batch_apply_dtsqrt_panel<T, T_ptr,  96><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, V_row_off, V_col_off, V_rows, A1_row_off, trailing_blocks, smem_entries_per_op, num_ops); break;
+        case 4: batch_apply_dtsqrt_panel<T, T_ptr, 128><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, V_row_off, V_col_off, V_rows, A1_row_off, trailing_blocks, smem_entries_per_op, num_ops); break;
         default: printf("Invalid row size %d\n", V_rows);
     }
 
@@ -654,7 +655,7 @@ void driver_apply_dtsqrt_panel(T_ptr m_batch, int ldm, int stride, T_ptr tau_bat
 }
 
 template<class T, class T_ptr>
-void batch_qr_clear_R(T_ptr m_batch, int ldm, int stride, int rows, int cols, int num_ops, GPUBlasHandle& handle)
+void batch_qr_clear_R(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride, int rows, int cols, int num_ops)
 {
 	const int max_tpb = 512;
 	int R_rows = (rows > cols ? cols : rows);
@@ -665,12 +666,12 @@ void batch_qr_clear_R(T_ptr m_batch, int ldm, int stride, int rows, int cols, in
     dim3 dimBlock( warps_per_op * WARP_SIZE, ops_per_block );
     dim3 dimGrid( num_blocks, 1 );
 
-    batch_qr_clear_R_kernel<T, T_ptr> <<< dimGrid, dimBlock, 0, handle.stream >>> (m_batch, ldm, stride, rows, cols, num_ops);
+    batch_qr_clear_R_kernel<T, T_ptr> <<< dimGrid, dimBlock, 0, handle->stream >>> (m_batch, ldm, stride, rows, cols, num_ops);
 	gpuErrchk( cudaGetLastError() );
 }
 
 template<class T, class T_ptr>
-int batch_qr_copy_R(T_ptr m_batch, int ldm, int stride_m, T_ptr r_batch, int ldr, int stride_r, int rows, int cols, int num_ops, GPUBlasHandle& handle)
+int batch_qr_copy_R(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride_m, T_ptr r_batch, int ldr, int stride_r, int rows, int cols, int num_ops)
 {
 	const int max_tpb = 512;
 	int R_rows = (rows > cols ? cols : rows);
@@ -681,18 +682,18 @@ int batch_qr_copy_R(T_ptr m_batch, int ldm, int stride_m, T_ptr r_batch, int ldr
     dim3 dimBlock( warps_per_op * WARP_SIZE, ops_per_block );
     dim3 dimGrid( num_blocks, 1 );
 
-    batch_qr_copy_R_kernel<T, T_ptr><<< dimGrid, dimBlock, 0, handle.stream >>> (m_batch, ldm, stride_m, r_batch, ldr, stride_r, rows, cols, num_ops);
+    batch_qr_copy_R_kernel<T, T_ptr><<< dimGrid, dimBlock, 0, handle->stream >>> (m_batch, ldm, stride_m, r_batch, ldr, stride_r, rows, cols, num_ops);
 	gpuErrchk( cudaGetLastError() );
 	return 0;
 }
 
 template<class T, class T_ptr>
-int batch_qr(T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, int stride_tau, int rows, int cols, int num_ops, int block_rows, GPUBlasHandle& handle)
+int batch_qr(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, int stride_tau, int rows, int cols, int num_ops, int block_rows)
 {
 	const int HH_CB = QR_Config<T>::HH_CB;
 
 	#ifdef HLIB_PROFILING_ENABLED
-	handle.tic();
+	handle->tic();
 	#endif
 
     int rows_per_block = (rows < block_rows ? rows : block_rows);
@@ -703,8 +704,8 @@ int batch_qr(T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, int stride_tau
         int upper_panel_height = rows_per_block - c % rows_per_block;
         if(c + upper_panel_height > rows) upper_panel_height = rows - c;
 
-        driver_hh_panel<T, T_ptr>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, num_ops, c, c, upper_panel_height, handle);
-        driver_apply_hh_panel<T, T_ptr, 1>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, num_ops, c, c, upper_panel_height, handle);
+        driver_hh_panel<T, T_ptr>(handle, m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, num_ops, c, c, upper_panel_height);
+        driver_apply_hh_panel<T, T_ptr, 1>(handle, m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, num_ops, c, c, upper_panel_height);
 
         int remaining_rows = rows - c - upper_panel_height;
         if(remaining_rows <= 0) continue;
@@ -715,13 +716,13 @@ int batch_qr(T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, int stride_tau
         {
             int A2_row_offset = c + upper_panel_height + rb * rows_per_block;
             int A2_rows = (A2_row_offset + rows_per_block > rows ? rows - A2_row_offset : rows_per_block);
-            driver_dtsqrt_panel<T, T_ptr>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, num_ops, c, c, A2_row_offset, A2_rows, handle);
-            driver_apply_dtsqrt_panel<T, T_ptr>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, num_ops, A2_row_offset, c, A2_rows, c, handle);
+            driver_dtsqrt_panel<T, T_ptr>(handle, m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, num_ops, c, c, A2_row_offset, A2_rows);
+            driver_apply_dtsqrt_panel<T, T_ptr>(handle, m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, num_ops, A2_row_offset, c, A2_rows, c);
         }
     }
 
 	#ifdef HLIB_PROFILING_ENABLED
-	double time_elapsed = handle.toc();
+	double time_elapsed = handle->toc();
 	double qr_gflops = (double)((2 * rows * cols * cols - 2.0 / 3.0 * cols * cols * cols) * 1e-9) * num_ops;
 	PerformanceCounter::addOpCount(PerformanceCounter::QR, qr_gflops);
     PerformanceCounter::addOpTime(PerformanceCounter::QR, time_elapsed);
@@ -731,28 +732,28 @@ int batch_qr(T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, int stride_tau
 }
 
 template<class T, class T_ptr>
-int batch_unpack_Q(T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, int stride_tau, int rows, int cols, int num_ops, GPUBlasHandle& handle)
+int batch_unpack_Q(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, int stride_tau, int rows, int cols, int num_ops)
 {
 	const int HH_CB = QR_Config<T>::HH_CB;
 
 	#ifdef HLIB_PROFILING_ENABLED
-	handle.tic();
+	handle->tic();
 	#endif
 
 	// Zero out the upper triangular part of the matrix
 	int matrix_rank = (rows > cols ? cols : rows);
-	batch_qr_clear_R<T, T_ptr>(m_batch, ldm, stride, rows, matrix_rank, num_ops, handle);
+	batch_qr_clear_R<T, T_ptr>(handle, m_batch, ldm, stride, rows, matrix_rank, num_ops);
 
 	int col_start = (matrix_rank % HH_CB == 0 ? matrix_rank - HH_CB : matrix_rank - matrix_rank % HH_CB);
     for(int c = col_start; c >= 0; c -= HH_CB)
     {
         int panel_rows = rows - c;
-        driver_apply_hh_panel<T, T_ptr, 0>(m_batch, ldm, stride, tau_batch, stride_tau, rows, matrix_rank, num_ops, c, c, panel_rows, handle);
-        driver_unpackQ_panel<T, T_ptr>(m_batch, ldm, stride, tau_batch, stride_tau, rows, matrix_rank, num_ops, c, c, panel_rows, handle);
+        driver_apply_hh_panel<T, T_ptr, 0>(handle, m_batch, ldm, stride, tau_batch, stride_tau, rows, matrix_rank, num_ops, c, c, panel_rows);
+        driver_unpackQ_panel<T, T_ptr>(handle, m_batch, ldm, stride, tau_batch, stride_tau, rows, matrix_rank, num_ops, c, c, panel_rows);
     }
 
 	#ifdef HLIB_PROFILING_ENABLED
-	double time_elapsed = handle.toc();
+	double time_elapsed = handle->toc();
 	double qr_gflops = (double)((2 * rows * matrix_rank * matrix_rank - 2.0 / 3.0 * matrix_rank * matrix_rank * matrix_rank) * 1e-9) * num_ops;
 	PerformanceCounter::addOpCount(PerformanceCounter::QR, qr_gflops);
     PerformanceCounter::addOpTime(PerformanceCounter::QR, time_elapsed);
@@ -764,109 +765,109 @@ int batch_unpack_Q(T_ptr m_batch, int ldm, int stride, T_ptr tau_batch, int stri
 ///////////////////////////////////////////////////////////////
 // Strided routines
 ///////////////////////////////////////////////////////////////
-int kblas_dgeqrf_batched(int m, int n, double* A_strided, int lda, int stride_a, double* tau, int stride_tau, int num_ops, GPUBlasHandle& handle)
+extern "C" int kblasDgeqrf_batch_strided(kblasHandle_t handle, int m, int n, double* A_strided, int lda, int stride_a, double* tau, int stride_tau, int num_ops)
 {
 	if(m > QR_Config<double>::HH_MAX_ROWS)
 		return -1;
 	else
-		return batch_qr<double, double*>(A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops, m, handle);
+		return batch_qr<double, double*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops, m);
 }
 
-int kblas_sgeqrf_batched(int m, int n, float* A_strided, int lda, int stride_a, float* tau, int stride_tau, int num_ops, GPUBlasHandle& handle)
+extern "C" int kblasSgeqrf_batch_strided(kblasHandle_t handle, int m, int n, float* A_strided, int lda, int stride_a, float* tau, int stride_tau, int num_ops)
 {
 	if(m > QR_Config<float>::HH_MAX_ROWS)
 		return -1;
 	else
-		return batch_qr<float, float*>(A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops, m, handle);
+		return batch_qr<float, float*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops, m);
 }
 
-int kblas_dtsqrf_batched(int m, int n, double* A_strided, int lda, int stride_a, double* tau, int stride_tau, int num_ops, GPUBlasHandle& handle)
+extern "C" int kblasDtsqrf_batch_strided(kblasHandle_t handle, int m, int n, double* A_strided, int lda, int stride_a, double* tau, int stride_tau, int num_ops)
 {
-	return batch_qr<double, double*>(A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops, ROWS_PER_BLOCK, handle);
+	return batch_qr<double, double*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops, ROWS_PER_BLOCK);
 }
 
-int kblas_stsqrf_batched(int m, int n, float* A_strided, int lda, int stride_a, float* tau, int stride_tau, int num_ops, GPUBlasHandle& handle)
+extern "C" int kblasStsqrf_batch_strided(kblasHandle_t handle, int m, int n, float* A_strided, int lda, int stride_a, float* tau, int stride_tau, int num_ops)
 {
-	return batch_qr<float, float*>(A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops, ROWS_PER_BLOCK, handle);
+	return batch_qr<float, float*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops, ROWS_PER_BLOCK);
 }
 
-int kblas_dorgqr_batched(int m, int n, double* A_strided, int lda, int stride_a, double* tau, int stride_tau, int num_ops, GPUBlasHandle& handle)
+extern "C" int kblasDorgqr_batch_strided(kblasHandle_t handle, int m, int n, double* A_strided, int lda, int stride_a, double* tau, int stride_tau, int num_ops)
 {
 	if(m > QR_Config<double>::HH_MAX_ROWS)
 		return -1;
 	else
-		return batch_unpack_Q<double, double*>(A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops, handle);
+		return batch_unpack_Q<double, double*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops);
 }
 
-int kblas_sorgqr_batched(int m, int n, float* A_strided, int lda, int stride_a, float* tau, int stride_tau, int num_ops, GPUBlasHandle& handle)
+extern "C" int kblasSorgqr_batch_strided(kblasHandle_t handle, int m, int n, float* A_strided, int lda, int stride_a, float* tau, int stride_tau, int num_ops)
 {
 	if(m > QR_Config<float>::HH_MAX_ROWS)
 		return -1;
 	else
-		return batch_unpack_Q<float, float*>(A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops, handle);
+		return batch_unpack_Q<float, float*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops);
 }
 
-int kblas_copy_upper_batched(int m, int n, double* A_strided, int lda, int stride_a, double* R_strided, int ldr, int stride_R, int num_ops, GPUBlasHandle& handle)
+extern "C" int kblasDcopy_upper_batch_strided(kblasHandle_t handle, int m, int n, double* A_strided, int lda, int stride_a, double* R_strided, int ldr, int stride_R, int num_ops)
 {
-	return batch_qr_copy_R<double, double*>(A_strided, lda, stride_a, R_strided, ldr, stride_R, m, n, num_ops, handle);
+	return batch_qr_copy_R<double, double*>(handle, A_strided, lda, stride_a, R_strided, ldr, stride_R, m, n, num_ops);
 }
 
-int kblas_copy_upper_batched(int m, int n, float* A_strided, int lda, int stride_a, float* R_strided, int ldr, int stride_R, int num_ops, GPUBlasHandle& handle)
+extern "C" int kblasScopy_upper_batch_strided(kblasHandle_t handle, int m, int n, float* A_strided, int lda, int stride_a, float* R_strided, int ldr, int stride_R, int num_ops)
 {
-	return batch_qr_copy_R<float, float*>(A_strided, lda, stride_a, R_strided, ldr, stride_R, m, n, num_ops, handle);
+	return batch_qr_copy_R<float, float*>(handle, A_strided, lda, stride_a, R_strided, ldr, stride_R, m, n, num_ops);
 }
 
 ///////////////////////////////////////////////////////////////
 // Array of pointers routines
 ///////////////////////////////////////////////////////////////
-int kblas_dgeqrf_batched(int m, int n, double** A_array, int lda, double** tau_array, int num_ops, GPUBlasHandle& handle)
+extern "C" int kblasDgeqrf_batch(kblasHandle_t handle, int m, int n, double** A_array, int lda, double** tau_array, int num_ops)
 {
 	if(m > QR_Config<double>::HH_MAX_ROWS)
 		return -1;
 	else
-		return batch_qr<double, double**>(A_array, lda, 0, tau_array, 0, m, n, num_ops, m, handle);
+		return batch_qr<double, double**>(handle, A_array, lda, 0, tau_array, 0, m, n, num_ops, m);
 }
 
-int kblas_sgeqrf_batched(int m, int n, float** A_array, int lda, float** tau_array, int num_ops, GPUBlasHandle& handle)
+extern "C" int kblasSgeqrf_batch(kblasHandle_t handle, int m, int n, float** A_array, int lda, float** tau_array, int num_ops)
 {
 	if(m > QR_Config<float>::HH_MAX_ROWS)
 		return -1;
 	else
-		return batch_qr<float, float**>(A_array, lda, 0, tau_array, 0, m, n, num_ops, m, handle);
+		return batch_qr<float, float**>(handle, A_array, lda, 0, tau_array, 0, m, n, num_ops, m);
 }
 
-int kblas_dtsqrf_batched(int m, int n, double** A_array, int lda, double** tau_array, int num_ops, GPUBlasHandle& handle)
+extern "C" int kblasDtsqrf_batch(kblasHandle_t handle, int m, int n, double** A_array, int lda, double** tau_array, int num_ops)
 {
-	return batch_qr<double, double**>(A_array, lda, 0, tau_array, 0, m, n, num_ops, ROWS_PER_BLOCK, handle);
+	return batch_qr<double, double**>(handle, A_array, lda, 0, tau_array, 0, m, n, num_ops, ROWS_PER_BLOCK);
 }
 
-int kblas_stsqrf_batched(int m, int n, float** A_array, int lda, float** tau_array, int num_ops, GPUBlasHandle& handle)
+extern "C" int kblasStsqrf_batch(kblasHandle_t handle, int m, int n, float** A_array, int lda, float** tau_array, int num_ops)
 {
-	return batch_qr<float, float**>(A_array, lda, 0, tau_array, 0, m, n, num_ops, ROWS_PER_BLOCK, handle);
+	return batch_qr<float, float**>(handle, A_array, lda, 0, tau_array, 0, m, n, num_ops, ROWS_PER_BLOCK);
 }
 
-int kblas_dorgqr_batched(int m, int n, double** A_array, int lda, double** tau_array, int num_ops, GPUBlasHandle& handle)
+extern "C" int kblasDorgqr_batch(kblasHandle_t handle, int m, int n, double** A_array, int lda, double** tau_array, int num_ops)
 {
 	if(m > QR_Config<double>::HH_MAX_ROWS)
 		return -1;
 	else
-		return batch_unpack_Q<double, double**>(A_array, lda, 0, tau_array, 0, m, n, num_ops, handle);
+		return batch_unpack_Q<double, double**>(handle, A_array, lda, 0, tau_array, 0, m, n, num_ops);
 }
 
-int kblas_sorgqr_batched(int m, int n, float** A_array, int lda, float** tau_array, int num_ops, GPUBlasHandle& handle)
+extern "C" int kblasSorgqr_batch(kblasHandle_t handle, int m, int n, float** A_array, int lda, float** tau_array, int num_ops)
 {
 	if(m > QR_Config<float>::HH_MAX_ROWS)
 		return -1;
 	else
-		return batch_unpack_Q<float, float**>(A_array, lda, 0, tau_array, 0, m, n, num_ops, handle);
+		return batch_unpack_Q<float, float**>(handle, A_array, lda, 0, tau_array, 0, m, n, num_ops);
 }
 
-int kblas_copy_upper_batched(int m, int n, double** A_array, int lda, double** R_array, int ldr, int num_ops, GPUBlasHandle& handle)
+extern "C" int kblasDcopy_upper_batch(kblasHandle_t handle, int m, int n, double** A_array, int lda, double** R_array, int ldr, int num_ops)
 {
-	return batch_qr_copy_R<double, double**>(A_array, lda, 0, R_array, ldr, 0, m, n, num_ops, handle);
+	return batch_qr_copy_R<double, double**>(handle, A_array, lda, 0, R_array, ldr, 0, m, n, num_ops);
 }
 
-int kblas_copy_upper_batched(int m, int n, float** A_array, int lda, float** R_array, int ldr, int num_ops, GPUBlasHandle& handle)
+extern "C" int kblasScopy_upper_batch(kblasHandle_t handle, int m, int n, float** A_array, int lda, float** R_array, int ldr, int num_ops)
 {
-	return batch_qr_copy_R<float, float**>(A_array, lda, 0, R_array, ldr, 0, m, n, num_ops, handle);
+	return batch_qr_copy_R<float, float**>(handle, A_array, lda, 0, R_array, ldr, 0, m, n, num_ops);
 }

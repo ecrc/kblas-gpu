@@ -36,6 +36,7 @@
 
 #if defined   PREC_s
   #define TYPE float
+  #define kblasXgemm_batch kblasSgemm_batch
   #define kblasXsyrk_batch_wsquery kblasSsyrk_batch_wsquery
   #define kblasXsyrk_batch kblasSsyrk_batch
   #define kblasXsyrk_batch_strided_wsquery kblasSsyrk_batch_strided_wsquery
@@ -49,6 +50,7 @@
 
 #elif defined PREC_d
   #define TYPE double
+  #define kblasXgemm_batch kblasDgemm_batch
   #define kblasXsyrk_batch_wsquery kblasDsyrk_batch_wsquery
   #define kblasXsyrk_batch kblasDsyrk_batch
   #define kblasXsyrk_batch_strided_wsquery kblasDsyrk_batch_strided_wsquery
@@ -62,6 +64,7 @@
 
 #elif defined PREC_c
   #define TYPE cuComplex
+  #define kblasXgemm_batch kblasCgemm_batch
   #define kblasXsyrk_batch_wsquery kblasCsyrk_batch_wsquery
   #define kblasXsyrk_batch kblasCsyrk_batch
   #define kblasXsyrk_batch_strided_wsquery kblasCsyrk_batch_strided_wsquery
@@ -75,6 +78,7 @@
 
 #elif defined PREC_z
   #define TYPE cuDoubleComplex
+  #define kblasXgemm_batch kblasZgemm_batch
   #define kblasXsyrk_batch_wsquery kblasZsyrk_batch_wsquery
   #define kblasXsyrk_batch kblasZsyrk_batch
   #define kblasXsyrk_batch_strided_wsquery kblasZsyrk_batch_strided_wsquery

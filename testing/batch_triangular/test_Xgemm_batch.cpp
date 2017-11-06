@@ -41,8 +41,8 @@
 
 #define USING printf("side %c, uplo %c, transA %c, transB %c, diag %c , batchCount %d, backDoor %d\n", opts.side, opts.uplo, opts.transA, opts.transB, opts.diag, batchCount, -1);
 
-extern bool use_magma_gemm;
-extern bool use_cublas_gemm;
+// extern bool use_magma_gemm;
+// extern bool use_cublas_gemm;
 
 template<class T>
 int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
@@ -230,7 +230,9 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
 
       //if(opts.bd >= 0) kblas_back_door[0] = opts.bd;
       #ifdef USE_MAGMA
-      use_magma_gemm = 1; use_cublas_gemm = 0;
+      // use_magma_gemm = 1; use_cublas_gemm = 0;
+      //TODO this is not a safe access
+      kblas_handle->use_magma = 1;
       for(int r = 0; r < nruns; r++)
       {
         check_error( cublasSetMatrixAsync( Cm, Cn * batchCount, sizeof(T), h_C, ldc, d_C, lddc, curStream ) );
@@ -250,8 +252,9 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
       magma_time *= 1000.;//convert to ms
       #endif
 
-      use_magma_gemm = 0; use_cublas_gemm = 1;
-      for(int r = 0; r < nruns; r++)
+      // use_magma_gemm = 0; use_cublas_gemm = 1;
+      kblas_handle->use_magma = 0;
+      /*for(int r = 0; r < nruns; r++)
       {
         check_error( cublasSetMatrixAsync( Cm, Cn * batchCount, sizeof(T), h_C, ldc, d_C, lddc, curStream ) );
 
@@ -267,9 +270,9 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
         cublas_time += time;
       }
       cublas_time /= nruns;
-      cublas_time *= 1000.;//convert to ms
+      cublas_time *= 1000.;//convert to ms*/
 
-      use_magma_gemm = 0; use_cublas_gemm = 0;
+      // use_magma_gemm = 0; use_cublas_gemm = 0;
       for(int r = 0; r < nruns; r++)
       {
         check_error( cublasSetMatrixAsync( Cm, Cn * batchCount, sizeof(T), h_C, ldc, d_C, lddc, curStream ) );

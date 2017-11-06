@@ -1,8 +1,6 @@
 #ifndef __BATCH_QR_H__
 #define __BATCH_QR_H__
 
-#include "kblas.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif

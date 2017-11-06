@@ -1,48 +1,106 @@
 #ifndef __BATCH_BLOCK_COPY_H__
 #define __BATCH_BLOCK_COPY_H__
 
-#include <mini_blas_gpu.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+// Strided interface
+int kblasDcopyBlock_batch_strided(
+	kblasHandle_t handle, int rows, int cols, 
+	double* dest_array, int row_offset_dest, int col_offset_dest, int ld_dest, int stride_dest,
+	double* src_array, int row_offset_src, int col_offset_src, int ld_src, int stride_src, int ops
+);
+
+int kblasScopyBlock_batch_strided(
+	kblasHandle_t handle, int rows, int cols, 	
+	float* dest_array, int row_offset_dest, int col_offset_dest, int ld_dest, int stride_dest,
+	float* src_array, int row_offset_src, int col_offset_src, int ld_src, int stride_src, int ops
+);
 
 // Array of pointers interface
-void batchCopyMatrixBlock(
-	double** orig_array, int row_offset_orig, int col_offset_orig, int ld_orig, 
-	double** copy_array, int row_offset_copy, int col_offset_copy, int ld_copy,
-	int rows, int cols, int ops, GPUBlasHandle& handle
+int kblasDcopyBlock_batch(
+	kblasHandle_t handle, int rows, int cols, 
+	double** dest_array, int row_offset_dest, int col_offset_dest, int ld_dest,
+	double** src_array, int row_offset_src, int col_offset_src, int ld_src, int ops
 );
 
-void batchCopyMatrixBlock(
-	float** orig_array, int row_offset_orig, int col_offset_orig, int ld_orig, 
-	float** copy_array, int row_offset_copy, int col_offset_copy, int ld_copy,
-	int rows, int cols, int ops, GPUBlasHandle& handle
+int kblasScopyBlock_batch(
+	kblasHandle_t handle, int rows, int cols, 	
+	float** dest_array, int row_offset_dest, int col_offset_dest, int ld_dest,
+	float** src_array, int row_offset_src, int col_offset_src, int ld_src, int ops
 );
+#ifdef __cplusplus
+}
+#endif
 
+#ifdef __cplusplus
 // Strided interface
-void batchCopyMatrixBlock(
-	double* orig_array, int row_offset_orig, int col_offset_orig, int ld_orig, int stride_orig, 
-	double* copy_array, int row_offset_copy, int col_offset_copy, int ld_copy, int stride_copy, 
-	int rows, int cols, int ops, GPUBlasHandle& handle
-);
-
-void batchCopyMatrixBlock(
-	float* orig_array, int row_offset_orig, int col_offset_orig, int ld_orig, int stride_orig, 
-	float* copy_array, int row_offset_copy, int col_offset_copy, int ld_copy, int stride_copy, 
-	int rows, int cols, int ops, GPUBlasHandle& handle
-);
-
-// Common interface for array of pointers with dummy strides
-template<class T>
-inline void batchCopyMatrixBlock(
-	T** orig_array, int row_offset_orig, int col_offset_orig, int ld_orig, int stride_orig, 
-	T** copy_array, int row_offset_copy, int col_offset_copy, int ld_copy, int stride_copy, 
-	int rows, int cols, int ops, GPUBlasHandle& handle
+inline int kblas_copyBlock_batch(
+	kblasHandle_t handle, int rows, int cols, 	
+	double* dest_array, int row_offset_dest, int col_offset_dest, int ld_dest, int stride_dest, 
+	double* src_array, int row_offset_src, int col_offset_src, int ld_src, int stride_src, int ops
 )
 {
-	batchCopyMatrixBlock(
-		orig_array, row_offset_orig, col_offset_orig, ld_orig, 
-		copy_array, row_offset_copy, col_offset_copy, ld_copy,
-		rows, cols, ops, handle
+	return kblasDcopyBlock_batch_strided(
+		handle, rows, cols, 
+		dest_array, row_offset_dest, col_offset_dest, ld_dest, stride_dest,
+		src_array, row_offset_src, col_offset_src, ld_src, stride_src, ops
+	);
+}
+inline int kblas_copyBlock_batch(
+	kblasHandle_t handle, int rows, int cols, 	
+	float* dest_array, int row_offset_dest, int col_offset_dest, int ld_dest, int stride_dest, 
+	float* src_array, int row_offset_src, int col_offset_src, int ld_src, int stride_src, int ops
+)
+{
+	return kblasScopyBlock_batch_strided(
+		handle, rows, cols, 
+		dest_array, row_offset_dest, col_offset_dest, ld_dest, stride_dest,
+		src_array, row_offset_src, col_offset_src, ld_src, stride_src, ops
 	);
 }
 
+// Array of pointers interface
+inline int kblas_copyBlock_batch(
+	kblasHandle_t handle, int rows, int cols, 
+	double** dest_array, int row_offset_dest, int col_offset_dest, int ld_dest,
+	double** src_array, int row_offset_src, int col_offset_src, int ld_src, int ops
+)
+{
+	return kblasDcopyBlock_batch(
+		handle, rows, cols, 
+		dest_array, row_offset_dest, col_offset_dest, ld_dest, 
+		src_array, row_offset_src, col_offset_src, ld_src, ops
+	);	
+}
 
+inline int kblas_copyBlock_batch(
+	kblasHandle_t handle, int rows, int cols, 	
+	float** dest_array, int row_offset_dest, int col_offset_dest, int ld_dest,
+	float** src_array, int row_offset_src, int col_offset_src, int ld_src, int ops
+)
+{
+	return kblasScopyBlock_batch(
+		handle, rows, cols, 
+		dest_array, row_offset_dest, col_offset_dest, ld_dest, 
+		src_array, row_offset_src, col_offset_src, ld_src, ops
+	);
+}
+
+// Common interface for array of pointers with dummy strides
+template<class T>
+inline int kblas_copyBlock_batch(
+	kblasHandle_t handle, int rows, int cols, 	
+	T** dest_array, int row_offset_dest, int col_offset_dest, int ld_dest, int stride_dest, 
+	T** src_array, int row_offset_src, int col_offset_src, int ld_src, int stride_src, int ops
+)
+{
+	return kblas_copyBlock_batch(
+		handle, rows, cols, 
+		dest_array, row_offset_dest, col_offset_dest, ld_dest,
+		src_array, row_offset_src, col_offset_src, ld_src, ops
+	);
+}
 #endif
+
+#endif //__BATCH_BLOCK_COPY_H__

@@ -1,20 +1,25 @@
-#include <mini_blas_gpu.h>
-#include <batch_block_copy.h>
-#include <gpu_util.h>
+#include "kblas.h"
+#include "kblas_struct.h"
+#include "kblas_gpu_util.ch"
+#include "batch_block_copy.h"
+
+#define KBLAS_BLOCK_COPY_FAILURE			-1
+#define KBLAS_BLOCK_COPY_SUCCESS			 0
 
 template<class T, class T_ptr>
 __global__
 void batchCopyMatrixBlockKernel(
-	T_ptr orig_array, int row_offset_orig, int col_offset_orig, int ld_orig, int stride_orig,
-	T_ptr copy_array, int row_offset_copy, int col_offset_copy, int ld_copy, int stride_copy,
-	int rows, int cols, int ops, int rows_per_thread
+	int rows, int cols, 
+	T_ptr dest_array, int row_offset_dest, int col_offset_dest, int ld_dest, int stride_dest,
+	T_ptr src_array, int row_offset_src, int col_offset_src, int ld_src, int stride_src, 
+	int ops, int rows_per_thread
 )
 {
     int op_id = blockIdx.x * blockDim.y + threadIdx.y;
     if(op_id >= ops) return;
 	
-    T* orig_matrix = getOperationPtr<T>(orig_array, op_id, stride_orig) + row_offset_orig + col_offset_orig * ld_orig;
-    T* copy_matrix = getOperationPtr<T>(copy_array, op_id, stride_copy) + row_offset_copy + col_offset_copy * ld_copy;
+    T* dest_block = getOperationPtr<T>(dest_array, op_id, stride_dest) + row_offset_dest + col_offset_dest * ld_dest;
+	T* src_block = getOperationPtr<T>(src_array, op_id, stride_src) + row_offset_src + col_offset_src * ld_src;
     
     int tid = threadIdx.x;
     
@@ -24,19 +29,20 @@ void batchCopyMatrixBlockKernel(
         {
             int row_index = WARP_SIZE * i + tid;
             if(row_index < rows)
-                copy_matrix[row_index + j * ld_copy] = orig_matrix[row_index + j * ld_orig];
+                dest_block[row_index + j * ld_dest] = src_block[row_index + j * ld_src];
         }
     }
 }
 
 template<class T, class T_ptr>
-void batchCopyMatrixBlock(
-	T_ptr orig_array, int row_offset_orig, int col_offset_orig, int ld_orig, int stride_orig,
-	T_ptr copy_array, int row_offset_copy, int col_offset_copy, int ld_copy, int stride_copy,
-	int rows, int cols, int ops, GPUBlasHandle& handle
+int batchCopyMatrixBlock(
+	kblasHandle_t handle, int rows, int cols, 
+	T_ptr dest_array, int row_offset_dest, int col_offset_dest, int ld_dest, int stride_dest,
+	T_ptr src_array, int row_offset_src, int col_offset_src, int ld_src, int stride_src, int ops
 )
 {
-	if(ops == 0 || rows == 0 || cols == 0) return;
+	if(ops == 0 || rows == 0 || cols == 0) 
+		return KBLAS_BLOCK_COPY_SUCCESS;
 	
     int ops_per_block = 8;
     int rows_per_thread = iDivUp(rows, WARP_SIZE);
@@ -45,65 +51,66 @@ void batchCopyMatrixBlock(
     dim3 dimBlock(WARP_SIZE, ops_per_block);
     dim3 dimGrid(blocks, 1);
     
-    batchCopyMatrixBlockKernel<T, T_ptr><<< dimGrid, dimBlock, 0, handle.stream >>> (
-		orig_array, row_offset_orig, col_offset_orig, ld_orig, stride_orig,
-		copy_array, row_offset_copy, col_offset_copy, ld_copy, stride_copy,
-		rows, cols, ops, rows_per_thread	
+    batchCopyMatrixBlockKernel<T, T_ptr><<< dimGrid, dimBlock, 0, handle->stream >>> (
+		rows, cols, dest_array, row_offset_dest, col_offset_dest, ld_dest, stride_dest,
+		src_array, row_offset_src, col_offset_src, ld_src, stride_src, 
+		ops, rows_per_thread	
 	);
     
-    gpuErrchk( cudaGetLastError() );
+    check_error_ret( cudaGetLastError(), KBLAS_BLOCK_COPY_FAILURE );
+	return KBLAS_BLOCK_COPY_SUCCESS;
 }
 
 // Array of pointers interface
-void batchCopyMatrixBlock(
-	double** orig_array, int row_offset_orig, int col_offset_orig, int ld_orig, 
-	double** copy_array, int row_offset_copy, int col_offset_copy, int ld_copy,
-	int rows, int cols, int ops, GPUBlasHandle& handle
+extern "C" int kblasDcopyBlock_batch(
+	kblasHandle_t handle, int rows, int cols, 
+	double** dest_array, int row_offset_dest, int col_offset_dest, int ld_dest,
+	double** src_array, int row_offset_src, int col_offset_src, int ld_src, int ops
 )
 {
-	batchCopyMatrixBlock<double, double**>(
-		orig_array, row_offset_orig, col_offset_orig, ld_orig, 0,
-		copy_array, row_offset_copy, col_offset_copy, ld_copy, 0,
-		rows, cols, ops, handle
+	return batchCopyMatrixBlock<double, double**>(
+		handle, rows, cols, 
+		dest_array, row_offset_dest, col_offset_dest, ld_dest, 0,
+		src_array, row_offset_src, col_offset_src, ld_src, 0, ops
 	);
 }
 
-void batchCopyMatrixBlock(
-	float** orig_array, int row_offset_orig, int col_offset_orig, int ld_orig, 
-	float** copy_array, int row_offset_copy, int col_offset_copy, int ld_copy,
-	int rows, int cols, int ops, GPUBlasHandle& handle
+extern "C" int kblasScopyBlock_batch(
+	kblasHandle_t handle, int rows, int cols, 	
+	float** dest_array, int row_offset_dest, int col_offset_dest, int ld_dest,
+	float** src_array, int row_offset_src, int col_offset_src, int ld_src, int ops
 )
 {
-	batchCopyMatrixBlock<float, float**>(
-		orig_array, row_offset_orig, col_offset_orig, ld_orig, 0,
-		copy_array, row_offset_copy, col_offset_copy, ld_copy, 0,
-		rows, cols, ops, handle
+	return batchCopyMatrixBlock<float, float**>(
+		handle, rows, cols, 
+		dest_array, row_offset_dest, col_offset_dest, ld_dest, 0,
+		src_array, row_offset_src, col_offset_src, ld_src, 0, ops
 	);
 }
 
 // Strided interface
-void batchCopyMatrixBlock(
-	double* orig_array, int row_offset_orig, int col_offset_orig, int ld_orig, int stride_orig, 
-	double* copy_array, int row_offset_copy, int col_offset_copy, int ld_copy, int stride_copy, 
-	int rows, int cols, int ops, GPUBlasHandle& handle
+extern "C" int kblasDcopyBlock_batch_strided(
+	kblasHandle_t handle, int rows, int cols, 
+	double* dest_array, int row_offset_dest, int col_offset_dest, int ld_dest, int stride_dest,
+	double* src_array, int row_offset_src, int col_offset_src, int ld_src, int stride_src, int ops
 )
 {
-	batchCopyMatrixBlock<double, double*>(
-		orig_array, row_offset_orig, col_offset_orig, ld_orig, stride_orig,
-		copy_array, row_offset_copy, col_offset_copy, ld_copy, stride_copy,
-		rows, cols, ops, handle
+	return batchCopyMatrixBlock<double, double*>(
+		handle, rows, cols, 
+		dest_array, row_offset_dest, col_offset_dest, ld_dest, stride_dest,
+		src_array, row_offset_src, col_offset_src, ld_src, stride_src, ops
 	);
 }
 
-void batchCopyMatrixBlock(
-	float* orig_array, int row_offset_orig, int col_offset_orig, int ld_orig, int stride_orig, 
-	float* copy_array, int row_offset_copy, int col_offset_copy, int ld_copy, int stride_copy, 
-	int rows, int cols, int ops, GPUBlasHandle& handle
+extern "C" int kblasScopyBlock_batch_strided(
+	kblasHandle_t handle, int rows, int cols, 	
+	float* dest_array, int row_offset_dest, int col_offset_dest, int ld_dest, int stride_dest,
+	float* src_array, int row_offset_src, int col_offset_src, int ld_src, int stride_src, int ops
 )
-{	
-	batchCopyMatrixBlock<float, float*>(
-		orig_array, row_offset_orig, col_offset_orig, ld_orig, stride_orig,
-		copy_array, row_offset_copy, col_offset_copy, ld_copy, stride_copy,
-		rows, cols, ops, handle
-	);
+{
+	return batchCopyMatrixBlock<float, float*>(
+		handle, rows, cols, 
+		dest_array, row_offset_dest, col_offset_dest, ld_dest, stride_dest,
+		src_array, row_offset_src, col_offset_src, ld_src, stride_src, ops
+	);	
 }

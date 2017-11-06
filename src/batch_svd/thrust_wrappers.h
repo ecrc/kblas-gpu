@@ -2,21 +2,6 @@
 #define __THRUST_WRAPPERS_H__
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Some hmatrix related stuff
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void basisProjectionOffsetScan(int* new_rows, int* old_rows, int* offsets, int n);
-void getNewRankFromErrorThreshold(double* s, int stride_s, int* new_rank, int current_rank, double eps, int relative, int num_ops);
-void getNewRankFromErrorThreshold(float* s, int stride_s, int* new_rank, int current_rank, double eps, int relative, int num_ops);
-void generateLevelProjectionPointers(
-    int* leaf_node_index, int* basis_tree_nodes, float* basis_tree_data, float** array_of_tree_nodes, 
-    int increment, int coupling_start, int tree_node_offset, int num_arrays
-);
-void generateLevelProjectionPointers(
-    int* leaf_node_index, int* basis_tree_nodes, double* basis_tree_data, double** array_of_tree_nodes, 
-    int increment, int coupling_start, int tree_node_offset, int num_arrays
-);
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Some array utility functions
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void exclusiveScan(int* array, int num_entries, int* result, int init = 0, cudaStream_t stream = 0);

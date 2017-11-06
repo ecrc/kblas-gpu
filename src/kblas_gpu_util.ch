@@ -1,11 +1,5 @@
-#ifndef __GPU_UTIL_H__
-#define __GPU_UTIL_H__
-
-#include <cuda_runtime.h>
-#include <cublas_v2.h>
-#include <assert.h>
-#include <cusparse.h>
-#include <gpu_err_check.h>
+#ifndef __KBLAS_GPU_UTIL_H__
+#define __KBLAS_GPU_UTIL_H__
 
 #define WARP_SIZE 32
 
@@ -121,4 +115,4 @@ T warpAllReduceSum(T val)
     return val;
 }
 
-#endif
+#endif // __KBLAS_GPU_UTIL_H__

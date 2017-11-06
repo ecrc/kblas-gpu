@@ -8,8 +8,8 @@
 
 template<class T> struct QR_Config{};
 template<> struct QR_Config<float>  { static const int HH_CB = 16; static const int HH_CB_PANEL = HH_CB / 2; static const int HH_MAX_ROWS = QR_MAX_SMEM / (HH_CB * sizeof(float)); };
-// template<> struct QR_Config<double> { static const int HH_CB =  8; static const int HH_CB_PANEL = HH_CB / 2; static const int HH_MAX_ROWS = QR_MAX_SMEM / (HH_CB * sizeof(double)); };
-template<> struct QR_Config<double> { static const int HH_CB =  4; static const int HH_CB_PANEL = HH_CB / 2; static const int HH_MAX_ROWS = QR_MAX_SMEM / (HH_CB * sizeof(double)); };
+template<> struct QR_Config<double> { static const int HH_CB =  8; static const int HH_CB_PANEL = HH_CB / 2; static const int HH_MAX_ROWS = QR_MAX_SMEM / (HH_CB * sizeof(double)); };
+//template<> struct QR_Config<double> { static const int HH_CB =  4; static const int HH_CB_PANEL = HH_CB / 2; static const int HH_MAX_ROWS = QR_MAX_SMEM / (HH_CB * sizeof(double)); };
 
 template<class T, int columns, int i, int BLOCK_SIZE, int PANEL_WIDTH>
 inline __device__ void multreduction_gemv(T matrix_row[columns], T v, int threadId, int warp_tid, int warp_id, volatile T* smem)

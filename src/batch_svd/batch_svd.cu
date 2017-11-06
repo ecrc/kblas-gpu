@@ -1,19 +1,73 @@
+#include <curand.h>
 
 #include "kblas_struct.h"
-
-#include "mini_blas_gpu.h"
-
-#include <thrust_wrappers.h>
-#include <batch_svd.h>
-#include <batch_qr.h>
-#include <batch_transpose.h>
-#include <batch_block_copy.h>
-#include <batch_mm_wrappers.h>
+#include "thrust_wrappers.h"
+#include "batch_svd.h"
+#include "batch_qr.h"
+#include "batch_transpose.h"
+#include "batch_block_copy.h"
+#include "batch_mm_wrappers.h"
 #include <vector>
 
 #include "svd_kernels.cuh"
 
 #define OSBJ_BS		SHARED_SVD_DIM_LIMIT / 2
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// Utility function to properly align workspace
+// ws_bytes is the number of bytes needed per op for each allocation type
+// and is overwritten by the aligned bytes for num_ops operations
+// num_ops is the number of operations we'd like to align, but the alignment may cause
+// the needed memory to exceed our total workspace, so we have to reduce the number of ops
+//////////////////////////////////////////////////////////////////////////////////////////////////
+inline void alignWorkspace(unsigned int* ws_bytes, int N, unsigned int avail_ws, int& num_ops, int bytes)
+{
+	unsigned int sum_ws;
+	do
+	{
+		sum_ws = 0;
+		for(int i = 0; i < N; i++)
+		{
+			unsigned int op_bytes = ws_bytes[i] * num_ops;
+			op_bytes += op_bytes % bytes;
+			sum_ws += op_bytes;
+		}
+		if(sum_ws > avail_ws)
+			num_ops--;
+	} while(sum_ws > avail_ws && num_ops > 0);
+
+	for(int i = 0; i < N; i++)
+	{
+		ws_bytes[i] = ws_bytes[i] * num_ops;
+		ws_bytes[i] += ws_bytes[i] % bytes;
+		if(i > 0) ws_bytes[i] += ws_bytes[i - 1];
+	}
+}
+
+inline void alignWorkspace(unsigned int* ws_bytes, int N, int bytes)
+{
+	for(int i = 0; i < N; i++)
+	{
+		ws_bytes[i] += ws_bytes[i] % bytes;
+		if(i > 0) ws_bytes[i] += ws_bytes[i - 1];
+	}
+}
+
+inline void push_workspace(GPUBlasHandle& handle, unsigned int bytes)
+{
+	assert(bytes <= handle.workspace_bytes);
+	handle.workspace = (void*)((GPUBlasHandle::WS_Byte*)handle.workspace + bytes);
+	handle.workspace_bytes -= bytes;
+	//printf("Push %d left\n", handle.workspace_bytes);
+}
+
+inline void pop_workspace(GPUBlasHandle& handle, unsigned int bytes)
+{
+	handle.workspace = (void*)((GPUBlasHandle::WS_Byte*)handle.workspace - bytes);
+	handle.workspace_bytes += bytes;
+	//printf("Pop %d left\n", handle.workspace_bytes);
+}
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Workspace routines
@@ -90,6 +144,38 @@ unsigned int batch_svd_randomized_workspace(int rows, int cols, int rank, unsign
 		batch_svd_osbj_workspace<T>(rank, rank, ws_sizes_per_op + 2);
 
 	return ws_sizes_per_op[0] + ws_sizes_per_op[1] + ws_sizes_per_op[2] + ws_sizes_per_op[3];
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Random matrix geenration using curand for the RSVD
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+template<class T>
+inline void generateRandomMatrices(T* d_m, int rows, int cols, unsigned int seed, int num_ops, cudaStream_t stream = 0);
+
+template<>
+inline void generateRandomMatrices(float* d_m, int rows, int cols, unsigned int seed, int num_ops, cudaStream_t stream)
+{
+    curandGenerator_t gen;
+    curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
+    curandSetPseudoRandomGeneratorSeed(gen, seed);
+	curandSetStream(gen, stream);
+
+    curandGenerateNormal(gen, d_m, num_ops * rows * cols, 0, 1);
+
+    curandDestroyGenerator(gen);
+}
+
+template<>
+inline void generateRandomMatrices(double* d_m, int rows, int cols, unsigned int seed, int num_ops, cudaStream_t stream)
+{
+    curandGenerator_t gen;
+    curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
+    curandSetPseudoRandomGeneratorSeed(gen, seed);
+	curandSetStream(gen, stream);
+
+    curandGenerateNormalDouble(gen, d_m, num_ops * rows * cols, 0, 1);
+
+    curandDestroyGenerator(gen);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

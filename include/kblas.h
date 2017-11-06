@@ -35,6 +35,8 @@
 #ifndef _KBLAS_H_
 #define _KBLAS_H_
 
+#include <cublas_v2.h>
+
 //TODO is this include necessary here?
 #include "defs.h"
 

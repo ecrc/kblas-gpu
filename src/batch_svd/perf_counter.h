@@ -184,7 +184,7 @@ class HLibProfile {
 				avg_metric += total_metric;
 				avg_time   += total_time;
 				avg_perf   += total_metric / total_time;
-				printf("Run %d performance was %f\n", run, total_metric / total_time);
+				// printf("Run %d performance was %f\n", run, total_metric / total_time);
 			}
 			avg_metric /= (total_runs - run_start);
 			avg_time /= (total_runs - run_start);

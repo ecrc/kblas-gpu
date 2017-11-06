@@ -168,8 +168,8 @@ int Xgemm_NX_batch( kblasHandle_t handle,
 //==============================================================================================
 //extern "C" {
 
-extern bool use_magma_gemm;
-extern bool use_cublas_gemm;
+// extern bool use_magma_gemm;
+// extern bool use_cublas_gemm;
 
 //==============================================================================================
 //non-strided version
@@ -186,7 +186,7 @@ int Xgemm_batch_core( kblasHandle_t handle,
                             T** C_array, int ldc,
                       int batchCount)
 {
-  if(use_cublas_gemm){
+  if(!handle->use_magma){
     check_error_ret( cublasXgemmBatched( handle->cublas_handle,
                           (transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
                           (transB == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
@@ -198,14 +198,31 @@ int Xgemm_batch_core( kblasHandle_t handle,
   }
   #ifdef USE_MAGMA
   else
-  if(use_magma_gemm){
-    magmablas_Xgemm_batched((magma_trans_t)(MagmaNoTrans + (transA == KBLAS_Trans)),
-                            (magma_trans_t)(MagmaNoTrans + (transB == KBLAS_Trans)),
-                            m, n, k,
-                            alpha, A_array, lda,
-                                   B_array, ldb,
-                            beta,  C_array, ldc,
-                            batchCount, handle->magma_queue);
+  if(handle->use_magma){
+
+    //take care of batch size limitation with magma
+    int batch_increment = 65535;
+    int batch_start = 0;
+
+    while(batch_start != batchCount)
+    {
+      int batch_size = std::min(batch_increment, batchCount - batch_start);
+
+      magmablas_Xgemm_batched((magma_trans_t)(MagmaNoTrans + (transA == KBLAS_Trans)),
+                              (magma_trans_t)(MagmaNoTrans + (transB == KBLAS_Trans)),
+                              m, n, k,
+                              alpha, A_array, lda,
+                                     B_array, ldb,
+                              beta,  C_array, ldc,
+                              batchCount, handle->magma_queue);
+
+      A_array += batch_size;
+      B_array += batch_size;
+      C_array += batch_size;
+
+      batch_start += batch_size;
+      check_error_ret( cudaGetLastError(), KBLAS_MAGMA_Error);
+    }
   }
   #endif
   #if 0
@@ -315,30 +332,49 @@ int Xgemm_batch_strided_core( kblasHandle_t handle,
                                     batchCount, handle->stream), KBLAS_UnknownError);
   }
  //  int use_cublas = (m <= 64) || (n <= 64) || (k < 64);
-  if(use_cublas_gemm){
-    check_error_ret( cublasXgemmBatched( handle->cublas_handle,
-                          (transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
-                          (transB == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
-                          m, n, k,
-                          &alpha, (const T**)A_array, lda,
-                                  (const T**)B_array, ldb,
-                          &beta,             C_array, ldc,
-                          batchCount), KBLAS_cuBLAS_Error);
+  if(!handle->use_magma){
+    check_error_ret( cublasXgemmBatched(handle->cublas_handle,
+                                        (transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
+                                        (transB == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
+                                        m, n, k,
+                                        &alpha, (const T**)A_array, lda,
+                                                (const T**)B_array, ldb,
+                                        &beta,             C_array, ldc,
+                                        batchCount), KBLAS_cuBLAS_Error);
   }
   #ifdef USE_MAGMA
   else
-  if(use_magma_gemm){
-    magmablas_Xgemm_batched((magma_trans_t)(MagmaNoTrans + (transA == KBLAS_Trans)),
-                            (magma_trans_t)(MagmaNoTrans + (transB == KBLAS_Trans)),
-                            m, n, k,
-                            alpha, A_array, lda,
-                                   B_array, ldb,
-                            beta,  C_array, ldc,
-                            batchCount, handle->magma_queue);
+  if(handle->use_magma){
+    check_error_ret(handle->magma_queue != NULL, KBLAS_Error_NotInitialized);
+
+    //take care of batch size limitation with magma
+    int batch_increment = 65535;
+    int batch_start = 0;
+
+    while(batch_start != batchCount)
+    {
+      int batch_size = std::min(batch_increment, batchCount - batch_start);
+
+      magmablas_Xgemm_batched((magma_trans_t)(MagmaNoTrans + (transA == KBLAS_Trans)),
+                              (magma_trans_t)(MagmaNoTrans + (transB == KBLAS_Trans)),
+                              m, n, k,
+                              alpha, A_array, lda,
+                                     B_array, ldb,
+                              beta,  C_array, ldc,
+                              batchCount, handle->magma_queue);
+
+      A_array += batch_size;
+      B_array += batch_size;
+      C_array += batch_size;
+
+      batch_start += batch_size;
+      check_error_ret( cudaGetLastError(), KBLAS_MAGMA_Error);
+    }
   }
   #endif
   #if 1
   else{
+    //TODO unreachable code in some cases
     if( transA == KBLAS_Trans )
       return KBLAS_NotSupported;
 
@@ -416,7 +452,7 @@ int Xgemm_batch_strided_core( kblasHandle_t handle,
     return KBLAS_InsufficientWorkspace;
   }
 
-  if(use_cublas_gemm){
+  if(!handle->use_magma){
     check_error_ret( cublasXgemmStridedBatched( handle->cublas_handle,
                                                 (transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
                                                 (transB == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),

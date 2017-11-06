@@ -245,7 +245,7 @@ int test_Xsyrk_batch(kblas_opts& opts, T alpha, T beta)
         double time = 0;
 
         #ifdef USE_MAGMA
-          use_magma_gemm = 1; use_cublas_gemm = 0;
+          // use_magma_gemm = 1; use_cublas_gemm = 0;
           for(int r = 0; r < nruns; r++){
             for(int g = 0; g < ngpu; g++){
               check_error( cudaSetDevice( opts.devices[g] ));
@@ -300,7 +300,7 @@ int test_Xsyrk_batch(kblas_opts& opts, T alpha, T beta)
         #endif
 
         #if 1
-        use_magma_gemm = 0; use_cublas_gemm = 1;
+        // use_magma_gemm = 0; use_cublas_gemm = 1;
         for(int r = 0;  r < nruns; r++){
           for(int g = 0; g < ngpu; g++){
             check_error( cudaSetDevice( opts.devices[g] ));

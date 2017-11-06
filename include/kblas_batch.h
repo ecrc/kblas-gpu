@@ -34,13 +34,101 @@
 #ifndef _KBLAS_BATCH_H_
 #define _KBLAS_BATCH_H_
 
+//============================================================================
+//BATCH GEMM routines
+//wrappers around cuBLAS/MAGMA batch GEMM routines
+//============================================================================
+
+#ifdef __cplusplus
+int kblas_gemm_batch( kblasHandle_t handle,
+                      char transA, char transB,
+                      const int m, const int n, const int k,
+                      const float alpha,
+                      const float** A, int lda,
+                      const float** B, int ldb,
+                      const float beta,
+                            float** C, int ldc,
+                      int batchCount);
+
+int kblas_gemm_batch( kblasHandle_t handle,
+                      char transA, char transB,
+                      const int m, const int n, const int k,
+                      const double alpha,
+                      const double** A, int lda,
+                      const double** B, int ldb,
+                      const double beta,
+                            double** C, int ldc,
+                      int batchCount);
+
+int kblas_gemm_batch( kblasHandle_t handle,
+                      char transA, char transB,
+                      const int m, const int n, const int k,
+                      const cuFloatComplex alpha,
+                      const cuFloatComplex** A, int lda,
+                      const cuFloatComplex** B, int ldb,
+                      const cuFloatComplex beta,
+                            cuFloatComplex** C, int ldc,
+                      int batchCount);
+
+int kblas_gemm_batch( kblasHandle_t handle,
+                      char transA, char transB,
+                      const int m, const int n, const int k,
+                      const cuDoubleComplex alpha,
+                      const cuDoubleComplex** A, int lda,
+                      const cuDoubleComplex** B, int ldb,
+                      const cuDoubleComplex beta,
+                            cuDoubleComplex** C, int ldc,
+                      int batchCount);
+#endif
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+int kblasSgemm_batch( kblasHandle_t handle,
+                      char transA, char transB,
+                      const int m, const int n, const int k,
+                      const float alpha,
+                      const float** A, int lda,
+                      const float** B, int ldb,
+                      const float beta,
+                            float** C, int ldc,
+                      int batchCount);
+
+int kblasDgemm_batch( kblasHandle_t handle,
+                      char transA, char transB,
+                      const int m, const int n, const int k,
+                      const double alpha,
+                      const double** A, int lda,
+                      const double** B, int ldb,
+                      const double beta,
+                            double** C, int ldc,
+                      int batchCount);
+
+int kblasCgemm_batch( kblasHandle_t handle,
+                      char transA, char transB,
+                      const int m, const int n, const int k,
+                      const cuFloatComplex alpha,
+                      const cuFloatComplex** A, int lda,
+                      const cuFloatComplex** B, int ldb,
+                      const cuFloatComplex beta,
+                            cuFloatComplex** C, int ldc,
+                      int batchCount);
+
+int kblasZgemm_batch( kblasHandle_t handle,
+                      char transA, char transB,
+                      const int m, const int n, const int k,
+                      const cuDoubleComplex alpha,
+                      const cuDoubleComplex** A, int lda,
+                      const cuDoubleComplex** B, int ldb,
+                      const cuDoubleComplex beta,
+                            cuDoubleComplex** C, int ldc,
+                      int batchCount);
 
 //============================================================================
-//BATCH routines
+//KBLAS BATCH routines
 //============================================================================
+
 void kblasSsyrk_batch_wsquery(const int m, int batchCount, kblasWorkspace_t ws);
 void kblasDsyrk_batch_wsquery(const int m, int batchCount, kblasWorkspace_t ws);
 void kblasCsyrk_batch_wsquery(const int m, int batchCount, kblasWorkspace_t ws);

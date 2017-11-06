@@ -38,6 +38,7 @@
 #include "Xsyrk_batch_kernels.cuh"
 
 //==============================================================================================
+//TODO tuning variable
 #define A_COLS_PTY 8
 
 template<class T>
@@ -114,12 +115,13 @@ int Xsyrk_gemm_rec_flat_strided(kblasHandle_t handle,
     }
     //issue one batch call
     if(cur_batchCount > 0){
-      Xgemm_batch(handle, transA, transB,
-                  mm, nn, kk,
-                  alpha, (const T**)A_work, lda,
-                         (const T**)B_work, lda,
-                  beta,             C_work, ldb,
-                  cur_batchCount);
+      kblas_gemm_batch( handle,
+                        transA, transB,
+                        mm, nn, kk,
+                        alpha, (const T**)A_work, lda,
+                               (const T**)B_work, lda,
+                        beta,             C_work, ldb,
+                        cur_batchCount);
     }
     if((d > 0) && ((m % row) != 0) && m > (row+2*b*row) ){
       //one block is remaining that is not regular size
@@ -128,12 +130,13 @@ int Xsyrk_gemm_rec_flat_strided(kblasHandle_t handle,
                      C_work, B + row * (uplo == KBLAS_Lower ? 1 : ldb)+2*b*row*(1+ldb), ldb, strideB,
                      batchCount, handle->stream);
       //issue one batch call
-      Xgemm_batch(handle, transA, transB,
-                  m - mm*b, nn, kk,
-                  alpha, (const T**)A_work, lda,
-                         (const T**)B_work, lda,
-                  beta,             C_work, ldb,
-                  batchCount);
+      kblas_gemm_batch( handle,
+                        transA, transB,
+                        m - mm*b, nn, kk,
+                        alpha, (const T**)A_work, lda,
+                               (const T**)B_work, lda,
+                        beta,             C_work, ldb,
+                        batchCount);
     }
 
 
@@ -401,12 +404,13 @@ int Xsyrk_gemm_rec_flat(kblasHandle_t handle,
     }
     //issue one batch call
     if(cur_batchCount > 0){
-      Xgemm_batch(handle, transA, transB,
-                  mm, nn, kk,
-                  alpha, (const T**)A_work, lda,
-                         (const T**)B_work, lda,
-                  beta,             C_work, ldb,
-                  cur_batchCount);
+      kblas_gemm_batch( handle,
+                        transA, transB,
+                        mm, nn, kk,
+                        alpha, (const T**)A_work, lda,
+                               (const T**)B_work, lda,
+                        beta,             C_work, ldb,
+                        cur_batchCount);
     }
     if((d > 0) && ((m % row) != 0) && m > (row+2*b*row) ){
       //one block is remaining that is not regular size
@@ -415,12 +419,13 @@ int Xsyrk_gemm_rec_flat(kblasHandle_t handle,
                      C_work, (const T**)(B), (uplo == KBLAS_Lower)*row+2*b*row, (uplo == KBLAS_Upper)*row+2*b*row, ldb,
                      batchCount, handle->stream);
       //issue one batch call
-      Xgemm_batch(handle, transA, transB,
-                  m - mm*b, nn, kk,
-                  alpha, (const T**)A_work, lda,
-                         (const T**)B_work, lda,
-                  beta,             C_work, ldb,
-                  batchCount);
+      kblas_gemm_batch( handle,
+                        transA, transB,
+                        m - mm*b, nn, kk,
+                        alpha, (const T**)A_work, lda,
+                               (const T**)B_work, lda,
+                        beta,             C_work, ldb,
+                        batchCount);
     }
     d++;
     row /= 2;

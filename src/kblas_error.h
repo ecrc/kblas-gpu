@@ -47,6 +47,7 @@
 #define KBLAS_Error_Deallocation -8
 #define KBLAS_Error_NotInitialized -9
 #define KBLAS_Error_WrongInput -10
+#define KBLAS_MAGMA_Error -11
 
 // ----------------------------------------
 // C++ function is overloaded for different error types,

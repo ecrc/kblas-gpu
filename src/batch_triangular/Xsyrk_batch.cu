@@ -38,6 +38,7 @@
 #include <cuda_runtime_api.h>
 #include "cublas_v2.h"
 
+#include "kblas.h"
 #include "kblas_struct.h"
 #include "operators.h"
 #include "defs.h"

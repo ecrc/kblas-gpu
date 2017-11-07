@@ -9,9 +9,7 @@
 #endif
 
 #define QR_LOAD(m) 					__ldg(&(m))
-#define KBLAS_QR_FAILURE			-1
-#define KBLAS_QR_SUCCESS			0
-#define KBLAS_QR_CHECK_RET(func)	{ if( (func) != KBLAS_QR_SUCCESS ) return KBLAS_QR_FAILURE; }
+#define KBLAS_QR_CHECK_RET(func)	{ if( (func) != KBLAS_Success ) return KBLAS_UnknownError; }
 
 // Apply the generated householder vectors at the current panel to the trailing submatrix
 template<class T, class T_ptr, int BLOCK_SIZE, int APPLY_FORWARD>
@@ -466,11 +464,11 @@ int driver_hh_panel(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride, T_
 		case 30: batch_qr_panel<T, T_ptr,  960><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
 		case 31: batch_qr_panel<T, T_ptr,  992><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
 		case 32: batch_qr_panel<T, T_ptr, 1024><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-        default: { printf("driver_hh_panel: Invalid row size %d\n", panel_rows); return KBLAS_QR_FAILURE; }
+        default: { printf("driver_hh_panel: Invalid row size %d\n", panel_rows); return KBLAS_UnknownError; }
     }
 
-    check_error_ret( cudaGetLastError(), KBLAS_QR_FAILURE );
-	return KBLAS_QR_SUCCESS;
+    check_error_ret( cudaGetLastError(), KBLAS_UnknownError );
+	return KBLAS_Success;
 }
 
 template<class T, class T_ptr>
@@ -527,11 +525,11 @@ int driver_unpackQ_panel(kblasHandle_t handle, T_ptr m_batch, int ldm, int strid
 		case 30: batch_unpackQ_panel<T, T_ptr,  960><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
 		case 31: batch_unpackQ_panel<T, T_ptr,  992><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
 		case 32: batch_unpackQ_panel<T, T_ptr, 1024><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
-        default: { printf("driver_unpackQ_panel: Invalid row size %d\n", panel_rows); return KBLAS_QR_FAILURE; }
+        default: { printf("driver_unpackQ_panel: Invalid row size %d\n", panel_rows); return KBLAS_UnknownError; }
     }
 
-    check_error_ret( cudaGetLastError(), KBLAS_QR_FAILURE );
-	return KBLAS_QR_SUCCESS;
+    check_error_ret( cudaGetLastError(), KBLAS_UnknownError );
+	return KBLAS_Success;
 }
 
 template<class T, class T_ptr, int APPLY_FORWARD>
@@ -542,7 +540,7 @@ int driver_apply_hh_panel(kblasHandle_t handle, T_ptr m_batch, int ldm, int stri
 
     if(panel_rows > 256) ops_per_block = 1;
 
-    if(cols - col_offset <= HH_CB) return KBLAS_QR_SUCCESS;
+    if(cols - col_offset <= HH_CB) return KBLAS_Success;
 
     int trailing_blocks = iDivUp(cols - col_offset - HH_CB, HH_CB);
     int blocks = iDivUp(num_ops, ops_per_block);
@@ -589,11 +587,11 @@ int driver_apply_hh_panel(kblasHandle_t handle, T_ptr m_batch, int ldm, int stri
 		case 30: batch_apply_hh_panel<T, T_ptr,  960, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
 		case 31: batch_apply_hh_panel<T, T_ptr,  992, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
 		case 32: batch_apply_hh_panel<T, T_ptr, 1024, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
-        default: {printf("driver_apply_hh_panel: Invalid row size %d\n", panel_rows); return KBLAS_QR_FAILURE;}
+        default: {printf("driver_apply_hh_panel: Invalid row size %d\n", panel_rows); return KBLAS_UnknownError;}
     }
 
-	check_error_ret( cudaGetLastError(), KBLAS_QR_FAILURE );
-	return KBLAS_QR_SUCCESS;
+	check_error_ret( cudaGetLastError(), KBLAS_UnknownError );
+	return KBLAS_Success;
 }
 
 template<class T, class T_ptr>
@@ -621,11 +619,11 @@ int driver_dtsqrt_panel(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride
         case 2: batch_dtsqrt_panel<T, T_ptr,  64><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, A1_row_off, A1_col_off, A2_row_off, A2_rows, smem_entries_per_op, num_ops); break;
         case 3: batch_dtsqrt_panel<T, T_ptr,  96><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, A1_row_off, A1_col_off, A2_row_off, A2_rows, smem_entries_per_op, num_ops); break;
         case 4: batch_dtsqrt_panel<T, T_ptr, 128><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, A1_row_off, A1_col_off, A2_row_off, A2_rows, smem_entries_per_op, num_ops); break;
-        default: { printf("driver_dtsqrt_panel: Invalid row size %d\n", A2_rows); return KBLAS_QR_FAILURE; }
+        default: { printf("driver_dtsqrt_panel: Invalid row size %d\n", A2_rows); return KBLAS_UnknownError; }
     }
 
-	check_error_ret( cudaGetLastError(), KBLAS_QR_FAILURE );
-	return KBLAS_QR_SUCCESS;
+	check_error_ret( cudaGetLastError(), KBLAS_UnknownError );
+	return KBLAS_Success;
 }
 
 template<class T, class T_ptr>
@@ -634,7 +632,7 @@ int driver_apply_dtsqrt_panel(kblasHandle_t handle, T_ptr m_batch, int ldm, int 
     int ops_per_block = OPS_PER_BLOCK;
     const int HH_CB = QR_Config<T>::HH_CB;
 
-    if(cols - V_col_off <= HH_CB) return KBLAS_QR_SUCCESS;
+    if(cols - V_col_off <= HH_CB) return KBLAS_Success;
 
     int trailing_blocks = iDivUp(cols - V_col_off - HH_CB, HH_CB);
     int blocks = iDivUp(num_ops, ops_per_block);
@@ -656,11 +654,11 @@ int driver_apply_dtsqrt_panel(kblasHandle_t handle, T_ptr m_batch, int ldm, int 
         case 2: batch_apply_dtsqrt_panel<T, T_ptr,  64><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, V_row_off, V_col_off, V_rows, A1_row_off, trailing_blocks, smem_entries_per_op, num_ops); break;
         case 3: batch_apply_dtsqrt_panel<T, T_ptr,  96><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, V_row_off, V_col_off, V_rows, A1_row_off, trailing_blocks, smem_entries_per_op, num_ops); break;
         case 4: batch_apply_dtsqrt_panel<T, T_ptr, 128><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, V_row_off, V_col_off, V_rows, A1_row_off, trailing_blocks, smem_entries_per_op, num_ops); break;
-		default: { printf("driver_apply_dtsqrt_panel: Invalid row size %d\n", V_rows); return KBLAS_QR_FAILURE; }
+		default: { printf("driver_apply_dtsqrt_panel: Invalid row size %d\n", V_rows); return KBLAS_UnknownError; }
     }
 
-	check_error_ret( cudaGetLastError(), KBLAS_QR_FAILURE );
-	return KBLAS_QR_SUCCESS;
+	check_error_ret( cudaGetLastError(), KBLAS_UnknownError );
+	return KBLAS_Success;
 }
 
 template<class T, class T_ptr>
@@ -677,8 +675,8 @@ int batch_qr_clear_R(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride, i
 
     batch_qr_clear_R_kernel<T, T_ptr> <<< dimGrid, dimBlock, 0, handle->stream >>> (m_batch, ldm, stride, rows, cols, num_ops);
 	
-	check_error_ret( cudaGetLastError(), KBLAS_QR_FAILURE );
-	return KBLAS_QR_SUCCESS;
+	check_error_ret( cudaGetLastError(), KBLAS_UnknownError );
+	return KBLAS_Success;
 }
 
 template<class T, class T_ptr>
@@ -695,8 +693,8 @@ int batch_qr_copy_R(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride_m, 
 
     batch_qr_copy_R_kernel<T, T_ptr><<< dimGrid, dimBlock, 0, handle->stream >>> (m_batch, ldm, stride_m, r_batch, ldr, stride_r, rows, cols, num_ops);
 
-	check_error_ret( cudaGetLastError(), KBLAS_QR_FAILURE );
-	return KBLAS_QR_SUCCESS;
+	check_error_ret( cudaGetLastError(), KBLAS_UnknownError );
+	return KBLAS_Success;
 }
 
 template<class T, class T_ptr>
@@ -740,7 +738,7 @@ int batch_qr(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride, T_ptr tau
     PerformanceCounter::addOpTime(PerformanceCounter::QR, time_elapsed);
 	#endif
 	
-	return KBLAS_QR_SUCCESS;
+	return KBLAS_Success;
 }
 
 template<class T, class T_ptr>
@@ -771,7 +769,7 @@ int batch_unpack_Q(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride, T_p
     PerformanceCounter::addOpTime(PerformanceCounter::QR, time_elapsed);
 	#endif
 
-	return KBLAS_QR_SUCCESS;
+	return KBLAS_Success;
 }
 
 ///////////////////////////////////////////////////////////////
@@ -780,7 +778,7 @@ int batch_unpack_Q(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride, T_p
 extern "C" int kblasDgeqrf_batch_strided(kblasHandle_t handle, int m, int n, double* A_strided, int lda, int stride_a, double* tau, int stride_tau, int num_ops)
 {
 	if(m > QR_Config<double>::HH_MAX_ROWS)
-		return KBLAS_QR_FAILURE;
+		return KBLAS_UnknownError;
 	else
 		return batch_qr<double, double*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops, m);
 }
@@ -788,7 +786,7 @@ extern "C" int kblasDgeqrf_batch_strided(kblasHandle_t handle, int m, int n, dou
 extern "C" int kblasSgeqrf_batch_strided(kblasHandle_t handle, int m, int n, float* A_strided, int lda, int stride_a, float* tau, int stride_tau, int num_ops)
 {
 	if(m > QR_Config<float>::HH_MAX_ROWS)
-		return KBLAS_QR_FAILURE;
+		return KBLAS_UnknownError;
 	else
 		return batch_qr<float, float*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops, m);
 }
@@ -806,7 +804,7 @@ extern "C" int kblasStsqrf_batch_strided(kblasHandle_t handle, int m, int n, flo
 extern "C" int kblasDorgqr_batch_strided(kblasHandle_t handle, int m, int n, double* A_strided, int lda, int stride_a, double* tau, int stride_tau, int num_ops)
 {
 	if(m > QR_Config<double>::HH_MAX_ROWS)
-		return KBLAS_QR_FAILURE;
+		return KBLAS_UnknownError;
 	else
 		return batch_unpack_Q<double, double*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops);
 }
@@ -814,7 +812,7 @@ extern "C" int kblasDorgqr_batch_strided(kblasHandle_t handle, int m, int n, dou
 extern "C" int kblasSorgqr_batch_strided(kblasHandle_t handle, int m, int n, float* A_strided, int lda, int stride_a, float* tau, int stride_tau, int num_ops)
 {
 	if(m > QR_Config<float>::HH_MAX_ROWS)
-		return KBLAS_QR_FAILURE;
+		return KBLAS_UnknownError;
 	else
 		return batch_unpack_Q<float, float*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops);
 }
@@ -835,7 +833,7 @@ extern "C" int kblasScopy_upper_batch_strided(kblasHandle_t handle, int m, int n
 extern "C" int kblasDgeqrf_batch(kblasHandle_t handle, int m, int n, double** A_array, int lda, double** tau_array, int num_ops)
 {
 	if(m > QR_Config<double>::HH_MAX_ROWS)
-		return KBLAS_QR_FAILURE;
+		return KBLAS_UnknownError;
 	else
 		return batch_qr<double, double**>(handle, A_array, lda, 0, tau_array, 0, m, n, num_ops, m);
 }
@@ -843,7 +841,7 @@ extern "C" int kblasDgeqrf_batch(kblasHandle_t handle, int m, int n, double** A_
 extern "C" int kblasSgeqrf_batch(kblasHandle_t handle, int m, int n, float** A_array, int lda, float** tau_array, int num_ops)
 {
 	if(m > QR_Config<float>::HH_MAX_ROWS)
-		return KBLAS_QR_FAILURE;
+		return KBLAS_UnknownError;
 	else
 		return batch_qr<float, float**>(handle, A_array, lda, 0, tau_array, 0, m, n, num_ops, m);
 }
@@ -861,7 +859,7 @@ extern "C" int kblasStsqrf_batch(kblasHandle_t handle, int m, int n, float** A_a
 extern "C" int kblasDorgqr_batch(kblasHandle_t handle, int m, int n, double** A_array, int lda, double** tau_array, int num_ops)
 {
 	if(m > QR_Config<double>::HH_MAX_ROWS)
-		return KBLAS_QR_FAILURE;
+		return KBLAS_UnknownError;
 	else
 		return batch_unpack_Q<double, double**>(handle, A_array, lda, 0, tau_array, 0, m, n, num_ops);
 }
@@ -869,7 +867,7 @@ extern "C" int kblasDorgqr_batch(kblasHandle_t handle, int m, int n, double** A_
 extern "C" int kblasSorgqr_batch(kblasHandle_t handle, int m, int n, float** A_array, int lda, float** tau_array, int num_ops)
 {
 	if(m > QR_Config<float>::HH_MAX_ROWS)
-		return KBLAS_QR_FAILURE;
+		return KBLAS_UnknownError;
 	else
 		return batch_unpack_Q<float, float**>(handle, A_array, lda, 0, tau_array, 0, m, n, num_ops);
 }

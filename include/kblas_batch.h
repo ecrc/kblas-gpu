@@ -197,10 +197,10 @@ int kblasZsyrk_batch_strided( kblasHandle_t handle,
                               int batchCount);
 
 //============================================================================
-void kblasStrsm_batch_wsquery(int batchCount, char side, int m, int n, kblasWorkspace_t ws);
-void kblasDtrsm_batch_wsquery(int batchCount, char side, int m, int n, kblasWorkspace_t ws);
-void kblasCtrsm_batch_wsquery(int batchCount, char side, int m, int n, kblasWorkspace_t ws);
-void kblasZtrsm_batch_wsquery(int batchCount, char side, int m, int n, kblasWorkspace_t ws);
+void kblasStrsm_batch_wsquery(kblasHandle_t handle, int batchCount, char side, int m, int n);
+void kblasDtrsm_batch_wsquery(kblasHandle_t handle, int batchCount, char side, int m, int n);
+void kblasCtrsm_batch_wsquery(kblasHandle_t handle, int batchCount, char side, int m, int n);
+void kblasZtrsm_batch_wsquery(kblasHandle_t handle, int batchCount, char side, int m, int n);
 
 int kblasStrsm_batch(kblasHandle_t handle,
                      char side, char uplo, char trans, char diag,
@@ -235,10 +235,10 @@ int kblasZtrsm_batch(kblasHandle_t handle,
                     int batchCount);
 
 //------------------------------------------------------------------------------
-void kblasStrsm_batch_strided_wsquery(int batchCount, char side, int m, int n, kblasWorkspace_t ws);
-void kblasDtrsm_batch_strided_wsquery(int batchCount, char side, int m, int n, kblasWorkspace_t ws);
-void kblasCtrsm_batch_strided_wsquery(int batchCount, char side, int m, int n, kblasWorkspace_t ws);
-void kblasZtrsm_batch_strided_wsquery(int batchCount, char side, int m, int n, kblasWorkspace_t ws);
+void kblasStrsm_batch_strided_wsquery(kblasHandle_t handle, int batchCount, char side, int m, int n);
+void kblasDtrsm_batch_strided_wsquery(kblasHandle_t handle, int batchCount, char side, int m, int n);
+void kblasCtrsm_batch_strided_wsquery(kblasHandle_t handle, int batchCount, char side, int m, int n);
+void kblasZtrsm_batch_strided_wsquery(kblasHandle_t handle, int batchCount, char side, int m, int n);
 
 int kblasStrsm_batch_strided(kblasHandle_t handle,
                              char side, char uplo, char trans, char diag,

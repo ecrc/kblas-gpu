@@ -56,16 +56,16 @@
 //=================================================================================
 //Non-Strided form
 
-void kblas_gemm_batch_wsquery(int batchCount,
+void kblas_gemm_batch_wsquery(kblasHandle_t handle,
+                              int batchCount,
                               int A_row_off, int A_col_off,
                               int B_row_off, int B_col_off,
-                              int C_row_off, int C_col_off,
-                              kblasWorkspace_t ws){
+                              int C_row_off, int C_col_off){
   Xgemm_batch_wsquery_core<TYPE>( batchCount,
                                   A_row_off, A_col_off,
                                   B_row_off, B_col_off,
                                   C_row_off, C_col_off,
-                                  ws);
+                                  &(handle->work_space.requested_ws_state));
 }
 
 // workspace needed: device pointers

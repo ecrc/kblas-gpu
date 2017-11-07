@@ -42,7 +42,7 @@
 template<class T, bool STRIDED>
 void Xtrsm_batch_wsquery_core(int batchCount,
                               char side, int m, int n,
-                              kblasWorkspace_t ws)
+                              kblasWorkspaceState_t ws)
 {
   if( ( (side == KBLAS_Right) && (n > 16) ) ||
       ( (side == KBLAS_Left ) && (m > 16) ) ){

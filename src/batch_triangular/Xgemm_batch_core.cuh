@@ -173,15 +173,15 @@ void Xgemm_batch_wsquery_core(int batchCount,
                               int A_row_off, int A_col_off,
                               int B_row_off, int B_col_off,
                               int C_row_off, int C_col_off,
-                              kblasWorkspace_t ws)
+                              kblasWorkspaceState_t ws)
 {
   if ( (A_row_off > 0) || (A_col_off > 0)
     || (B_row_off > 0) || (B_col_off > 0)
     || (C_row_off > 0) || (C_col_off > 0) )
   {
-    ws->d_ptrs_bytes_req = (batchCount > 1) * batchCount * 3 * sizeof(T*);
+    ws->d_ptrs_bytes = (batchCount > 1) * batchCount * 3 * sizeof(T*);
   }else{
-    ws->d_ptrs_bytes_req = 0;
+    ws->d_ptrs_bytes = 0;
   }
 }
 
@@ -208,15 +208,15 @@ int Xgemm_batch_core( kblasHandle_t handle,
     || (B_row_off > 0) || (B_col_off > 0)
     || (C_row_off > 0) || (C_col_off > 0) )
   {
-    KBlasWorkspace ws_needed;
+    KBlasWorkspaceState ws_needed;
     Xgemm_batch_wsquery_core<T>(batchCount,
                                 A_row_off, A_col_off,
                                 B_row_off, B_col_off,
                                 C_row_off, C_col_off,
-                                (kblasWorkspace_t)&ws_needed);
+                                (kblasWorkspaceState_t)&ws_needed);
 
     // int work_ptrs_bytes = (batchCount > 1) * batchCount * 3 * sizeof(T*);
-    bool suffWorkspace = (ws_needed.d_ptrs_bytes_req <= handle->work_space.d_ptrs_bytes);
+    bool suffWorkspace = (ws_needed.d_ptrs_bytes <= handle->work_space.allocated_ws_state.d_ptrs_bytes);
 
     if(!suffWorkspace){
       return KBLAS_InsufficientWorkspace;

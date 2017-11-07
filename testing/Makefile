@@ -54,15 +54,18 @@ BIN_DIR=./bin
 
 ifdef _SUPPORT_BLAS2_
 KBLAS_TEST2_DIR=blas_l2
-endif
-KBLAS_TEST3_DIR=blas_l3
-KBLAS_BATCH_DIR=batch_triangular
-
-ifdef _SUPPORT_BLAS2_
 include $(KBLAS_TEST2_DIR)/Makefile
 endif
+
+ifdef _SUPPORT_BLAS3_
+KBLAS_TEST3_DIR=blas_l3
 include $(KBLAS_TEST3_DIR)/Makefile
+endif
+
+ifdef _SUPPORT_BATCH_TR_
+KBLAS_BATCH_DIR=batch_triangular
 include $(KBLAS_BATCH_DIR)/Makefile
+endif
 
 C_OBJ= $(patsubst %.c,$(OBJ_DIR)/%.o,$(C_SRC))
 

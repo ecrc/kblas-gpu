@@ -1,12 +1,14 @@
 
 #-----------------------------------------
-_SUPPORT_SVD_=TRUE
 #_SUPPORT_BLAS2_=TRUE
+#_SUPPORT_BLAS3_=TRUE
+_SUPPORT_BATCH_TR_=TRUE
+_SUPPORT_SVD_=TRUE
 
 
 #-----------------------------------------
 _USE_MKL_=TRUE
-_USE_MAGMA_=TRUE
+#_USE_MAGMA_=TRUE
 
 
 #-----------------------------------------

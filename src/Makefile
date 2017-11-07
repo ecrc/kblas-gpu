@@ -16,19 +16,21 @@ DEPS_COM= ../make.inc kblas_common.h
 
 ifdef _SUPPORT_BLAS2_
 KBLAS_SRC2_DIR=./blas_l2
-endif
-KBLAS_SRC3_DIR=./blas_l3
-KBLAS_BATCH_DIR=./batch_triangular
-ifdef _SUPPORT_SVD_
-KBLAS_BATCH_SVD_DIR=./batch_svd
-endif
-
-ifdef _SUPPORT_BLAS2_
 include $(KBLAS_SRC2_DIR)/Makefile
 endif
+
+ifdef _SUPPORT_BLAS3_
+KBLAS_SRC3_DIR=./blas_l3
 include $(KBLAS_SRC3_DIR)/Makefile
+endif
+
+ifdef _SUPPORT_BATCH_TR_
+KBLAS_BATCH_DIR=./batch_triangular
 include $(KBLAS_BATCH_DIR)/Makefile
+endif
+
 ifdef _SUPPORT_SVD_
+KBLAS_BATCH_SVD_DIR=./batch_svd
 include $(KBLAS_BATCH_SVD_DIR)/Makefile
 endif
 

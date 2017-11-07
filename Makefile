@@ -1,3 +1,5 @@
+.PHONY: all clean
+
 all:
 	(cd src && make -j)
 	(cd testing && make -j)

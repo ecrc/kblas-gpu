@@ -1,9 +1,22 @@
 #WARNING: Don't invoke this file independently, must be included into parent folder makefile
 
 # KBLAS_L3_CSRC=
-C_SRC+=	               \
-	test_sgemm_batch.c test_dgemm_batch.c test_cgemm_batch.c test_zgemm_batch.c \
-	test_ssyrk_batch.c test_dsyrk_batch.c test_csyrk_batch.c test_zsyrk_batch.c
+C_SRC+=	             \
+	test_sgemm_batch.c \
+	test_ssyrk_batch.c \
+	test_strsm_batch.c
+C_SRC+=	             \
+	test_dgemm_batch.c \
+	test_dsyrk_batch.c \
+	test_dtrsm_batch.c
+C_SRC+=	             \
+	test_cgemm_batch.c \
+	test_csyrk_batch.c \
+	test_ctrsm_batch.c
+C_SRC+=	             \
+	test_zgemm_batch.c \
+	test_zsyrk_batch.c \
+	test_ztrsm_batch.c
 
 
 $(OBJ_DIR)/test_%gemm_batch.o: $(KBLAS_BATCH_DIR)/test_Xgemm_batch.cpp $(INC_COMMON) $(INC_SRC) $(KBLAS_LIB)

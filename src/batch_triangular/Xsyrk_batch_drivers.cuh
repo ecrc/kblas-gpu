@@ -42,10 +42,10 @@
 #define A_COLS_PTY 8
 
 template<class T>
-void Xsyrk_batch_strided_wsquery_core(const int m, int batchCount, kblasWorkspace_t ws)
+void Xsyrk_batch_strided_wsquery_core(const int m, int batchCount, kblasWorkspaceState_t ws)
 {
   if(m <= 16)
-    ws->d_ptrs_bytes_req = 0;
+    ws->d_ptrs_bytes = 0;
   else
   {
     int depth = 0, s = 16;
@@ -53,7 +53,7 @@ void Xsyrk_batch_strided_wsquery_core(const int m, int batchCount, kblasWorkspac
       s = s << 1;
       depth++;
     }
-    ws->d_ptrs_bytes_req = (1 << (depth-1) ) * batchCount * 3 * sizeof(T*);
+    ws->d_ptrs_bytes = (1 << (depth-1) ) * batchCount * 3 * sizeof(T*);
   }
 }
 // workspace needed: device pointers
@@ -233,10 +233,10 @@ int Xsyrk_batch_strided_core( kblasHandle_t handle,
   int status;
 
   if(m > 16){
-    KBlasWorkspace ws_needed;
-    Xsyrk_batch_strided_wsquery_core<T>( m, batchCount, (kblasWorkspace_t)&ws_needed);
+    KBlasWorkspaceState ws_needed;
+    Xsyrk_batch_strided_wsquery_core<T>( m, batchCount, (kblasWorkspaceState_t)&ws_needed);
 
-    bool suffWorkspace = (ws_needed.d_ptrs_bytes_req <= handle->work_space.d_ptrs_bytes);
+    bool suffWorkspace = (ws_needed.d_ptrs_bytes <= handle->work_space.allocated_ws_state.d_ptrs_bytes);
 
     if(!suffWorkspace){
       return KBLAS_InsufficientWorkspace;
@@ -330,10 +330,10 @@ int Xsyrk_batch_strided_core( kblasHandle_t handle,
 //==============================================================================================
 
 template<class T>
-void Xsyrk_batch_wsquery_core(const int m, int batchCount, kblasWorkspace_t ws)
+void Xsyrk_batch_wsquery_core(const int m, int batchCount, kblasWorkspaceState_t ws)
 {
   if(m <= 16)
-    ws->d_ptrs_bytes_req = 0;
+    ws->d_ptrs_bytes = 0;
   else
   {
     int depth = 0, s = 16;
@@ -341,7 +341,7 @@ void Xsyrk_batch_wsquery_core(const int m, int batchCount, kblasWorkspace_t ws)
       s = s << 1;
       depth++;
     }
-    ws->d_ptrs_bytes_req = (1 << (depth-1) ) * batchCount * 3 * sizeof(T*);
+    ws->d_ptrs_bytes = (1 << (depth-1) ) * batchCount * 3 * sizeof(T*);
   }
 }
 
@@ -548,10 +548,10 @@ int Xsyrk_batch_core( kblasHandle_t handle,
 
   if(m > 16){
 
-    KBlasWorkspace ws_needed;
-    Xsyrk_batch_wsquery_core<T>( m, batchCount, (kblasWorkspace_t)&ws_needed);
+    KBlasWorkspaceState ws_needed;
+    Xsyrk_batch_wsquery_core<T>( m, batchCount, (kblasWorkspaceState_t)&ws_needed);
 
-    bool suffWorkspace = (ws_needed.d_ptrs_bytes_req <= handle->work_space.d_ptrs_bytes);
+    bool suffWorkspace = (ws_needed.d_ptrs_bytes <= handle->work_space.allocated_ws_state.d_ptrs_bytes);
 
     if(!suffWorkspace){
       return KBLAS_InsufficientWorkspace;

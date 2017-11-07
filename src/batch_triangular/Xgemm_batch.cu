@@ -48,7 +48,7 @@
 #include "kblas_struct.h"
 #include "kblas_prec_def.h"
 
-// #include "Xtr_common.ch"
+#include "kblas_common.h"
 // #include "Xblas_core.ch"
 #include "Xhelper_funcs.ch"
 #include "Xgemm_batch_core.cuh"
@@ -136,9 +136,9 @@ int kblasXgemm_batch( kblasHandle_t handle,
 //TODO IMPORTANT: stride should be long long int since it is a memory address measure
 
 // template<>
-void Xgemm_batch_strided_wsquery(int batchCount, kblasWorkspace_t ws)
+void Xgemm_batch_strided_wsquery(kblasHandle_t handle, int batchCount)
 {
-  Xgemm_batch_strided_wsquery_core<TYPE>(batchCount, ws);
+  Xgemm_batch_strided_wsquery_core<TYPE>(batchCount, &(handle->work_space.requested_ws_state));
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++

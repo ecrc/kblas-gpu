@@ -178,13 +178,12 @@ int test_Xsyrk_batch(kblas_opts& opts, T alpha, T beta)
         }
 
         for(int g = 0; g < ngpu; g++){
-          kblasWorkspace_t work_space = &(kblas_handle[g]->work_space);
           if(strided){
-            kblasXsyrk_batch_strided_wsquery(N, batchCount_gpu, work_space);
+            kblasXsyrk_batch_strided_wsquery(kblas_handle[g], N, batchCount_gpu);
           }else{
-            kblasXsyrk_batch_wsquery(N, batchCount_gpu, work_space);
+            kblasXsyrk_batch_wsquery(kblas_handle[g], N, batchCount_gpu);
           }
-          check_error( work_space->allocate() );
+          check_error( kblasAllocateWorkspace(kblas_handle[g]) );
           check_error( cudaGetLastError() );
         }
 

@@ -8,9 +8,6 @@
 #define TRANSPOSE_BLOCK_ROWS    8
 #define TRANSPOSE_LOAD(m)       __ldg(&(m))
 
-#define KBLAS_TRANSPOSE_FAILURE			-1
-#define KBLAS_TRANSPOSE_SUCCESS			 0
-
 template<class T, class T_ptr>
 __global__ 
 void transpose_kernel(int m, int n, T_ptr matrix_data, int ldm, int stride_m, T_ptr transpose_data, int ldt, int stride_t, int op_start, int ops)
@@ -62,8 +59,8 @@ int batch_transpose_template(kblasHandle_t handle, int m, int n, T_ptr matrix_da
 		op_start += ops_per_kernel;
 	}	
     
-    check_error_ret( cudaGetLastError(), KBLAS_TRANSPOSE_FAILURE );
-	return KBLAS_TRANSPOSE_SUCCESS;
+    check_error_ret( cudaGetLastError(), KBLAS_UnknownError );
+	return KBLAS_Success;
 }
 
 // Strided interface

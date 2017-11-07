@@ -3,9 +3,6 @@
 #include "kblas_gpu_util.ch"
 #include "batch_block_copy.h"
 
-#define KBLAS_BLOCK_COPY_FAILURE			-1
-#define KBLAS_BLOCK_COPY_SUCCESS			 0
-
 template<class T, class T_ptr>
 __global__
 void batchCopyMatrixBlockKernel(
@@ -42,7 +39,7 @@ int batchCopyMatrixBlock(
 )
 {
 	if(ops == 0 || rows == 0 || cols == 0) 
-		return KBLAS_BLOCK_COPY_SUCCESS;
+		return KBLAS_Success;
 	
     int ops_per_block = 8;
     int rows_per_thread = iDivUp(rows, WARP_SIZE);
@@ -57,8 +54,8 @@ int batchCopyMatrixBlock(
 		ops, rows_per_thread	
 	);
     
-    check_error_ret( cudaGetLastError(), KBLAS_BLOCK_COPY_FAILURE );
-	return KBLAS_BLOCK_COPY_SUCCESS;
+    check_error_ret( cudaGetLastError(), KBLAS_UnknownError );
+	return KBLAS_Success;
 }
 
 // Array of pointers interface

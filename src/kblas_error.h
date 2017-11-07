@@ -48,7 +48,7 @@
 #define KBLAS_Error_NotInitialized -9
 #define KBLAS_Error_WrongInput -10
 #define KBLAS_MAGMA_Error -11
-
+#define KBLAS_SVD_NoConvergence -12
 // ----------------------------------------
 // C++ function is overloaded for different error types,
 // which depends on error types being enums to be differentiable.

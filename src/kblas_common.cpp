@@ -62,6 +62,14 @@ int kblasDestroy(kblasHandle_t *handle){
   return KBLAS_Success;
 }
 
+int kblasAllocateWorkspace(kblasHandle_t handle) {
+	return handle->work_space.allocate();
+}
+
+int kblasFreeeWorkspace(kblasHandle_t handle) {
+	return handle->work_space.deallocate();
+}
+
 //==============================================================================================
 extern "C"{
 const char* cublasGetErrorString( cublasStatus_t error )

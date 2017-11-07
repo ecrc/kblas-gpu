@@ -53,8 +53,8 @@ extern "C" {
 //==============================================================================================
 //Non-Strided form
 // template<>
-void kblasXsyrk_batch_wsquery(const int m, int batchCount, kblasWorkspace_t ws){
-  Xsyrk_batch_wsquery_core<TYPE>(m, batchCount, ws);
+void kblasXsyrk_batch_wsquery(kblasHandle_t handle, const int m, int batchCount){
+  Xsyrk_batch_wsquery_core<TYPE>(m, batchCount, &(handle->work_space.requested_ws_state));
 }
 
 // workspace needed: device pointers
@@ -76,8 +76,8 @@ int kblasXsyrk_batch(kblasHandle_t handle,
 //==============================================================================================
 //Strided form
 // template<>
-void kblasXsyrk_batch_strided_wsquery(const int m, int batchCount, kblasWorkspace_t ws){
-  Xsyrk_batch_strided_wsquery_core<TYPE>(m, batchCount, ws);
+void kblasXsyrk_batch_strided_wsquery(kblasHandle_t handle, const int m, int batchCount){
+  Xsyrk_batch_strided_wsquery_core<TYPE>(m, batchCount, &(handle->work_space.requested_ws_state));
 }
 
 // workspace needed: device pointers

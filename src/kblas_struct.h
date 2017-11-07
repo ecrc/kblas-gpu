@@ -52,27 +52,27 @@
 extern int kblas_back_door[KBLAS_BACKDOORS];
 #endif
 
-// Structure defining the a state of the workspace, whether its allocated, 
+// Structure defining the a state of the workspace, whether its allocated,
 // requested by a query routine, or consumed by a routine holding the handle
-struct KBlasWorkspaceState 
+struct KBlasWorkspaceState
 {
 	long h_data_bytes, h_ptrs_bytes;		// host data and pointer allocations
 	long d_data_bytes, d_ptrs_bytes;		// device data and pointer allocations
-	
-	KBlasWorkspaceState() 
+
+	KBlasWorkspaceState()
 	{
 		reset();
 	}
-	
+
 	KBlasWorkspaceState(long h_data_bytes, long h_ptrs_bytes, long d_data_bytes, long d_ptrs_bytes)
 	{
 		this->h_data_bytes = h_data_bytes;
 		this->h_ptrs_bytes = h_ptrs_bytes;
-		
+
 		this->d_data_bytes = d_data_bytes;
 		this->d_ptrs_bytes = d_ptrs_bytes;
 	}
-	
+
 	void reset()
 	{
 		h_data_bytes = h_ptrs_bytes = 0;
@@ -83,17 +83,17 @@ struct KBlasWorkspaceState
 struct KBlasWorkspace
 {
   typedef unsigned char WS_Byte;
-  
+
   void* h_data;//host workspace
   void** h_ptrs;//host pointer workspace
-  
+
   void* d_data;//device workspace
   void** d_ptrs;//device pointer workspace
-  
-  KBlasWorkspaceState allocated_ws_state;  	// current allocated workspace state 
+
+  KBlasWorkspaceState allocated_ws_state;  	// current allocated workspace state
   KBlasWorkspaceState requested_ws_state;	// requested workspace state set by any workspace query routine
   KBlasWorkspaceState consumed_ws_state;	// workspace currently being used by a routine holding the handle
-  
+
   bool allocated;
 
   KBlasWorkspace()
@@ -112,20 +112,20 @@ struct KBlasWorkspace
 	requested_ws_state.reset();
 	consumed_ws_state.reset();
   }
-  
+
   KBlasWorkspaceState getAvailable()
   {
 	KBlasWorkspaceState available;
-	
+
 	available.h_data_bytes = allocated_ws_state.h_data_bytes - consumed_ws_state.h_data_bytes;
 	available.h_ptrs_bytes = allocated_ws_state.h_ptrs_bytes - consumed_ws_state.h_ptrs_bytes;
-	
+
 	available.d_data_bytes = allocated_ws_state.d_data_bytes - consumed_ws_state.d_data_bytes;
 	available.d_ptrs_bytes = allocated_ws_state.d_ptrs_bytes - consumed_ws_state.d_ptrs_bytes;
-	
+
 	return available;
   }
-  
+
   /////////////////////////////////////////////////////////////////////////////
   // Workspace management - handle with care!
   // Make sure to pop after using the workspace and in a FILO way
@@ -134,58 +134,58 @@ struct KBlasWorkspace
   void* push_d_data(long bytes)
   {
 	assert(bytes + consumed_ws_state.d_data_bytes <= allocated_ws_state.d_data_bytes);
-	
+
     void* ret_ptr = (WS_Byte*)d_data + consumed_ws_state.d_data_bytes;
 	consumed_ws_state.d_data_bytes += bytes;
 	return ret_ptr;
   }
-  
+
   void pop_d_data(long bytes)
   {
 	assert(consumed_ws_state.d_data_bytes >= bytes);
 	consumed_ws_state.d_data_bytes -= bytes;
   }
-  
+
   void* push_d_ptrs(long bytes)
   {
 	assert(bytes + consumed_ws_state.d_ptrs_bytes <= allocated_ws_state.d_ptrs_bytes);
-	
+
     void* ret_ptr = (WS_Byte*)d_ptrs + consumed_ws_state.d_ptrs_bytes;
 	consumed_ws_state.d_ptrs_bytes += bytes;
 	return ret_ptr;
   }
-  
+
   void pop_d_ptrs(long bytes)
   {
 	assert(consumed_ws_state.d_ptrs_bytes >= bytes);
-	
+
 	consumed_ws_state.d_ptrs_bytes -= bytes;
   }
   // Host workspace
   void* push_h_data(long bytes)
   {
 	assert(bytes + consumed_ws_state.h_data_bytes <= allocated_ws_state.h_data_bytes);
-	
+
     void* ret_ptr = (WS_Byte*)h_data + consumed_ws_state.h_data_bytes;
 	consumed_ws_state.h_data_bytes += bytes;
 	return ret_ptr;
   }
-  
+
   void pop_h_data(long bytes)
   {
 	assert(consumed_ws_state.h_data_bytes >= bytes);
 	consumed_ws_state.h_data_bytes -= bytes;
   }
-  
+
   void* push_h_ptrs(long bytes)
   {
 	assert(bytes + consumed_ws_state.h_ptrs_bytes <= allocated_ws_state.h_ptrs_bytes);
-	
+
     void* ret_ptr = (WS_Byte*)h_ptrs + consumed_ws_state.h_ptrs_bytes;
 	consumed_ws_state.h_ptrs_bytes += bytes;
 	return ret_ptr;
   }
-  
+
   void pop_h_ptrs(long bytes)
   {
 	assert(consumed_ws_state.h_ptrs_bytes >= bytes);
@@ -250,7 +250,7 @@ struct KBlasWorkspace
     #ifdef DEBUG_ON
     printf("\n");
     #endif
-	
+
     allocated = 1;
     return KBLAS_Success;
   }
@@ -265,7 +265,7 @@ struct KBlasWorkspace
       check_error_ret( cudaFree(d_data), KBLAS_Error_Deallocation );
     if(d_ptrs)
       check_error_ret( cudaFree(d_ptrs), KBLAS_Error_Deallocation );
-  
+
     return KBLAS_Success;
   }
   ~KBlasWorkspace()
@@ -362,6 +362,7 @@ struct KBlasHandle
   }
 };
 
+typedef struct KBlasWorkspaceState *kblasWorkspaceState_t;
 typedef struct KBlasWorkspace *kblasWorkspace_t;
 typedef struct KBlasHandle *kblasHandle_t;
 #define GPUBlasHandle KBlasHandle

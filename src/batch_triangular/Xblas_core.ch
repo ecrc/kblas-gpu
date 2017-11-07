@@ -39,7 +39,7 @@
 #include "kblas_prec_def.h"
 
 //==============================================================================================
-void Xgemm_batch_strided_wsquery(int batchCount, kblasWorkspace_t ws);
+void Xgemm_batch_strided_wsquery(kblasHandle_t handle, int batchCount);
 
 int Xgemm_batch_strided(kblasHandle_t handle,
                         char transA, char transB,

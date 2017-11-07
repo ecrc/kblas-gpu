@@ -129,10 +129,10 @@ int kblasZgemm_batch( kblasHandle_t handle,
 //KBLAS BATCH routines
 //============================================================================
 
-void kblasSsyrk_batch_wsquery(const int m, int batchCount, kblasWorkspace_t ws);
-void kblasDsyrk_batch_wsquery(const int m, int batchCount, kblasWorkspace_t ws);
-void kblasCsyrk_batch_wsquery(const int m, int batchCount, kblasWorkspace_t ws);
-void kblasZsyrk_batch_wsquery(const int m, int batchCount, kblasWorkspace_t ws);
+void kblasSsyrk_batch_wsquery(kblasHandle_t handle, const int m, int batchCount);
+void kblasDsyrk_batch_wsquery(kblasHandle_t handle, const int m, int batchCount);
+void kblasCsyrk_batch_wsquery(kblasHandle_t handle, const int m, int batchCount);
+void kblasZsyrk_batch_wsquery(kblasHandle_t handle, const int m, int batchCount);
 
 int kblasSsyrk_batch( kblasHandle_t handle,
                       char uplo, char trans,
@@ -163,10 +163,10 @@ int kblasZsyrk_batch( kblasHandle_t handle,
                       int batchCount);
 
 //------------------------------------------------------------------------------
-void kblasSsyrk_batch_strided_wsquery(const int m, int batchCount, kblasWorkspace_t ws);
-void kblasDsyrk_batch_strided_wsquery(const int m, int batchCount, kblasWorkspace_t ws);
-void kblasCsyrk_batch_strided_wsquery(const int m, int batchCount, kblasWorkspace_t ws);
-void kblasZsyrk_batch_strided_wsquery(const int m, int batchCount, kblasWorkspace_t ws);
+void kblasSsyrk_batch_strided_wsquery(kblasHandle_t handle, const int m, int batchCount);
+void kblasDsyrk_batch_strided_wsquery(kblasHandle_t handle, const int m, int batchCount);
+void kblasCsyrk_batch_strided_wsquery(kblasHandle_t handle, const int m, int batchCount);
+void kblasZsyrk_batch_strided_wsquery(kblasHandle_t handle, const int m, int batchCount);
 
 int kblasSsyrk_batch_strided( kblasHandle_t handle,
                               char uplo, char trans,

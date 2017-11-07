@@ -39,6 +39,11 @@ bool REG_SIZE(int n);
 int CLOSEST_REG_SIZE(int n);
 
 //==============================================================================================
+
+#define kmin(a,b) ((a)>(b)?(b):(a))
+#define kmax(a,b) ((a)<(b)?(b):(a))
+
+//==============================================================================================
 #if 1
 /*void cublasXgemm(char transa, char transb, int m, int n, int k,
                  float alpha, const float *A, int lda,

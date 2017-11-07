@@ -221,10 +221,8 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
         #endif//USE_OPENMP
       }
 
-      KBlasWorkspace *work_space = &(kblas_handle->work_space);
-      Xgemm_batch_strided_wsquery(batchCount, work_space);
-      check_error( work_space->allocate() );
-
+      Xgemm_batch_strided_wsquery(kblas_handle, batchCount);
+      check_error( kblasAllocateWorkspace(kblas_handle) );
 
       double time = 0;
 

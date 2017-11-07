@@ -55,6 +55,41 @@
 
 //=================================================================================
 //Non-Strided form
+
+void kblas_gemm_batch_wsquery(int batchCount,
+                              int A_row_off, int A_col_off,
+                              int B_row_off, int B_col_off,
+                              int C_row_off, int C_col_off,
+                              kblasWorkspace_t ws){
+  Xgemm_batch_wsquery_core<TYPE>( batchCount,
+                                  A_row_off, A_col_off,
+                                  B_row_off, B_col_off,
+                                  C_row_off, C_col_off,
+                                  ws);
+}
+
+// workspace needed: device pointers
+// A, B, C: host pointer to array of device pointers to device buffers
+int kblas_gemm_batch( kblasHandle_t handle,
+                      char transA, char transB,
+                      const int m, const int n, const int k,
+                      const TYPE alpha,
+                      const TYPE** A, int A_row_off, int A_col_off, int lda,
+                      const TYPE** B, int B_row_off, int B_col_off, int ldb,
+                      const TYPE beta,
+                            TYPE** C, int C_row_off, int C_col_off, int ldc,
+                      int batchCount){
+  return Xgemm_batch_core(handle,
+                          transA, transB,
+                          m, n, k,
+                          alpha,
+                          A, A_row_off, A_col_off, lda,
+                          B, B_row_off, B_col_off, ldb,
+                          beta,
+                          C, C_row_off, C_col_off, ldc,
+                          batchCount);
+}
+
 // workspace needed: none
 // A, B, C: host pointer to array of device pointers to device buffers
 int kblas_gemm_batch( kblasHandle_t handle,

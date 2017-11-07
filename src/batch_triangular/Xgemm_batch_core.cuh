@@ -166,15 +166,166 @@ int Xgemm_NX_batch( kblasHandle_t handle,
 #endif
 
 //==============================================================================================
-//extern "C" {
-
-// extern bool use_magma_gemm;
-// extern bool use_cublas_gemm;
-
-//==============================================================================================
 //non-strided version
+
+template<class T>
+void Xgemm_batch_wsquery_core(int batchCount,
+                              int A_row_off, int A_col_off,
+                              int B_row_off, int B_col_off,
+                              int C_row_off, int C_col_off,
+                              kblasWorkspace_t ws)
+{
+  if ( (A_row_off > 0) || (A_col_off > 0)
+    || (B_row_off > 0) || (B_col_off > 0)
+    || (C_row_off > 0) || (C_col_off > 0) )
+  {
+    ws->d_ptrs_bytes_req = (batchCount > 1) * batchCount * 3 * sizeof(T*);
+  }else{
+    ws->d_ptrs_bytes_req = 0;
+  }
+}
+
 //workspace needed: none
-// A_array, B_array, C_array: device pointers to device buffers
+// A, B, C: host pointer to array of device pointers to device buffers
+template<class T>
+int Xgemm_batch_core( kblasHandle_t handle,
+                      char transA,char transB,
+                      const int m, const int n, const int k,
+                      const T alpha,
+                      const T** A, int A_row_off, int A_col_off, int lda,
+                      const T** B, int B_row_off, int B_col_off, int ldb,
+                      const T beta,
+                            T** C, int C_row_off, int C_col_off, int ldc,
+                      int batchCount)
+{
+  if(batchCount < 1)//TODO should not accept batch of size one
+    return KBLAS_Error_WrongInput;
+
+  int status;
+  T **A_array, **B_array, **C_array;
+
+  if ( (A_row_off > 0) || (A_col_off > 0)
+    || (B_row_off > 0) || (B_col_off > 0)
+    || (C_row_off > 0) || (C_col_off > 0) )
+  {
+    KBlasWorkspace ws_needed;
+    Xgemm_batch_wsquery_core<T>(batchCount,
+                                A_row_off, A_col_off,
+                                B_row_off, B_col_off,
+                                C_row_off, C_col_off,
+                                (kblasWorkspace_t)&ws_needed);
+
+    // int work_ptrs_bytes = (batchCount > 1) * batchCount * 3 * sizeof(T*);
+    bool suffWorkspace = (ws_needed.d_ptrs_bytes_req <= handle->work_space.d_ptrs_bytes);
+
+    if(!suffWorkspace){
+      return KBLAS_InsufficientWorkspace;
+    }
+
+    kblasWorkspace_t ws_current = &(handle->work_space);
+    A_array = (T**)(ws_current->d_ptrs);
+    B_array = A_array + batchCount;
+    C_array = B_array + batchCount;
+
+    check_error_ret( status = Xset_pointer_3(A_array, (const T**)(A), A_row_off, A_col_off, lda,
+                                             B_array, (const T**)(A), B_row_off, B_col_off, lda,
+                                             C_array, (const T**)(B), C_row_off, C_col_off, ldb,
+                                             batchCount, handle->stream), status);
+  }else{
+    A_array = (T**)A;
+    B_array = (T**)B;
+    C_array = (T**)C;
+  }
+
+  if(!handle->use_magma){
+    check_error_ret( cublasXgemmBatched(handle->cublas_handle,
+                                        (transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
+                                        (transB == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
+                                        m, n, k,
+                                        &alpha, (const T**)A_array, lda,
+                                                (const T**)B_array, ldb,
+                                        &beta,             C_array, ldc,
+                                        batchCount), KBLAS_cuBLAS_Error);
+  }
+  #ifdef USE_MAGMA
+  else
+  //TODO use batch gemm with offset from magma
+  if(handle->use_magma){
+
+    //take care of batch size limitation with magma
+    int batch_increment = 65535;
+    int batch_start = 0;
+
+    while(batch_start != batchCount)
+    {
+      int batch_size = std::min(batch_increment, batchCount - batch_start);
+
+      magmablas_Xgemm_batched((magma_trans_t)(MagmaNoTrans + (transA == KBLAS_Trans)),
+                              (magma_trans_t)(MagmaNoTrans + (transB == KBLAS_Trans)),
+                              m, n, k,
+                              alpha, A_array, lda,
+                                     B_array, ldb,
+                              beta,  C_array, ldc,
+                              batchCount, handle->magma_queue);
+
+      A_array += batch_size;
+      B_array += batch_size;
+      C_array += batch_size;
+
+      batch_start += batch_size;
+      check_error_ret( cudaGetLastError(), KBLAS_MAGMA_Error);
+    }
+  }
+  #endif
+  #if 0
+  else{
+    if( transA == KBLAS_Trans )
+      return KBLAS_NotSupported;
+
+    if(typeid(T) == typeid(float)){
+      return Xgemm_NX_batch<T, 16>(
+                  transA, transB,
+                  m, n, k,
+                  alpha, A, lda, strideA,
+                          B, ldb, strideB,
+                  beta,  C, ldc, strideC,
+                  batchCount, handle->cuda_stream);
+    }else
+    if(typeid(T) == typeid(double)){
+      if(m < 16 || n < 16 || k < 16)
+        return Xgemm_NX_batch<T, 8>(
+                      transA, transB,
+                      m, n, k,
+                      alpha, A, lda, strideA,
+                             B, ldb, strideB,
+                      beta,  C, ldc, strideC,
+                      batchCount, handle->cuda_stream);
+      else
+        return Xgemm_NX_batch<T, 16>(
+                      transA, transB,
+                      m, n, k,
+                      alpha, A, lda, strideA,
+                             B, ldb, strideB,
+                      beta,  C, ldc, strideC,
+                      batchCount, handle->cuda_stream);
+    }else{
+      return KBLAS_NotImplemented;
+    }
+  }
+  #else
+  else
+  {
+    printf("Configuration error at %s in file %s at line %d\n", __func__, __FILE__, __LINE__ );
+    return KBLAS_WrongConfig;
+  }
+  #endif
+
+  return KBLAS_Success;
+}
+
+//TODO redundant function, use the above one with offsets instead
+//workspace needed: none
+// A, B, C: host pointer to array of device pointers to device buffers
 template<class T>
 int Xgemm_batch_core( kblasHandle_t handle,
                       char transA,char transB,

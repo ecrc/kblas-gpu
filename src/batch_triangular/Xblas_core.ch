@@ -61,7 +61,16 @@ int Xgemm_batch(kblasHandle_t handle,
                       TYPE** C, int ldc,
                 int batchCount);
 
-//==============================================================================================
+int kblas_gemm_batch( kblasHandle_t handle,
+                      char transA, char transB,
+                      const int m, const int n, const int k,
+                      const TYPE alpha,
+                      const TYPE** A, int A_row_off, int A_col_off, int lda,
+                      const TYPE** B, int B_row_off, int B_col_off, int ldb,
+                      const TYPE beta,
+                            TYPE** C, int C_row_off, int C_col_off, int ldc,
+                      int batchCount);
 
+//==============================================================================================
 
 #endif// __XBLAS_CORE__

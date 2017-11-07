@@ -447,7 +447,7 @@ int Xgemm_batch_strided_core( kblasHandle_t handle,
   if(batchCount < 1)//TODO should not accept batch of size one
     return KBLAS_Error_WrongInput;
 
-  KBlasWorkspace ws_needed;
+  KBlasWorkspaceState ws_needed;
   Xgemm_batch_strided_wsquery_core<T>(batchCount, (kblasWorkspaceState_t)&ws_needed);
 
   // int work_ptrs_bytes = (batchCount > 1) * batchCount * 3 * sizeof(T*);

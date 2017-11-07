@@ -38,11 +38,13 @@
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
 #ifdef USE_MAGMA
+  #include "magma.h"
   #include <cusparse.h>
 #endif
 
-#include "kblas_error.h"
+#include <assert.h>
 
+#include "kblas_error.h"
 #include "kblas_gpu_timer.h"
 
 #ifdef KBLAS_ENABLE_BACKDOORS
@@ -50,21 +52,48 @@
 extern int kblas_back_door[KBLAS_BACKDOORS];
 #endif
 
+// Structure defining the a state of the workspace, whether its allocated, 
+// requested by a query routine, or consumed by a routine holding the handle
+struct KBlasWorkspaceState 
+{
+	long h_data_bytes, h_ptrs_bytes;		// host data and pointer allocations
+	long d_data_bytes, d_ptrs_bytes;		// device data and pointer allocations
+	
+	KBlasWorkspaceState() 
+	{
+		reset();
+	}
+	
+	KBlasWorkspaceState(long h_data_bytes, long h_ptrs_bytes, long d_data_bytes, long d_ptrs_bytes)
+	{
+		this->h_data_bytes = h_data_bytes;
+		this->h_ptrs_bytes = h_ptrs_bytes;
+		
+		this->d_data_bytes = d_data_bytes;
+		this->d_ptrs_bytes = d_ptrs_bytes;
+	}
+	
+	void reset()
+	{
+		h_data_bytes = h_ptrs_bytes = 0;
+		d_data_bytes = d_ptrs_bytes = 0;
+	}
+};
 
 struct KBlasWorkspace
 {
+  typedef unsigned char WS_Byte;
+  
   void* h_data;//host workspace
-  long h_data_bytes;//current host workspace in bytes
-  long h_data_bytes_req;//requested host workspace in bytes
   void** h_ptrs;//host pointer workspace
-  long h_ptrs_bytes;//current host pointer workspace in bytes
-  long h_ptrs_bytes_req;//requested host pointer workspace in bytes
+  
   void* d_data;//device workspace
-  long d_data_bytes;//current device workspace in bytes
-  long d_data_bytes_req;//requested device workspace in bytes
   void** d_ptrs;//device pointer workspace
-  long d_ptrs_bytes;//current device pointer workspace in bytes
-  long d_ptrs_bytes_req;//requested device pointer workspace in bytes
+  
+  KBlasWorkspaceState allocated_ws_state;  	// current allocated workspace state 
+  KBlasWorkspaceState requested_ws_state;	// requested workspace state set by any workspace query routine
+  KBlasWorkspaceState consumed_ws_state;	// workspace currently being used by a routine holding the handle
+  
   bool allocated;
 
   KBlasWorkspace()
@@ -75,18 +104,92 @@ struct KBlasWorkspace
   void reset()
   {
     allocated = 0;
-    h_data_bytes = 0;
-    h_data_bytes_req = 0;
     h_data = NULL;
-    h_ptrs_bytes = 0;
-    h_ptrs_bytes_req = 0;
     h_ptrs = NULL;
-    d_data_bytes = 0;
-    d_data_bytes_req = 0;
     d_data = NULL;
-    d_ptrs_bytes = 0;
-    d_ptrs_bytes_req = 0;
     d_ptrs = NULL;
+	allocated_ws_state.reset();
+	requested_ws_state.reset();
+	consumed_ws_state.reset();
+  }
+  
+  KBlasWorkspaceState getAvailable()
+  {
+	KBlasWorkspaceState available;
+	
+	available.h_data_bytes = allocated_ws_state.h_data_bytes - consumed_ws_state.h_data_bytes;
+	available.h_ptrs_bytes = allocated_ws_state.h_ptrs_bytes - consumed_ws_state.h_ptrs_bytes;
+	
+	available.d_data_bytes = allocated_ws_state.d_data_bytes - consumed_ws_state.d_data_bytes;
+	available.d_ptrs_bytes = allocated_ws_state.d_ptrs_bytes - consumed_ws_state.d_ptrs_bytes;
+	
+	return available;
+  }
+  
+  /////////////////////////////////////////////////////////////////////////////
+  // Workspace management - handle with care!
+  // Make sure to pop after using the workspace and in a FILO way
+  /////////////////////////////////////////////////////////////////////////////
+  // Device workspace
+  void* push_d_data(long bytes)
+  {
+	assert(bytes + consumed_ws_state.d_data_bytes <= allocated_ws_state.d_data_bytes);
+	
+    void* ret_ptr = (WS_Byte*)d_data + consumed_ws_state.d_data_bytes;
+	consumed_ws_state.d_data_bytes += bytes;
+	return ret_ptr;
+  }
+  
+  void pop_d_data(long bytes)
+  {
+	assert(consumed_ws_state.d_data_bytes >= bytes);
+	consumed_ws_state.d_data_bytes -= bytes;
+  }
+  
+  void* push_d_ptrs(long bytes)
+  {
+	assert(bytes + consumed_ws_state.d_ptrs_bytes <= allocated_ws_state.d_ptrs_bytes);
+	
+    void* ret_ptr = (WS_Byte*)d_ptrs + consumed_ws_state.d_ptrs_bytes;
+	consumed_ws_state.d_ptrs_bytes += bytes;
+	return ret_ptr;
+  }
+  
+  void pop_d_ptrs(long bytes)
+  {
+	assert(consumed_ws_state.d_ptrs_bytes >= bytes);
+	
+	consumed_ws_state.d_ptrs_bytes -= bytes;
+  }
+  // Host workspace
+  void* push_h_data(long bytes)
+  {
+	assert(bytes + consumed_ws_state.h_data_bytes <= allocated_ws_state.h_data_bytes);
+	
+    void* ret_ptr = (WS_Byte*)h_data + consumed_ws_state.h_data_bytes;
+	consumed_ws_state.h_data_bytes += bytes;
+	return ret_ptr;
+  }
+  
+  void pop_h_data(long bytes)
+  {
+	assert(consumed_ws_state.h_data_bytes >= bytes);
+	consumed_ws_state.h_data_bytes -= bytes;
+  }
+  
+  void* push_h_ptrs(long bytes)
+  {
+	assert(bytes + consumed_ws_state.h_ptrs_bytes <= allocated_ws_state.h_ptrs_bytes);
+	
+    void* ret_ptr = (WS_Byte*)h_ptrs + consumed_ws_state.h_ptrs_bytes;
+	consumed_ws_state.h_ptrs_bytes += bytes;
+	return ret_ptr;
+  }
+  
+  void pop_h_ptrs(long bytes)
+  {
+	assert(consumed_ws_state.h_ptrs_bytes >= bytes);
+	consumed_ws_state.h_ptrs_bytes -= bytes;
   }
 
   int allocate()
@@ -96,71 +199,74 @@ struct KBlasWorkspace
     printf("Workspace allocated:");
     #endif
 
-    if(h_data_bytes_req > 0 && h_data_bytes < h_data_bytes_req ){
-      h_data_bytes = h_data_bytes_req;
+    if(requested_ws_state.h_data_bytes > 0 && allocated_ws_state.h_data_bytes < requested_ws_state.h_data_bytes ){
+      allocated_ws_state.h_data_bytes = requested_ws_state.h_data_bytes;
       if(h_data != NULL)
         check_error( cudaFreeHost(h_data) );
-      check_error_ret( cudaHostAlloc ( (void**)&h_data, h_data_bytes, cudaHostAllocPortable  ), KBLAS_Error_Allocation);
-      h_data_bytes_req = 0;
+      check_error_ret( cudaHostAlloc ( (void**)&h_data, allocated_ws_state.h_data_bytes, cudaHostAllocPortable  ), KBLAS_Error_Allocation);
       #ifdef DEBUG_ON
-      printf(" host bytes %d,", h_data_bytes);
+      printf(" host bytes %d,", allocated_ws_state.h_data_bytes);
       #endif
+	  requested_ws_state.h_data_bytes = 0;
     }
 
-    if(h_ptrs_bytes_req > 0 && h_ptrs_bytes < h_ptrs_bytes_req ){
-      h_ptrs_bytes = h_ptrs_bytes_req;
+    if(requested_ws_state.h_ptrs_bytes > 0 && allocated_ws_state.h_ptrs_bytes < requested_ws_state.h_ptrs_bytes ){
+      allocated_ws_state.h_ptrs_bytes = requested_ws_state.h_ptrs_bytes;
       if(h_ptrs != NULL)
         check_error( cudaFreeHost(h_ptrs) );
-      check_error_ret( cudaHostAlloc ( (void**)&h_ptrs, h_ptrs_bytes, cudaHostAllocPortable  ), KBLAS_Error_Allocation);
-      h_ptrs_bytes_req = 0;
+      check_error_ret( cudaHostAlloc ( (void**)&h_ptrs, allocated_ws_state.h_ptrs_bytes, cudaHostAllocPortable  ), KBLAS_Error_Allocation);
       #ifdef DEBUG_ON
-      printf(" host pointer bytes %d,", h_ptrs_bytes);
+      printf(" host pointer bytes %d,", allocated_ws_state.h_ptrs_bytes);
       #endif
+	  requested_ws_state.h_ptrs_bytes = 0;
     }
 
 
-    if(d_data_bytes_req > 0 && d_data_bytes < d_data_bytes_req ){
-      d_data_bytes = d_data_bytes_req;
+    if(requested_ws_state.d_data_bytes > 0 && allocated_ws_state.d_data_bytes < requested_ws_state.d_data_bytes ){
+      allocated_ws_state.d_data_bytes = requested_ws_state.d_data_bytes;
       // check_error( cudaSetDevice(device_id) );
       if(d_data != NULL){
         check_error_ret( cudaFree(d_data), KBLAS_Error_Deallocation);
       }
       #ifdef DEBUG_ON
-      printf(" device bytes %d,", d_ptrs_bytes);
+      printf(" device bytes %d,", allocated_ws_state.d_data_bytes);
       #endif
-      check_error_ret( cudaMalloc( (void**)&d_data, d_data_bytes ), KBLAS_Error_Allocation);
-      d_data_bytes_req = 0;
+      check_error_ret( cudaMalloc( (void**)&d_data, allocated_ws_state.d_data_bytes ), KBLAS_Error_Allocation);
+	  requested_ws_state.d_data_bytes = 0;
     }
 
-    if(d_ptrs_bytes_req > 0 && d_ptrs_bytes < d_ptrs_bytes_req ){
-      d_ptrs_bytes = d_ptrs_bytes_req;
+    if(requested_ws_state.d_ptrs_bytes > 0 && allocated_ws_state.d_ptrs_bytes < requested_ws_state.d_ptrs_bytes ){
+      allocated_ws_state.d_ptrs_bytes = requested_ws_state.d_ptrs_bytes;
       // check_error( cudaSetDevice(device_id) );
       if(d_ptrs != NULL){
         check_error_ret( cudaFree(d_ptrs), KBLAS_Error_Deallocation);
       }
-      check_error_ret( cudaMalloc( (void**)&d_ptrs, d_ptrs_bytes ), KBLAS_Error_Allocation);
-      d_ptrs_bytes_req = 0;
+      check_error_ret( cudaMalloc( (void**)&d_ptrs, allocated_ws_state.d_ptrs_bytes ), KBLAS_Error_Allocation);
       #ifdef DEBUG_ON
-      printf(" device pointer bytes %d,", d_ptrs_bytes);
+      printf(" device pointer bytes %d,", allocated_ws_state.d_ptrs_bytes);
       #endif
+	  requested_ws_state.d_ptrs_bytes = 0;
     }
     #ifdef DEBUG_ON
     printf("\n");
     #endif
+	
     allocated = 1;
     return KBLAS_Success;
   }
 
-  void deallocate()
+  int deallocate()
   {
     if(h_data)
       free(h_data);
     if(h_ptrs)
       free(h_ptrs);
     if(d_data)
-      check_error( cudaFree(d_data) );
+      check_error_ret( cudaFree(d_data), KBLAS_Error_Deallocation );
     if(d_ptrs)
-      check_error( cudaFree(d_ptrs) );
+      check_error_ret( cudaFree(d_ptrs), KBLAS_Error_Deallocation );
+  
+    return KBLAS_Success;
   }
   ~KBlasWorkspace()
   {
@@ -182,10 +288,6 @@ struct KBlasHandle
   int use_magma, device_id, create_cublas;
 
   kblas_gpu_timer timer;
-  // Workspace in bytes
-  void* workspace;
-  unsigned int workspace_bytes;
-
   KBlasWorkspace work_space;
 
   #ifdef KBLAS_ENABLE_BACKDOORS
@@ -220,8 +322,6 @@ struct KBlasHandle
 
     this->device_id = device_id;
     this->stream = stream;
-    workspace_bytes = 0;
-    workspace = NULL;
   }
   //-----------------------------------------------------------
   void tic()   { timer.start(stream); }
@@ -241,8 +341,6 @@ struct KBlasHandle
     timer.init();
 
     check_error( cudaGetDevice(&device_id) );
-    workspace_bytes = 0;
-    workspace = NULL;
   }
 
   ~KBlasHandle()
@@ -261,17 +359,6 @@ struct KBlasHandle
       magma_queue_destroy(magma_queue);
     #endif
     timer.destroy();
-
-    if(workspace)
-      check_error( cudaFree(workspace) );
-  }
-
-  void setWorkspace(unsigned int bytes)
-  {
-    if(workspace)
-      check_error( cudaFree(workspace) );
-    workspace_bytes = bytes;
-    check_error( cudaMalloc(&workspace, bytes) );
   }
 };
 

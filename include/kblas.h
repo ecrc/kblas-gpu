@@ -35,13 +35,20 @@
 #ifndef _KBLAS_H_
 #define _KBLAS_H_
 
+#include <cublas_v2.h>
+
 //TODO is this include necessary here?
 #include "defs.h"
 
+struct KBlasHandle;
 typedef struct KBlasWorkspace *kblasWorkspace_t;
 typedef struct KBlasHandle *kblasHandle_t;
+
 int kblasCreate(kblasHandle_t *handle);
 int kblasDestroy(kblasHandle_t *handle);
+
+int kblasAllocateWorkspace(kblasHandle_t handle);
+int kblasFreeeWorkspace(kblasHandle_t handle);
 
 //============================================================================
 //BLAS2 routines
@@ -58,5 +65,7 @@ int kblasDestroy(kblasHandle_t *handle);
 //BATCH routines
 //============================================================================
 #include "kblas_batch.h"
+#include "batch_qr.h"
+#include "batch_svd.h"
 
 #endif // _KBLAS_H_

@@ -72,5 +72,20 @@ int kblas_gemm_batch( kblasHandle_t handle,
                       int batchCount);
 
 //==============================================================================================
+int kblas_trsm_batch(kblasHandle_t handle,
+                     char side, char uplo, char trans, char diag,
+                     const int m, const int n,
+                     const TYPE alpha,
+                     const TYPE** A, int lda,
+                           TYPE** B, int ldb,
+                     int batchCount);
+
+int kblas_trsm_batch(kblasHandle_t handle,
+                     char side, char uplo, char trans, char diag,
+                     const int m, const int n,
+                     const TYPE alpha,
+                     const TYPE* A, int lda, long strideA,
+                           TYPE* B, int ldb, long strideB,
+                     int batchCount);
 
 #endif// __XBLAS_CORE__

@@ -37,32 +37,40 @@
 #include "kblas_prec_def.h"
 
 #if defined   PREC_s
+  #define cublasXtrsm_batched cublasStrsmBatched
   #define LAPACK_GEMM sgemm
   #define LAPACK_GEMM_BATCH sgemm_batch
   #define LAPACK_SYRK ssyrk
   #define LAPACK_AXPY saxpy
   #define LAPACK_LANSY slansy
+  #define LAPACK_TRSM strsm
 
 #elif defined PREC_d
+  #define cublasXtrsm_batched cublasDtrsmBatched
   #define LAPACK_GEMM dgemm
   #define LAPACK_GEMM_BATCH dgemm_batch
   #define LAPACK_SYRK dsyrk
   #define LAPACK_AXPY daxpy
   #define LAPACK_LANSY dlansy
+  #define LAPACK_TRSM dtrsm
 
 #elif defined PREC_c
+  #define cublasXtrsm_batched cublasCtrsmBatched
   #define LAPACK_GEMM cgemm
   #define LAPACK_GEMM_BATCH cgemm_batch
   #define LAPACK_SYRK csyrk
   #define LAPACK_AXPY caxpy
   #define LAPACK_LANSY clansy
+  #define LAPACK_TRSM ctrsm
 
 #elif defined PREC_z
+  #define cublasXtrsm_batched cublasZtrsmBatched
   #define LAPACK_GEMM zgemm
   #define LAPACK_GEMM_BATCH zgemm_batch
   #define LAPACK_SYRK zsyrk
   #define LAPACK_AXPY zaxpy
   #define LAPACK_LANSY zlansy
+  #define LAPACK_TRSM ztrsm
 #endif
 
 #endif //__KBLAS_PREC_DEF__

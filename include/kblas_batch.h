@@ -36,7 +36,7 @@
 
 //============================================================================
 //BATCH GEMM routines
-//wrappers around cuBLAS/MAGMA batch GEMM routines
+//wrappers around cuBLAS / MAGMA batch GEMM routines
 //============================================================================
 
 #ifdef __cplusplus
@@ -197,6 +197,81 @@ int kblasZsyrk_batch_strided( kblasHandle_t handle,
                               int batchCount);
 
 //============================================================================
+void kblasStrsm_batch_wsquery(int batchCount, char side, int m, int n, kblasWorkspace_t ws);
+void kblasDtrsm_batch_wsquery(int batchCount, char side, int m, int n, kblasWorkspace_t ws);
+void kblasCtrsm_batch_wsquery(int batchCount, char side, int m, int n, kblasWorkspace_t ws);
+void kblasZtrsm_batch_wsquery(int batchCount, char side, int m, int n, kblasWorkspace_t ws);
+
+int kblasStrsm_batch(kblasHandle_t handle,
+                     char side, char uplo, char trans, char diag,
+                     const int m, const int n,
+                     const float alpha,
+                     const float** A, int lda,
+                           float** B, int ldb,
+                    int batchCount);
+
+int kblasDtrsm_batch(kblasHandle_t handle,
+                     char side, char uplo, char trans, char diag,
+                     const int m, const int n,
+                     const double alpha,
+                     const double** A, int lda,
+                           double** B, int ldb,
+                    int batchCount);
+
+int kblasCtrsm_batch(kblasHandle_t handle,
+                     char side, char uplo, char trans, char diag,
+                     const int m, const int n,
+                     const cuFloatComplex alpha,
+                     const cuFloatComplex** A, int lda,
+                           cuFloatComplex** B, int ldb,
+                    int batchCount);
+
+int kblasZtrsm_batch(kblasHandle_t handle,
+                     char side, char uplo, char trans, char diag,
+                     const int m, const int n,
+                     const cuDoubleComplex alpha,
+                     const cuDoubleComplex** A, int lda,
+                           cuDoubleComplex** B, int ldb,
+                    int batchCount);
+
+//------------------------------------------------------------------------------
+void kblasStrsm_batch_strided_wsquery(int batchCount, char side, int m, int n, kblasWorkspace_t ws);
+void kblasDtrsm_batch_strided_wsquery(int batchCount, char side, int m, int n, kblasWorkspace_t ws);
+void kblasCtrsm_batch_strided_wsquery(int batchCount, char side, int m, int n, kblasWorkspace_t ws);
+void kblasZtrsm_batch_strided_wsquery(int batchCount, char side, int m, int n, kblasWorkspace_t ws);
+
+int kblasStrsm_batch_strided(kblasHandle_t handle,
+                             char side, char uplo, char trans, char diag,
+                             const int m, const int n,
+                             const float alpha,
+                             const float* A, int lda, long strideA,
+                                   float* B, int ldb, long strideB,
+                             int batchCount);
+
+int kblasDtrsm_batch_strided(kblasHandle_t handle,
+                             char side, char uplo, char trans, char diag,
+                             const int m, const int n,
+                             const double alpha,
+                             const double* A, int lda, long strideA,
+                                   double* B, int ldb, long strideB,
+                             int batchCount);
+
+int kblasCtrsm_batch_strided(kblasHandle_t handle,
+                             char side, char uplo, char trans, char diag,
+                             const int m, const int n,
+                             const cuFloatComplex alpha,
+                             const cuFloatComplex* A, int lda, long strideA,
+                                   cuFloatComplex* B, int ldb, long strideB,
+                             int batchCount);
+
+int kblasZtrsm_batch_strided(kblasHandle_t handle,
+                             char side, char uplo, char trans, char diag,
+                             const int m, const int n,
+                             const cuDoubleComplex alpha,
+                             const cuDoubleComplex* A, int lda, long strideA,
+                                   cuDoubleComplex* B, int ldb, long strideB,
+                             int batchCount);
+
 
 #ifdef __cplusplus
 }

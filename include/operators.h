@@ -15,8 +15,8 @@
     notice,  this list of conditions and the following disclaimer in the
     documentation  and/or other materials provided with the distribution.
   * Neither  the  name of the King Abdullah University of Science and
-    Technology nor the names of its contributors may be used to endorse 
-    or promote products derived from this software without specific prior 
+    Technology nor the names of its contributors may be used to endorse
+    or promote products derived from this software without specific prior
     written permission.
 
   THIS  SOFTWARE  IS  PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -156,19 +156,19 @@ __device__ static __inline__ void atomicAdd(cuDoubleComplex* address, cuDoubleCo
  *              cuDoubleComplex
  */
 
-__host__ __device__ static __inline__ cuDoubleComplex 
+__host__ __device__ static __inline__ cuDoubleComplex
 operator-(const cuDoubleComplex &a)
 {
     return make_cuDoubleComplex(-a.x, -a.y);
 }
 
-__host__ __device__ static __inline__ cuDoubleComplex 
+__host__ __device__ static __inline__ cuDoubleComplex
 operator+(const cuDoubleComplex a, const cuDoubleComplex b)
 {
     return make_cuDoubleComplex(a.x + b.x, a.y + b.y);
 }
 
-__host__ __device__ static __inline__ cuDoubleComplex 
+__host__ __device__ static __inline__ cuDoubleComplex
 operator+(const cuDoubleComplex a, int b)
 {
     return make_cuDoubleComplex(a.x + b, a.y);
@@ -180,7 +180,7 @@ operator+=(cuDoubleComplex &a, const cuDoubleComplex b)
     a.x += b.x; a.y += b.y;
 }
 
-__host__ __device__ static __inline__ cuDoubleComplex 
+__host__ __device__ static __inline__ cuDoubleComplex
 operator-(const cuDoubleComplex a, const cuDoubleComplex b)
 {
     return make_cuDoubleComplex(a.x - b.x, a.y - b.y);
@@ -192,25 +192,25 @@ operator-=(cuDoubleComplex &a, const cuDoubleComplex b)
     a.x -= b.x; a.y -= b.y;
 }
 
-__host__ __device__ static __inline__ cuDoubleComplex 
+__host__ __device__ static __inline__ cuDoubleComplex
 operator*(const cuDoubleComplex a, const cuDoubleComplex b)
 {
     return make_cuDoubleComplex(a.x * b.x - a.y * b.y, a.y * b.x + a.x * b.y);
 }
 
-__host__ __device__ static __inline__ cuDoubleComplex 
+__host__ __device__ static __inline__ cuDoubleComplex
 operator*(const cuDoubleComplex a, const double s)
 {
     return make_cuDoubleComplex(a.x * s, a.y * s);
 }
 
-__host__ __device__ static __inline__ cuDoubleComplex 
+__host__ __device__ static __inline__ cuDoubleComplex
 operator*(const double s, const cuDoubleComplex a)
 {
     return make_cuDoubleComplex(a.x * s, a.y * s);
 }
 
-__host__ __device__ static __inline__ void 
+__host__ __device__ static __inline__ void
 operator*=(cuDoubleComplex &a, const cuDoubleComplex b)
 {
   double tmp = a.y * b.x + a.x * b.y;
@@ -218,7 +218,7 @@ operator*=(cuDoubleComplex &a, const cuDoubleComplex b)
   a.y = tmp;
 }
 
-__host__ __device__ static __inline__ void 
+__host__ __device__ static __inline__ void
 operator*=(cuDoubleComplex &a, const double s)
 {
     a.x *= s; a.y *= s;
@@ -250,23 +250,37 @@ operator/(const cuDoubleComplex a, const cuDoubleComplex b)
   return make_cuDoubleComplex(a.x*b.x + a.y*b.y, a.y*b.x - a.x*b.y) / (b.x*b.x + b.y*b.y);
 }
 
+__host__ __device__ static __inline__ void
+operator/=(cuDoubleComplex &a, const float s)
+{
+    a.x /= s; a.y /= s;
+}
+
+__host__ __device__ static __inline__ void
+operator/=(cuDoubleComplex a, const cuDoubleComplex b)
+{
+  double d = (b.x*b.x + b.y*b.y);
+  a.x = (a.x*b.x + a.y*b.y) / d;
+  a.y = (a.y*b.x - a.x*b.y) / d;
+}
+
 /*************************************************************
  *              cuFloatComplex
  */
 
-__host__ __device__ static __inline__ cuFloatComplex 
+__host__ __device__ static __inline__ cuFloatComplex
 operator-(const cuFloatComplex &a)
 {
     return make_cuFloatComplex(-a.x, -a.y);
 }
 
-__host__ __device__ static __inline__ cuFloatComplex 
+__host__ __device__ static __inline__ cuFloatComplex
 operator+(const cuFloatComplex a, const cuFloatComplex b)
 {
     return make_cuFloatComplex(a.x + b.x, a.y + b.y);
 }
 
-__host__ __device__ static __inline__ cuFloatComplex 
+__host__ __device__ static __inline__ cuFloatComplex
 operator+(const cuFloatComplex a, int b)
 {
     return make_cuFloatComplex(a.x + b, a.y);
@@ -278,7 +292,7 @@ operator+=(cuFloatComplex &a, const cuFloatComplex b)
     a.x += b.x; a.y += b.y;
 }
 
-__host__ __device__ static __inline__ cuFloatComplex 
+__host__ __device__ static __inline__ cuFloatComplex
 operator-(const cuFloatComplex a, const cuFloatComplex b)
 {
     return make_cuFloatComplex(a.x - b.x, a.y - b.y);
@@ -296,19 +310,19 @@ operator*(const cuFloatComplex a, const cuFloatComplex b)
     return make_cuFloatComplex(a.x * b.x - a.y * b.y, a.y * b.x + a.x * b.y);
 }
 
-__host__ __device__ static __inline__ cuFloatComplex 
+__host__ __device__ static __inline__ cuFloatComplex
 operator*(const cuFloatComplex a, const float s)
 {
     return make_cuFloatComplex(a.x * s, a.y * s);
 }
 
-__host__ __device__ static __inline__ cuFloatComplex 
+__host__ __device__ static __inline__ cuFloatComplex
 operator*(const float s, const cuFloatComplex a)
 {
     return make_cuFloatComplex(a.x * s, a.y * s);
 }
 
-__host__ __device__ static __inline__ void 
+__host__ __device__ static __inline__ void
 operator*=(cuFloatComplex &a, const cuFloatComplex b)
 {
   float tmp = a.y * b.x + a.x * b.y;
@@ -316,13 +330,13 @@ operator*=(cuFloatComplex &a, const cuFloatComplex b)
   a.y = tmp;
 }
 
-__host__ __device__ static __inline__ void 
+__host__ __device__ static __inline__ void
 operator*=(cuFloatComplex &a, const float s)
 {
     a.x *= s; a.y *= s;
 }
 
-__host__ __device__ static __inline__ bool 
+__host__ __device__ static __inline__ bool
 operator==(const cuFloatComplex a, const cuFloatComplex b)
 {
   return ((a.x == b.x) && (a.y == b.y));
@@ -334,7 +348,7 @@ operator!=(const cuFloatComplex a, const cuFloatComplex b)
   return ((a.x != b.x) || (a.y != b.y));
 }
 
-__host__ __device__ static __inline__ cuFloatComplex 
+__host__ __device__ static __inline__ cuFloatComplex
 operator/(const cuFloatComplex a, const float b)
 {
     //return (a * conjugate(b)) / (b * conjugate(b));
@@ -346,6 +360,20 @@ operator/(const cuFloatComplex a, const cuFloatComplex b)
 {
     //return (a * conjugate(b)) / (b * conjugate(b));
     return make_cuFloatComplex(a.x*b.x + a.y*b.y, a.y*b.x - a.x*b.y) / (b.x*b.x + b.y*b.y);
+}
+
+__host__ __device__ static __inline__ void
+operator/=(cuFloatComplex &a, const float s)
+{
+    a.x /= s; a.y /= s;
+}
+
+__host__ __device__ static __inline__ void
+operator/=(cuFloatComplex a, const cuFloatComplex b)
+{
+  float d = (b.x*b.x + b.y*b.y);
+  a.x = (a.x*b.x + a.y*b.y) / d;
+  a.y = (a.y*b.x - a.x*b.y) / d;
 }
 
 #endif  // _OPERATORS_

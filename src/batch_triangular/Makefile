@@ -36,4 +36,6 @@ $(OBJ_DIR)/%gemm_batch.cu_o: $(KBLAS_BATCH_DIR)/Xgemm_batch.cu $(KBLAS_BATCH_DIR
 $(OBJ_DIR)/%syrk_batch.cu_o: $(KBLAS_BATCH_DIR)/Xsyrk_batch.cu $(KBLAS_BATCH_DIR)/Xsyrk_batch_drivers.cuh $(KBLAS_BATCH_DIR)/Xsyrk_batch_kernels.cuh $(DEPS_BATCH)
 	$(NVCC) $(NVOPTS) -DPREC_$* $(NVOPTS_3) $(INC) -c $< -o $@
 
+$(OBJ_DIR)/%trsm_batch.cu_o: $(KBLAS_BATCH_DIR)/Xtrsm_batch.cu $(KBLAS_BATCH_DIR)/Xtrsm_batch_drivers.cuh $(KBLAS_BATCH_DIR)/Xtrsm_batch_kernels.cuh $(DEPS_BATCH)
+	$(NVCC) $(NVOPTS) -DPREC_$* $(NVOPTS_3) $(INC) -c $< -o $@
 

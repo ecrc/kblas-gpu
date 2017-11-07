@@ -1,6 +1,7 @@
 #ifndef _TEST_TRSM_
 #define _TEST_TRSM_
 
+#include "l3_common.h"
 #include "testing_Xtr_common.h"
 
 

@@ -1,6 +1,7 @@
 #ifndef _TEST_GEMM_
 #define _TEST_GEMM_
 
+#include "l3_common.h"
 #include "testing_Xtr_common.h"
 
 

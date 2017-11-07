@@ -35,27 +35,27 @@ C_SRC+=	              \
 # EXE+= $(patsubst %.c,$(BIN_DIR)/%,$(KBLAS_L3_CSRC))
 
 
-$(OBJ_DIR)/test_%trmm.o: $(KBLAS_TEST3_DIR)/test_%trmm.c $(KBLAS_TEST3_DIR)/test_trmm.ch testing_Xtr_common.h $(INC_SRC) $(KBLAS_LIB)
+$(OBJ_DIR)/test_%trmm.o: $(KBLAS_TEST3_DIR)/test_%trmm.c $(KBLAS_TEST3_DIR)/test_trmm.ch testing_Xtr_common.h $(INC_SRC)
 	$(CXX) $(INCLUDES) -c $< -o $@
 
-$(OBJ_DIR)/test_%trmm_cpu.o: $(KBLAS_TEST3_DIR)/test_%trmm_cpu.c $(KBLAS_TEST3_DIR)/test_trmm_cpu.ch testing_Xtr_common.h $(INC_SRC) $(KBLAS_LIB)
+$(OBJ_DIR)/test_%trmm_cpu.o: $(KBLAS_TEST3_DIR)/test_%trmm_cpu.c $(KBLAS_TEST3_DIR)/test_trmm_cpu.ch testing_Xtr_common.h $(INC_SRC)
 	$(CXX) $(INCLUDES) -c $< -o $@
 
-$(OBJ_DIR)/test_%trmm_mgpu.o: $(KBLAS_TEST3_DIR)/test_%trmm_mgpu.c $(KBLAS_TEST3_DIR)/test_trmm_mgpu.ch testing_Xtr_common.h $(INC_SRC) $(KBLAS_LIB)
+$(OBJ_DIR)/test_%trmm_mgpu.o: $(KBLAS_TEST3_DIR)/test_%trmm_mgpu.c $(KBLAS_TEST3_DIR)/test_trmm_mgpu.ch testing_Xtr_common.h $(INC_SRC)
 	$(CXX) $(INCLUDES) -c $< -o $@
 
-$(OBJ_DIR)/test_%trsm.o: $(KBLAS_TEST3_DIR)/test_%trsm.c $(KBLAS_TEST3_DIR)/test_trsm.ch testing_Xtr_common.h $(INC_SRC) $(KBLAS_LIB)
+$(OBJ_DIR)/test_%trsm.o: $(KBLAS_TEST3_DIR)/test_%trsm.c $(KBLAS_TEST3_DIR)/test_trsm.ch testing_Xtr_common.h $(INC_SRC)
 	$(CXX) $(INCLUDES) -c $< -o $@
 
-$(OBJ_DIR)/test_%trsm_cpu.o: $(KBLAS_TEST3_DIR)/test_%trsm_cpu.c $(KBLAS_TEST3_DIR)/test_trsm_cpu.ch testing_Xtr_common.h $(INC_SRC) $(KBLAS_LIB)
+$(OBJ_DIR)/test_%trsm_cpu.o: $(KBLAS_TEST3_DIR)/test_%trsm_cpu.c $(KBLAS_TEST3_DIR)/test_trsm_cpu.ch testing_Xtr_common.h $(INC_SRC)
 	$(CXX) $(INCLUDES) -c $< -o $@
 
-$(OBJ_DIR)/test_%trsm_mgpu.o: $(KBLAS_TEST3_DIR)/test_%trsm_mgpu.c $(KBLAS_TEST3_DIR)/test_trsm_mgpu.ch testing_Xtr_common.h $(INC_SRC) $(KBLAS_LIB)
+$(OBJ_DIR)/test_%trsm_mgpu.o: $(KBLAS_TEST3_DIR)/test_%trsm_mgpu.c $(KBLAS_TEST3_DIR)/test_trsm_mgpu.ch testing_Xtr_common.h $(INC_SRC)
 	$(CXX) $(INCLUDES) -c $< -o $@
 
-$(OBJ_DIR)/test_%gemm.o: $(KBLAS_TEST3_DIR)/test_%gemm.c $(KBLAS_TEST3_DIR)/test_gemm.ch testing_Xtr_common.h $(INC_SRC) $(KBLAS_LIB)
+$(OBJ_DIR)/test_%gemm.o: $(KBLAS_TEST3_DIR)/test_%gemm.c $(KBLAS_TEST3_DIR)/test_gemm.ch testing_Xtr_common.h $(INC_SRC)
 	$(CXX) $(INCLUDES) -c $< -o $@
 
-$(OBJ_DIR)/test_%gemmXt.o: $(KBLAS_TEST3_DIR)/test_%gemmXt.c $(INC_SRC) $(KBLAS_LIB)
+$(OBJ_DIR)/test_%gemmXt.o: $(KBLAS_TEST3_DIR)/test_%gemmXt.c $(INC_SRC)
 	$(CXX) $(INCLUDES) -c $< -o $@
 

@@ -19,13 +19,13 @@ C_SRC+=	             \
 	test_ztrsm_batch.c
 
 
-$(OBJ_DIR)/test_%gemm_batch.o: $(KBLAS_BATCH_DIR)/test_Xgemm_batch.cpp $(INC_COMMON) $(INC_SRC) $(KBLAS_LIB)
+$(OBJ_DIR)/test_%gemm_batch.o: $(KBLAS_BATCH_DIR)/test_Xgemm_batch.cpp $(INC_SRC)
 	$(CXX) $(COPTS) -DPREC_$* $(INCLUDES) -c $< -o $@
 
-$(OBJ_DIR)/test_%syrk_batch.o: $(KBLAS_BATCH_DIR)/test_Xsyrk_batch.cpp $(INC_COMMON) $(INC_SRC) $(KBLAS_LIB)
+$(OBJ_DIR)/test_%syrk_batch.o: $(KBLAS_BATCH_DIR)/test_Xsyrk_batch.cpp $(INC_SRC)
 	$(CXX) $(COPTS) -DPREC_$* $(INCLUDES) -c $< -o $@
 
-$(OBJ_DIR)/test_%trsm_batch.o: $(KBLAS_BATCH_DIR)/test_Xtrsm_batch.cpp $(INC_COMMON) $(INC_SRC) $(KBLAS_LIB)
+$(OBJ_DIR)/test_%trsm_batch.o: $(KBLAS_BATCH_DIR)/test_Xtrsm_batch.cpp $(INC_SRC)
 	$(CXX) $(COPTS) -DPREC_$* $(INCLUDES) -c $< -o $@
 
 $(BIN_DIR)/test_%_batch: $(OBJ_DIR)/test_%_batch.o

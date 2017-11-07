@@ -43,10 +43,12 @@
 struct KBlasHandle;
 typedef struct KBlasWorkspace *kblasWorkspace_t;
 typedef struct KBlasHandle *kblasHandle_t;
-#define GPUBlasHandle KBlasHandle
 
 int kblasCreate(kblasHandle_t *handle);
 int kblasDestroy(kblasHandle_t *handle);
+
+int kblasAllocateWorkspace(kblasHandle_t handle);
+int kblasFreeeWorkspace(kblasHandle_t handle);
 
 //============================================================================
 //BLAS2 routines

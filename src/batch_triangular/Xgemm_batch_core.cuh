@@ -258,7 +258,7 @@ int Xgemm_batch_core( kblasHandle_t handle,
 
     while(batch_start != batchCount)
     {
-      int batch_size = std::min(batch_increment, batchCount - batch_start);
+      int batch_size = kmin(batch_increment, batchCount - batch_start);
 
       magmablas_Xgemm_batched((magma_trans_t)(MagmaNoTrans + (transA == KBLAS_Trans)),
                               (magma_trans_t)(MagmaNoTrans + (transB == KBLAS_Trans)),

@@ -50,6 +50,12 @@ int kblasDestroy(kblasHandle_t *handle);
 int kblasAllocateWorkspace(kblasHandle_t handle);
 int kblasFreeeWorkspace(kblasHandle_t handle);
 
+void kblasTimerTic(kblasHandle_t handle);
+double kblasTimerToc(kblasHandle_t handle);
+
+cudaStream_t kblasGetStream(kblasHandle_t handle);
+void kblasSetStream(kblasHandle_t handle, cudaStream_t stream);
+
 //============================================================================
 //BLAS2 routines
 //============================================================================

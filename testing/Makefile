@@ -30,14 +30,14 @@ endif
 # libraries to link against
 LIB= -lm -l${LIB_KBLAS_NAME}
 ifdef _USE_MAGMA_
-LIB+= -lmagma
+LIB+= -lmagma -lcusparse
 endif
 LIB+= -lcublas -lcudart
 ifdef _USE_MKL_
-# LIB+= -lmkl_intel_ilp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
+LIB+= -lmkl_intel_ilp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
 # LIB+= -lmkl_intel_lp64 -lmkl_sequential -lmkl_core
 # LIB+= -mkl=sequential
-LIB+= -mkl=parallel
+# LIB+= -mkl=parallel
 endif
 # LIB+= -liomp5
 LIB+= -lstdc++
@@ -54,12 +54,12 @@ BIN_DIR=./bin
 
 ifdef _SUPPORT_BLAS2_
 KBLAS_TEST2_DIR=blas_l2
-include $(KBLAS_TEST2_DIR)/Makefile
+# include $(KBLAS_TEST2_DIR)/Makefile
 endif
 
 ifdef _SUPPORT_BLAS3_
 KBLAS_TEST3_DIR=blas_l3
-include $(KBLAS_TEST3_DIR)/Makefile
+# include $(KBLAS_TEST3_DIR)/Makefile
 endif
 
 ifdef _SUPPORT_BATCH_TR_

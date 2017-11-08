@@ -1,6 +1,8 @@
 #ifndef __TESTING_HELPER_H__
 #define __TESTING_HELPER_H__
 
+#include <cuda.h>
+#include <cuda_runtime.h>
 #include <cublas_v2.h>
 #include <kblas.h>
 
@@ -24,16 +26,33 @@ void gpuCublasAssert(cublasStatus_t code, const char *file, int line);
 double gettime(void);
 
 struct GPU_Timer;
-GPU_Timer* newGPU_Timer();
-void deleteGPU_Timer(GPU_Timer* timer);
-void gpuTimerTic(GPU_Timer* timer, cudaStream_t stream);
-double gpuTimerToc(GPU_Timer* timer, cudaStream_t stream);
+typedef GPU_Timer* GPU_Timer_t;
+
+GPU_Timer_t newGPU_Timer(cudaStream_t stream);
+void deleteGPU_Timer(GPU_Timer_t timer);
+void gpuTimerTic(GPU_Timer_t timer);
+void gpuTimerRecordEnd(GPU_Timer_t timer);
+double gpuTimerToc(GPU_Timer_t timer);
 
 ////////////////////////////////////////////////////////////
 // Generate array of pointers from a strided array 
 ////////////////////////////////////////////////////////////
 void generateDArrayOfPointers(double* original_array, double** array_of_arrays, int stride, int num_arrays, cudaStream_t stream);
 void generateSArrayOfPointers(float* original_array, float** array_of_arrays, int stride, int num_arrays, cudaStream_t stream);
+
+////////////////////////////////////////////////////////////
+// Allocations
+////////////////////////////////////////////////////////////
+#define TESTING_MALLOC_CPU( ptr, T, size)                       \
+  if ( (ptr = (T*) malloc( (size)*sizeof( T ) ) ) == NULL) {    \
+    fprintf( stderr, "!!!! malloc_cpu failed for: %s\n", #ptr ); \
+    exit(-1);                                                   \
+  }
+#define TESTING_MALLOC_DEV( ptr, T, size) check_error( cudaMalloc( (void**)&ptr, (size)*sizeof(T) ) )
+#define TESTING_MALLOC_PIN( ptr, T, size) check_error( cudaHostAlloc ( (void**)&ptr, (size)*sizeof( T ), cudaHostAllocPortable  ))
+
+#define TESTING_FREE_CPU(ptr)	{ if( (ptr) ) free( (ptr) ); }  
+#define TESTING_FREE_DEV(ptr)	check_error( cudaFree( (ptr) ) );  
 
 ////////////////////////////////////////////////////////////
 // Command line parser

@@ -581,7 +581,7 @@ int batch_svd_randomized(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, 
 ////////////////////////////////////////////////////////////////////
 // workspace query routines for both strided and array of pointers interface
 ////////////////////////////////////////////////////////////////////
-void kblasDgesvj_batch_wsquery(kblasHandle_t handle, int m, int n, int ops)
+extern "C" void kblasDgesvj_batch_wsquery(kblasHandle_t handle, int m, int n, int ops)
 {
 	if(m <= SHARED_SVD_DIM_LIMIT && n <= SHARED_SVD_DIM_LIMIT)
 		return;
@@ -591,7 +591,7 @@ void kblasDgesvj_batch_wsquery(kblasHandle_t handle, int m, int n, int ops)
 		batch_svd_osbj_workspace<double>(m, n, ops, handle->work_space.requested_ws_state, 0);
 }
 
-void kblasSgesvj_batch_wsquery(kblasHandle_t handle, int m, int n, int ops)
+extern "C" void kblasSgesvj_batch_wsquery(kblasHandle_t handle, int m, int n, int ops)
 {
 	if(m <= SHARED_SVD_DIM_LIMIT && n <= SHARED_SVD_DIM_LIMIT)
 		return;
@@ -601,7 +601,7 @@ void kblasSgesvj_batch_wsquery(kblasHandle_t handle, int m, int n, int ops)
 		batch_svd_osbj_workspace<float>(m, n, ops, handle->work_space.requested_ws_state, 0);
 }
 
-void kblasDgesvj_gram_batch_wsquery(kblasHandle_t handle, int m, int n, int ops)
+extern "C" void kblasDgesvj_gram_batch_wsquery(kblasHandle_t handle, int m, int n, int ops)
 {
 	if(m <= SHARED_SVD_DIM_LIMIT && n <= SHARED_SVD_DIM_LIMIT)
 		return;
@@ -609,7 +609,7 @@ void kblasDgesvj_gram_batch_wsquery(kblasHandle_t handle, int m, int n, int ops)
 	batch_svd_osbj_workspace<double>(m, n, ops, handle->work_space.requested_ws_state, 0);
 }
 
-void kblasSgesvj_gram_batch_wsquery(kblasHandle_t handle, int m, int n, int ops)
+extern "C" void kblasSgesvj_gram_batch_wsquery(kblasHandle_t handle, int m, int n, int ops)
 {
 	if(m <= SHARED_SVD_DIM_LIMIT && n <= SHARED_SVD_DIM_LIMIT)
 		return;
@@ -617,12 +617,12 @@ void kblasSgesvj_gram_batch_wsquery(kblasHandle_t handle, int m, int n, int ops)
 	batch_svd_osbj_workspace<double>(m, n, ops, handle->work_space.requested_ws_state, 0);
 }
 
-void kblasDrsvd_batch_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int ops)
+extern "C" void kblasDrsvd_batch_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int ops)
 {
 	batch_svd_randomized_workspace<double>(m, n, rank, ops, handle->work_space.requested_ws_state, 0);
 }
 
-void kblasSrsvd_batch_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int ops)
+extern "C" void kblasSrsvd_batch_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int ops)
 {
 	batch_svd_randomized_workspace<float>(m, n, rank, ops, handle->work_space.requested_ws_state, 0);
 }
@@ -630,7 +630,7 @@ void kblasSrsvd_batch_batch_wsquery(kblasHandle_t handle, int m, int n, int rank
 ////////////////////////////////////////////////////////////////////
 // Strided interface
 ////////////////////////////////////////////////////////////////////
-int kblasDgesvj_batch_strided(kblasHandle_t handle, int m, int n, double* A_strided, int lda, int stride_a, double* S_strided, int stride_s, int num_ops)
+extern "C" int kblasDgesvj_batch_strided(kblasHandle_t handle, int m, int n, double* A_strided, int lda, int stride_a, double* S_strided, int stride_s, int num_ops)
 {
 	if(m < n)
 		return KBLAS_NotImplemented;
@@ -643,7 +643,7 @@ int kblasDgesvj_batch_strided(kblasHandle_t handle, int m, int n, double* A_stri
 		return batch_svd_osbj_qr<double, double*>(A_strided, lda, stride_a, S_strided, stride_s, m, n, num_ops, handle);
 }
 
-int kblasSgesvj_batch_strided(kblasHandle_t handle, int m, int n, float* A_strided, int lda, int stride_a, float* S_strided, int stride_s, int num_ops)
+extern "C" int kblasSgesvj_batch_strided(kblasHandle_t handle, int m, int n, float* A_strided, int lda, int stride_a, float* S_strided, int stride_s, int num_ops)
 {
 	if(m < n)
 		return KBLAS_NotImplemented;
@@ -656,7 +656,7 @@ int kblasSgesvj_batch_strided(kblasHandle_t handle, int m, int n, float* A_strid
 		return batch_svd_osbj_qr<float, float*>(A_strided, lda, stride_a, S_strided, stride_s, m, n, num_ops, handle);
 }
 
-int kblasDgesvj_gram_batch_strided(kblasHandle_t handle, int m, int n, double* A_strided, int lda, int stride_a, double* S_strided, int stride_s, int num_ops)
+extern "C" int kblasDgesvj_gram_batch_strided(kblasHandle_t handle, int m, int n, double* A_strided, int lda, int stride_a, double* S_strided, int stride_s, int num_ops)
 {
 	if(m < n)
 		return KBLAS_NotImplemented;
@@ -664,7 +664,7 @@ int kblasDgesvj_gram_batch_strided(kblasHandle_t handle, int m, int n, double* A
 	return batch_svd_osbj_gram<double, double*>(A_strided, lda, stride_a, S_strided, stride_s, m, n, num_ops, handle);
 }
 
-int kblasSgesvj_gram_batch_strided(kblasHandle_t handle, int m, int n, float* A_strided, int lda, int stride_a, float* S_strided, int stride_s, int num_ops)
+extern "C" int kblasSgesvj_gram_batch_strided(kblasHandle_t handle, int m, int n, float* A_strided, int lda, int stride_a, float* S_strided, int stride_s, int num_ops)
 {
 	if(m < n)
 		return KBLAS_NotImplemented;
@@ -672,12 +672,12 @@ int kblasSgesvj_gram_batch_strided(kblasHandle_t handle, int m, int n, float* A_
 	return batch_svd_osbj_gram<float, float*>(A_strided, lda, stride_a, S_strided, stride_s, m, n, num_ops, handle);
 }
 
-int kblasDrsvd_batch_strided(kblasHandle_t handle, int m, int n, int rank, double* A_strided, int lda, int stride_a, double* S_strided, int stride_s, int num_ops)
+extern "C" int kblasDrsvd_batch_strided(kblasHandle_t handle, int m, int n, int rank, double* A_strided, int lda, int stride_a, double* S_strided, int stride_s, int num_ops)
 {
 	return batch_svd_randomized<double, double*>(A_strided, lda, stride_a, S_strided, stride_s, m, n, rank, num_ops, handle);
 }
 
-int kblasSrsvd_batch_strided(kblasHandle_t handle, int m, int n, int rank, float* A_strided, int lda, int stride_a, float* S_strided, int stride_s, int num_ops)
+extern "C" int kblasSrsvd_batch_strided(kblasHandle_t handle, int m, int n, int rank, float* A_strided, int lda, int stride_a, float* S_strided, int stride_s, int num_ops)
 {
 	return batch_svd_randomized<float, float*>(A_strided, lda, stride_a, S_strided, stride_s, m, n, rank, num_ops, handle);
 }
@@ -685,7 +685,7 @@ int kblasSrsvd_batch_strided(kblasHandle_t handle, int m, int n, int rank, float
 ////////////////////////////////////////////////////////////////////
 // Array of pointers interface
 ////////////////////////////////////////////////////////////////////
-int kblasDgesvj_batch(kblasHandle_t handle, int m, int n, double** A_ptrs, int lda, double** S_ptrs, int num_ops)
+extern "C" int kblasDgesvj_batch(kblasHandle_t handle, int m, int n, double** A_ptrs, int lda, double** S_ptrs, int num_ops)
 {
 	if(m < n)
 		return KBLAS_NotImplemented;
@@ -698,7 +698,7 @@ int kblasDgesvj_batch(kblasHandle_t handle, int m, int n, double** A_ptrs, int l
 		return batch_svd_osbj_qr<double, double**>(A_ptrs, lda, 0, S_ptrs, 0, m, n, num_ops, handle);
 }
 
-int kblasSgesvj_batch(kblasHandle_t handle, int m, int n, float** A_ptrs, int lda, float** S_ptrs, int num_ops)
+extern "C" int kblasSgesvj_batch(kblasHandle_t handle, int m, int n, float** A_ptrs, int lda, float** S_ptrs, int num_ops)
 {
 	if(m < n)
 		return KBLAS_NotImplemented;
@@ -711,7 +711,7 @@ int kblasSgesvj_batch(kblasHandle_t handle, int m, int n, float** A_ptrs, int ld
 		return batch_svd_osbj_qr<float, float**>(A_ptrs, lda, 0, S_ptrs, 0, m, n, num_ops, handle);
 }
 
-int kblasDgesvj_gram_batch(kblasHandle_t handle, int m, int n, double** A_ptrs, int lda, double** S_ptrs, int num_ops)
+extern "C" int kblasDgesvj_gram_batch(kblasHandle_t handle, int m, int n, double** A_ptrs, int lda, double** S_ptrs, int num_ops)
 {
 	if(m < n)
 		return KBLAS_NotImplemented;
@@ -719,7 +719,7 @@ int kblasDgesvj_gram_batch(kblasHandle_t handle, int m, int n, double** A_ptrs, 
 	return batch_svd_osbj_gram<double, double**>(A_ptrs, lda, 0, S_ptrs, 0, m, n, num_ops, handle);
 }
 
-int kblasSgesvj_gram_batch(kblasHandle_t handle, int m, int n, float** A_ptrs, int lda, float** S_ptrs, int num_ops)
+extern "C" int kblasSgesvj_gram_batch(kblasHandle_t handle, int m, int n, float** A_ptrs, int lda, float** S_ptrs, int num_ops)
 {
 	if(m < n)
 		return KBLAS_NotImplemented;
@@ -727,12 +727,12 @@ int kblasSgesvj_gram_batch(kblasHandle_t handle, int m, int n, float** A_ptrs, i
 	return batch_svd_osbj_gram<float, float**>(A_ptrs, lda, 0, S_ptrs, 0, m, n, num_ops, handle);
 }
 
-int kblasDrsvd_batch(kblasHandle_t handle, int m, int n, int rank, double** A_ptrs, int lda, double** S_ptrs, int num_ops)
+extern "C" int kblasDrsvd_batch(kblasHandle_t handle, int m, int n, int rank, double** A_ptrs, int lda, double** S_ptrs, int num_ops)
 {
 	return batch_svd_randomized<double, double**>(A_ptrs, lda, 0, S_ptrs, 0, m, n, rank, num_ops, handle);
 }
 
-int kblasSrsvd_batch(kblasHandle_t handle, int m, int n, int rank, float** A_ptrs, int lda, float** S_ptrs, int num_ops)
+extern "C" int kblasSrsvd_batch(kblasHandle_t handle, int m, int n, int rank, float** A_ptrs, int lda, float** S_ptrs, int num_ops)
 {
 	return batch_svd_randomized<float, float**>(A_ptrs, lda, 0, S_ptrs, 0, m, n, rank, num_ops, handle);
 }

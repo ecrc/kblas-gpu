@@ -70,6 +70,21 @@ int kblasFreeeWorkspace(kblasHandle_t handle) {
 	return handle->work_space.deallocate();
 }
 
+void kblasTimerTic(kblasHandle_t handle){
+	handle->tic();
+}
+
+double kblasTimerToc(kblasHandle_t handle) {
+	return handle->toc();
+}
+
+cudaStream_t kblasGetStream(kblasHandle_t handle) {
+	return handle->stream;
+}
+
+void kblasSetStream(kblasHandle_t handle, cudaStream_t stream) {
+	handle->stream = stream;
+}
 //==============================================================================================
 extern "C"{
 const char* cublasGetErrorString( cublasStatus_t error )

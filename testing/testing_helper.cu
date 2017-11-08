@@ -49,14 +49,16 @@ struct GPU_Timer
 {
 	cudaEvent_t start_event, stop_event;
 	float elapsed_time;
-
-    void init()
+	cudaStream_t stream;
+	
+    void init(cudaStream_t stream = 0)
     {
         #pragma omp critical (create_timer)
         {
             check_error( cudaEventCreate(&start_event) );
             check_error( cudaEventCreate(&stop_event ) );
             elapsed_time = 0;
+			this->stream = stream;
         }
     }
 
@@ -69,14 +71,18 @@ struct GPU_Timer
         }
     }
 
-    void start(cudaStream_t stream = 0)
+    void start()
     {
         check_error( cudaEventRecord(start_event, stream) );
     }
+	
+	void recordEnd()
+	{
+		check_error( cudaEventRecord(stop_event, stream) );
+	}
 
-    float stop(cudaStream_t stream = 0)
+    float stop()
     {
-        check_error( cudaEventRecord(stop_event, stream) );
         check_error( cudaEventSynchronize(stop_event) );
 
         float time_since_last_start;
@@ -99,10 +105,10 @@ extern "C" double gettime(void)
 	return tp.tv_sec + 1e-6 * tp.tv_usec;
 }
 
-extern "C" GPU_Timer* newGPU_Timer()
+extern "C" GPU_Timer* newGPU_Timer(cudaStream_t stream)
 {
 	GPU_Timer* timer = new GPU_Timer();
-	timer->init();
+	timer->init(stream);
 	return timer;
 }
 
@@ -112,14 +118,19 @@ extern "C" void deleteGPU_Timer(GPU_Timer* timer)
 	delete timer;
 }
 
-extern "C" void gpuTimerTic(GPU_Timer* timer, cudaStream_t stream)
+extern "C" void gpuTimerTic(GPU_Timer* timer)
 {
-	timer->start(stream);
+	timer->start();
 }
 
-extern "C" double gpuTimerToc(GPU_Timer* timer, cudaStream_t stream)
+extern "C" void gpuTimerRecordEnd(GPU_Timer* timer)
 {
-	return timer->stop(stream);
+	timer->recordEnd();
+}
+
+extern "C" double gpuTimerToc(GPU_Timer* timer)
+{
+	return timer->stop();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -64,23 +64,23 @@ int batch_transpose_template(kblasHandle_t handle, int m, int n, T_ptr matrix_da
 }
 
 // Strided interface
-int kblasDtranspose_batch_strided(kblasHandle_t handle, int m, int n, double* matrix_strided, int ldm, int stride_m, double* transpose_strided, int ldt, int stride_t, int ops)
+extern "C" int kblasDtranspose_batch_strided(kblasHandle_t handle, int m, int n, double* matrix_strided, int ldm, int stride_m, double* transpose_strided, int ldt, int stride_t, int ops)
 {
 	return batch_transpose_template<double, double*>(handle, m, n, matrix_strided, ldm, stride_m, transpose_strided, ldt, stride_t, ops);
 }
 
-int kblasStranspose_batch_strided(kblasHandle_t handle, int m, int n, float* matrix_strided, int ldm, int stride_m, float* transpose_strided, int ldt, int stride_t, int ops)
+extern "C" int kblasStranspose_batch_strided(kblasHandle_t handle, int m, int n, float* matrix_strided, int ldm, int stride_m, float* transpose_strided, int ldt, int stride_t, int ops)
 {
 	return batch_transpose_template<float, float*>(handle, m, n, matrix_strided, ldm, stride_m, transpose_strided, ldt, stride_t, ops);
 }
 
 // Array of pointers interface
-int kblasDtranspose_batch(kblasHandle_t handle, int m, int n, double** matrix_ptrs, int ldm, double** transpose_ptrs, int ldt, int ops)
+extern "C" int kblasDtranspose_batch(kblasHandle_t handle, int m, int n, double** matrix_ptrs, int ldm, double** transpose_ptrs, int ldt, int ops)
 {
 	return batch_transpose_template<double, double**>(handle, m, n, matrix_ptrs, ldm, 0, transpose_ptrs, ldt, 0, ops);
 }
 
-int kblasStranspose_batch(kblasHandle_t handle, int m, int n, float** matrix_ptrs, int ldm, float** transpose_ptrs, int ldt, int ops)
+extern "C" int kblasStranspose_batch(kblasHandle_t handle, int m, int n, float** matrix_ptrs, int ldm, float** transpose_ptrs, int ldt, int ops)
 {
 	return batch_transpose_template<float, float**>(handle, m, n, matrix_ptrs, ldm, 0, transpose_ptrs, ldt, 0, ops);
 }

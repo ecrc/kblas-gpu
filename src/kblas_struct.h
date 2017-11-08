@@ -108,22 +108,22 @@ struct KBlasWorkspace
     h_ptrs = NULL;
     d_data = NULL;
     d_ptrs = NULL;
-	allocated_ws_state.reset();
-	requested_ws_state.reset();
-	consumed_ws_state.reset();
+  	allocated_ws_state.reset();
+  	requested_ws_state.reset();
+  	consumed_ws_state.reset();
   }
 
   KBlasWorkspaceState getAvailable()
   {
-	KBlasWorkspaceState available;
+  	KBlasWorkspaceState available;
 
-	available.h_data_bytes = allocated_ws_state.h_data_bytes - consumed_ws_state.h_data_bytes;
-	available.h_ptrs_bytes = allocated_ws_state.h_ptrs_bytes - consumed_ws_state.h_ptrs_bytes;
+  	available.h_data_bytes = allocated_ws_state.h_data_bytes - consumed_ws_state.h_data_bytes;
+  	available.h_ptrs_bytes = allocated_ws_state.h_ptrs_bytes - consumed_ws_state.h_ptrs_bytes;
 
-	available.d_data_bytes = allocated_ws_state.d_data_bytes - consumed_ws_state.d_data_bytes;
-	available.d_ptrs_bytes = allocated_ws_state.d_ptrs_bytes - consumed_ws_state.d_ptrs_bytes;
+  	available.d_data_bytes = allocated_ws_state.d_data_bytes - consumed_ws_state.d_data_bytes;
+  	available.d_ptrs_bytes = allocated_ws_state.d_ptrs_bytes - consumed_ws_state.d_ptrs_bytes;
 
-	return available;
+  	return available;
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -133,63 +133,63 @@ struct KBlasWorkspace
   // Device workspace
   void* push_d_data(long bytes)
   {
-	assert(bytes + consumed_ws_state.d_data_bytes <= allocated_ws_state.d_data_bytes);
+    assert(bytes + consumed_ws_state.d_data_bytes <= allocated_ws_state.d_data_bytes);
 
     void* ret_ptr = (WS_Byte*)d_data + consumed_ws_state.d_data_bytes;
-	consumed_ws_state.d_data_bytes += bytes;
-	return ret_ptr;
+  	consumed_ws_state.d_data_bytes += bytes;
+  	return ret_ptr;
   }
 
   void pop_d_data(long bytes)
   {
-	assert(consumed_ws_state.d_data_bytes >= bytes);
-	consumed_ws_state.d_data_bytes -= bytes;
+  	assert(consumed_ws_state.d_data_bytes >= bytes);
+  	consumed_ws_state.d_data_bytes -= bytes;
   }
 
   void* push_d_ptrs(long bytes)
   {
-	assert(bytes + consumed_ws_state.d_ptrs_bytes <= allocated_ws_state.d_ptrs_bytes);
+    assert(bytes + consumed_ws_state.d_ptrs_bytes <= allocated_ws_state.d_ptrs_bytes);
 
     void* ret_ptr = (WS_Byte*)d_ptrs + consumed_ws_state.d_ptrs_bytes;
-	consumed_ws_state.d_ptrs_bytes += bytes;
-	return ret_ptr;
+  	consumed_ws_state.d_ptrs_bytes += bytes;
+  	return ret_ptr;
   }
 
   void pop_d_ptrs(long bytes)
   {
-	assert(consumed_ws_state.d_ptrs_bytes >= bytes);
+  	assert(consumed_ws_state.d_ptrs_bytes >= bytes);
 
-	consumed_ws_state.d_ptrs_bytes -= bytes;
+  	consumed_ws_state.d_ptrs_bytes -= bytes;
   }
   // Host workspace
   void* push_h_data(long bytes)
   {
-	assert(bytes + consumed_ws_state.h_data_bytes <= allocated_ws_state.h_data_bytes);
+    assert(bytes + consumed_ws_state.h_data_bytes <= allocated_ws_state.h_data_bytes);
 
     void* ret_ptr = (WS_Byte*)h_data + consumed_ws_state.h_data_bytes;
-	consumed_ws_state.h_data_bytes += bytes;
-	return ret_ptr;
+  	consumed_ws_state.h_data_bytes += bytes;
+  	return ret_ptr;
   }
 
   void pop_h_data(long bytes)
   {
-	assert(consumed_ws_state.h_data_bytes >= bytes);
-	consumed_ws_state.h_data_bytes -= bytes;
+  	assert(consumed_ws_state.h_data_bytes >= bytes);
+  	consumed_ws_state.h_data_bytes -= bytes;
   }
 
   void* push_h_ptrs(long bytes)
   {
-	assert(bytes + consumed_ws_state.h_ptrs_bytes <= allocated_ws_state.h_ptrs_bytes);
+    assert(bytes + consumed_ws_state.h_ptrs_bytes <= allocated_ws_state.h_ptrs_bytes);
 
     void* ret_ptr = (WS_Byte*)h_ptrs + consumed_ws_state.h_ptrs_bytes;
-	consumed_ws_state.h_ptrs_bytes += bytes;
-	return ret_ptr;
+  	consumed_ws_state.h_ptrs_bytes += bytes;
+  	return ret_ptr;
   }
 
   void pop_h_ptrs(long bytes)
   {
-	assert(consumed_ws_state.h_ptrs_bytes >= bytes);
-	consumed_ws_state.h_ptrs_bytes -= bytes;
+  	assert(consumed_ws_state.h_ptrs_bytes >= bytes);
+  	consumed_ws_state.h_ptrs_bytes -= bytes;
   }
 
   int allocate()
@@ -207,7 +207,7 @@ struct KBlasWorkspace
       #ifdef DEBUG_ON
       printf(" host bytes %d,", allocated_ws_state.h_data_bytes);
       #endif
-	  requested_ws_state.h_data_bytes = 0;
+      requested_ws_state.h_data_bytes = 0;
     }
 
     if(requested_ws_state.h_ptrs_bytes > 0 && allocated_ws_state.h_ptrs_bytes < requested_ws_state.h_ptrs_bytes ){
@@ -218,7 +218,7 @@ struct KBlasWorkspace
       #ifdef DEBUG_ON
       printf(" host pointer bytes %d,", allocated_ws_state.h_ptrs_bytes);
       #endif
-	  requested_ws_state.h_ptrs_bytes = 0;
+      requested_ws_state.h_ptrs_bytes = 0;
     }
 
 
@@ -232,7 +232,7 @@ struct KBlasWorkspace
       printf(" device bytes %d,", allocated_ws_state.d_data_bytes);
       #endif
       check_error_ret( cudaMalloc( (void**)&d_data, allocated_ws_state.d_data_bytes ), KBLAS_Error_Allocation);
-	  requested_ws_state.d_data_bytes = 0;
+  	  requested_ws_state.d_data_bytes = 0;
     }
 
     if(requested_ws_state.d_ptrs_bytes > 0 && allocated_ws_state.d_ptrs_bytes < requested_ws_state.d_ptrs_bytes ){
@@ -245,7 +245,7 @@ struct KBlasWorkspace
       #ifdef DEBUG_ON
       printf(" device pointer bytes %d,", allocated_ws_state.d_ptrs_bytes);
       #endif
-	  requested_ws_state.d_ptrs_bytes = 0;
+      requested_ws_state.d_ptrs_bytes = 0;
     }
     #ifdef DEBUG_ON
     printf("\n");
@@ -258,9 +258,9 @@ struct KBlasWorkspace
   int deallocate()
   {
     if(h_data)
-      free(h_data);
+      cudaFreeHost(h_data);
     if(h_ptrs)
-      free(h_ptrs);
+      cudaFreeHost(h_ptrs);
     if(d_data)
       check_error_ret( cudaFree(d_data), KBLAS_Error_Deallocation );
     if(d_ptrs)

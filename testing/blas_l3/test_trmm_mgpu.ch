@@ -1,6 +1,7 @@
 #ifndef _TEST_trmm_
 #define _TEST_trmm_
 
+#include "l3_common.h"
 #include "testing_Xtr_common.h"
 
 

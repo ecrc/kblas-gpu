@@ -61,7 +61,37 @@ int Xgemm_batch(kblasHandle_t handle,
                       TYPE** C, int ldc,
                 int batchCount);
 
-//==============================================================================================
+void kblas_gemm_batch_wsquery(kblasHandle_t handle,
+                              int batchCount,
+                              int A_row_off, int A_col_off,
+                              int B_row_off, int B_col_off,
+                              int C_row_off, int C_col_off);
 
+int kblas_gemm_batch( kblasHandle_t handle,
+                      char transA, char transB,
+                      const int m, const int n, const int k,
+                      const TYPE alpha,
+                      const TYPE** A, int A_row_off, int A_col_off, int lda,
+                      const TYPE** B, int B_row_off, int B_col_off, int ldb,
+                      const TYPE beta,
+                            TYPE** C, int C_row_off, int C_col_off, int ldc,
+                      int batchCount);
+
+//==============================================================================================
+int kblas_trsm_batch(kblasHandle_t handle,
+                     char side, char uplo, char trans, char diag,
+                     const int m, const int n,
+                     const TYPE alpha,
+                     const TYPE** A, int lda,
+                           TYPE** B, int ldb,
+                     int batchCount);
+
+int kblas_trsm_batch(kblasHandle_t handle,
+                     char side, char uplo, char trans, char diag,
+                     const int m, const int n,
+                     const TYPE alpha,
+                     const TYPE* A, int lda, long strideA,
+                           TYPE* B, int ldb, long strideB,
+                     int batchCount);
 
 #endif// __XBLAS_CORE__

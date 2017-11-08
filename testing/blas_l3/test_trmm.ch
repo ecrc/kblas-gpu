@@ -1,6 +1,7 @@
 #ifndef _TEST_TRMM_
 #define _TEST_TRMM_
 
+#include "l3_common.h"
 #include "testing_Xtr_common.h"
 
 cublasStatus_t cublasXtrmm(cublasHandle_t handle,

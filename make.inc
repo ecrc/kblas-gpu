@@ -1,9 +1,9 @@
 
 #-----------------------------------------
-#_SUPPORT_BLAS2_=TRUE
-#_SUPPORT_BLAS3_=TRUE
+_SUPPORT_BLAS2_=TRUE
+_SUPPORT_BLAS3_=TRUE
 _SUPPORT_BATCH_TR_=TRUE
-_SUPPORT_SVD_=TRUE
+#_SUPPORT_SVD_=TRUE
 
 
 #-----------------------------------------
@@ -33,8 +33,8 @@ NVOPTS_3 = -DSM=35 -arch sm_35 -Xcompiler -fopenmp #-lineinfo -Xptxas -v
 ifdef _SUPPORT_SVD_
   _USE_MAGMA_=TRUE
   _CUB_DIR_=$(HOME)/git_codes/cub
-  COPTS += -DSUPPORT_SVD -D__NO_NCCL__
-  NVOPTS += -DSUPPORT_SVD -D__NO_NCCL__
+  #COPTS += -DSUPPORT_SVD -D__NO_NCCL__
+  #NVOPTS += -DSUPPORT_SVD -D__NO_NCCL__
 endif
 
 #-----------------------------------------

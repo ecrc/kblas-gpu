@@ -133,12 +133,15 @@ kernel_trsm_U_RLXN_registers_fixN_mulM( const int m, const int n, int batchCount
   const T *A;
         T *B;
   if(STRIDED == true){
-    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA + A_row_off + A_col_off * lda;
-    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB + B_row_off + B_col_off * ldb + Bm_start;
+    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
+    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB;
   }else{
-    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty] + A_row_off + A_col_off * lda;
-    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty] + B_row_off + B_col_off * ldb + Bm_start;
+    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty];
+    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty];
   }
+  A += A_row_off + A_col_off * lda;
+  B += B_row_off + B_col_off * ldb + Bm_start;
+
   dev_trsm_U_RLXN_registers_fixN_mulM<T, TRANS, TX, TY>(m, n,
                                                         alpha, A, lda,
                                                                B, ldb);
@@ -277,12 +280,14 @@ kernel_trsm_U_RLXN_registers_fixN_varM( const int m, const int n, int batchCount
   const T *A;
         T *B;
   if(STRIDED){
-    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA + A_row_off + A_col_off * lda;
-    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB + B_row_off + B_col_off * ldb + Bm_start;
+    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
+    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB;
   }else{
-    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty] + A_row_off + A_col_off * lda;
-    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty] + B_row_off + B_col_off * ldb + Bm_start;
+    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty];
+    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty];
   }
+  A += A_row_off + A_col_off * lda;
+  B += B_row_off + B_col_off * ldb + Bm_start;
   dev_trsm_U_RLXN_registers_fixN_varM<T, TRANS, TX, TY>(m, n,
                                                         alpha, A, lda,
                                                                B, ldb);
@@ -431,8 +436,6 @@ kernel_trsm_U_RLXN_registers_varN_varM( const int m, const int n, int batchCount
                                         const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
                                                                           T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB)
 {
-  printf("%s(%d) TX(%d), TY(%d), m(%d), n(%d)\n",
-    __func__, __LINE__, TX, TY, m, n);
   if( (TX < n) ) return;//necessary condition
 
   //are we within bounds
@@ -442,16 +445,14 @@ kernel_trsm_U_RLXN_registers_varN_varM( const int m, const int n, int batchCount
   const T *A;
         T *B;
   if(STRIDED){
-    printf("%s(%d) strided, A_row_off(%d), A_col_off(%d), B_row_off(%d), B_col_off(%d), m(%d), n(%d)\n",
-      __func__, __LINE__, A_row_off, A_col_off, B_row_off, B_col_off, m, n);
-    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA + A_row_off + A_col_off * lda;
-    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB + B_row_off + B_col_off * ldb + Bm_start;
+    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
+    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB;
   }else{
-    printf("%s(%d) not strided, A_row_off(%d), A_col_off(%d), B_row_off(%d), B_col_off(%d), m(%d), n(%d)\n",
-      __func__, __LINE__, A_row_off, A_col_off, B_row_off, B_col_off, m, n);
-    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty] + A_row_off + A_col_off * lda;
-    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty] + B_row_off + B_col_off * ldb + Bm_start;
+    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty];
+    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty];
   }
+  A += A_row_off + A_col_off * lda;
+  B += B_row_off + B_col_off * ldb + Bm_start;
   dev_trsm_U_RLXN_registers_varN_varM<T, TRANS, TX, TY>(m, n,
                                                         alpha, A, lda,
                                                                B, ldb);
@@ -545,12 +546,14 @@ kernel_trsm_U_LLXN_registers_Mfix_Nmul( const int m, const int n, int batchCount
   const T *A;
         T *B;
   if(STRIDED){
-    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA + A_row_off + A_col_off * lda;
-    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB + B_row_off + B_col_off * ldb + Bn_start;
+    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
+    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB;
   }else{
-    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty] + A_row_off + A_col_off * lda;
-    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty] + B_row_off + B_col_off * ldb + Bn_start;
+    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty];
+    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty];
   }
+  A += A_row_off + A_col_off * lda;
+  B += B_row_off + B_col_off * ldb + Bn_start;
   dev_trsm_U_LLXN_registers_Mfix_Nmul<T, TRANS, TX, TY>(m, n,
                                                         alpha, A, lda,
                                                                B, ldb);
@@ -716,12 +719,14 @@ kernel_trsm_U_LLXN_registers_Mfix_Nvar( const int m, const int n, int batchCount
   const T *A;
         T *B;
   if(STRIDED){
-    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA + A_row_off + A_col_off * lda;
-    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB + B_row_off + B_col_off * ldb + Bn_start * ldb;
+    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
+    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB;
   }else{
     A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty] + A_row_off + A_col_off * lda;
-    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty] + B_row_off + B_col_off * ldb + Bn_start * ldb;
+    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty];
   }
+  A += A_row_off + A_col_off * lda;
+  B += B_row_off + B_col_off * ldb + Bn_start * ldb;
   dev_trsm_U_LLXN_registers_Mfix_Nvar<T, TRANS, TX, TY>(m, n,
                                                         alpha, A, lda,
                                                                B, ldb);
@@ -888,12 +893,14 @@ kernel_trsm_U_LLXN_registers_MNvar( const int m, const int n, int batchCount,
   const T *A;
         T *B;
   if(STRIDED){
-    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA + A_row_off + A_col_off * lda;
-    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB + B_row_off + B_col_off * ldb + Bn_start * ldb;
+    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
+    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB;
   }else{
-    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty] + A_row_off + A_col_off * lda;
-    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty] + B_row_off + B_col_off * ldb + Bn_start * ldb;
+    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty];
+    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty];
   }
+  A += A_row_off + A_col_off * lda;
+  B += B_row_off + B_col_off * ldb + Bn_start * ldb;
   dev_trsm_U_LLXN_registers_MNvar<T, TRANS, TX, TY>(m, n,
                                                     alpha, A, lda,
                                                            B, ldb);

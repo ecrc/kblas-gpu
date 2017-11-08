@@ -160,7 +160,8 @@ int test_Xtrsm_batch(kblas_opts& opts, T alpha)
         Xrand_matrix(Am, An * batchCount, h_A, lda);
         Xrand_matrix(Cm, Cn * batchCount, h_C, ldc);
         for (int i=0; i < batchCount; i++){
-          kblas_make_hpd( Am, h_A + i * An * lda, lda );        }
+          kblas_make_hpd( Am, h_A + i * An * lda, lda );
+        }
         if(opts.time)
           memcpy(h_R, h_C, sizeC * batchCount * sizeof(T));
 

@@ -37,7 +37,7 @@
 
 #include "Xgemm_batch_core.cuh"
 #include "Xtrsm_batch_kernels.cuh"
-#if 1
+
 //==============================================================================================
 template<class T, bool STRIDED>
 void Xtrsm_batch_wsquery_core(int batchCount,
@@ -83,7 +83,6 @@ void Xtrsm_batch_wsquery_core(int batchCount,
 #define offB(i,j) B + B_row_off + (i) + (B_col_off + (j)) * ldb
 #define Aoff(_i,_j) A, A_row_off + (_i), A_col_off + (_j)
 #define Boff(_i,_j) B, B_row_off + (_i), B_col_off + (_j)
-#endif
 
 template<class T, class T_PTR, bool STRIDED>
 int Xtrsm_batch_core( kblasHandle_t handle,
@@ -133,7 +132,7 @@ int Xtrsm_batch_core( kblasHandle_t handle,
     func_idx = (side == KBLAS_Right) * ((trans == KBLAS_NoTrans) + 2 * (mmul == 0) + 8 * (n > 8) + 4 * (nvar == 1))
                +
                (side == KBLAS_Left) * (2*TRSM_R_NUM_VARIANTS + (trans == KBLAS_NoTrans) + 4 * (m > 8) + 2 * (mvar == 1));
-    printf("func_idx(%d) ",func_idx); fflush( stdout );
+    // printf("func_idx(%d) ",func_idx); fflush( stdout );
     int IS_SINGLE = (typeid(T) == typeid(float));
     dim_idx = (side == KBLAS_Right) * (n > 8) * 2 + (side == KBLAS_Left) * (m > 8) * 2 + (IS_SINGLE == 1);
     //dim_idx = (side == KBLAS_Right) * (n > 8) + (side == KBLAS_Left) * (m > 8);
@@ -146,14 +145,14 @@ int Xtrsm_batch_core( kblasHandle_t handle,
                   (side == KBLAS_Right) * ( m/BY + ((m % BY) != 0) ) +
                   (side == KBLAS_Left ) * ( n/BY + ((n % BY) != 0) )
                   );//TODO
-    printf("blockDim(%d,%d), gridDim(%d,%d) ", blockDim.x, blockDim.y, gridDim.x, gridDim.y);fflush( stdout );
+    // printf("blockDim(%d,%d), gridDim(%d,%d) ", blockDim.x, blockDim.y, gridDim.x, gridDim.y);fflush( stdout );
     long sh_mem = blockDim.x*(blockDim.x+1)*blockDim.y*sizeof(T);
     long trsm_kernels_sharedMem[] = {
       0,
       sh_mem
     };
-    printf("%s(%d): STRIDED(%d), A_row_off(%d), A_col_off(%d), B_row_off(%d), B_col_off(%d), m(%d), n(%d)\n",
-            __FILE__, __LINE__, STRIDED, A_row_off, A_col_off, B_row_off, B_col_off, m, n);
+    // printf("%s(%d): STRIDED(%d), A_row_off(%d), A_col_off(%d), B_row_off(%d), B_col_off(%d), m(%d), n(%d)\n",
+    //         __FILE__, __LINE__, STRIDED, A_row_off, A_col_off, B_row_off, B_col_off, m, n);
 
     //cudaStream_t curStream;
     //check_error( cublasGetStream( handle, &curStream ), KBLAS_cuBLAS_Error);
@@ -245,7 +244,7 @@ int Xtrsm_batch_core( kblasHandle_t handle,
                                                         alpha,      (T*)offB( 0,  0), ldb, strideB,
                                                         batchCount)), status);
         }else{
-          printf("non-strided %d\n", __LINE__);
+          // printf("non-strided %d\n", __LINE__);
           check_error_ret((status = kblas_gemm_batch( handle,
                                                       KBLAS_NoTrans, trans,
                                                       m, n1, n2,

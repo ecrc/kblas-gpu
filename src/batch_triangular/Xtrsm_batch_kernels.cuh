@@ -633,7 +633,8 @@ dev_trsm_U_LLXN_registers_Mfix_Nvar(const int m, const int n,
     for(int i = 0; i < TX; i++){
       sdata[ i + tx * TX1 ] = rB[ i ];//TODO handle bank conflicts ;
     }
-    ind0 = tx;
+    ind0 = tx + TX * b * ldb;
+    // ind0 = tx;
     //copy rB data back to global mem
     #pragma unroll
     for(int i = 0; i < TX; i++)
@@ -722,7 +723,7 @@ kernel_trsm_U_LLXN_registers_Mfix_Nvar( const int m, const int n, int batchCount
     A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
     B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB;
   }else{
-    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty] + A_row_off + A_col_off * lda;
+    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty];
     B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty];
   }
   A += A_row_off + A_col_off * lda;

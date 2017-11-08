@@ -183,6 +183,7 @@ int Xtrsm_batch_core( kblasHandle_t handle,
         n2 = n-n1;
       }
 
+      //Right / Lower / [Conj]Trans
       if(trans == KBLAS_Trans){
         //TRSM_BATCH
         check_error_ret((status = Xtrsm_batch_core<T, T_PTR, STRIDED>(
@@ -222,7 +223,9 @@ int Xtrsm_batch_core( kblasHandle_t handle,
                                                   alpha, Aoff(n1, n1), lda, strideA,
                                                          Boff( 0, n1), ldb, strideB,
                                                   batchCount)), status);
-      }else{
+      }
+      //Right / Lower / NoTrans
+      else{
         //TRSM_BATCH
         check_error_ret((status = Xtrsm_batch_core<T, T_PTR, STRIDED>(
                                                   handle,
@@ -273,6 +276,7 @@ int Xtrsm_batch_core( kblasHandle_t handle,
         m2 = m-m1;
       }
 
+      //Left / Lower / [Conj]Trans
       if(trans == KBLAS_Trans){
         //TRSM_BATCH
         check_error_ret((status = Xtrsm_batch_core<T, T_PTR, STRIDED>(
@@ -310,7 +314,9 @@ int Xtrsm_batch_core( kblasHandle_t handle,
                                                   one, Aoff(0, 0), lda, strideA,
                                                        Boff(0, 0), ldb, strideB,
                                                   batchCount)), status);
-      }else{
+      }
+      //Left / Lower / NoTrans
+      else{
         //TRSM_BATCH
         check_error_ret((status = Xtrsm_batch_core<T, T_PTR, STRIDED>(
                                                   handle,
@@ -322,18 +328,16 @@ int Xtrsm_batch_core( kblasHandle_t handle,
 
         //GEMM_BATCH
         if(STRIDED){
-          printf("strided %d\n", __LINE__);
           check_error_ret((status = Xgemm_batch_strided(handle,
-                                                        KBLAS_NoTrans, trans,
+                                                        trans, KBLAS_NoTrans,
                                                         m2, n, m1,
                                                         mone, (const T*)offA(m1, 0), lda, strideA,
                                                               (const T*)offB( 0, 0), ldb, strideB,
                                                         alpha,      (T*)offB(m1, 0), ldb, strideB,
                                                         batchCount)), status);
         }else{
-          printf("non-strided %d\n", __LINE__);
           check_error_ret((status = kblas_gemm_batch( handle,
-                                                      KBLAS_NoTrans, trans,
+                                                      trans, KBLAS_NoTrans,
                                                       m2, n, m1,
                                                       mone, (const T**)Aoff(m1, 0), lda,
                                                             (const T**)Boff( 0, 0), ldb,

@@ -228,8 +228,8 @@ int Xgemm_batch_core( kblasHandle_t handle,
     C_array = B_array + batchCount;
 
     check_error_ret( status = Xset_pointer_3(A_array, (const T**)(A), A_row_off, A_col_off, lda,
-                                             B_array, (const T**)(A), B_row_off, B_col_off, lda,
-                                             C_array, (const T**)(B), C_row_off, C_col_off, ldb,
+                                             B_array, (const T**)(B), B_row_off, B_col_off, ldb,
+                                             C_array, (const T**)(C), C_row_off, C_col_off, ldc,
                                              batchCount, handle->stream), status);
   }else{
     A_array = (T**)A;

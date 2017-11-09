@@ -3,7 +3,7 @@
 _SUPPORT_BLAS2_=TRUE
 _SUPPORT_BLAS3_=TRUE
 _SUPPORT_BATCH_TR_=TRUE
-#_SUPPORT_SVD_=TRUE
+_SUPPORT_SVD_=TRUE
 
 
 #-----------------------------------------

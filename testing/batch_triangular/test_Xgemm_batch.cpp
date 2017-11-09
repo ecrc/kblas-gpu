@@ -12,7 +12,6 @@
 
 #include "kblas.h"
 
-#define USE_MKL_BATCH
 
 // #include "Xtr_common.ch"
 #include "testing_prec_def.h"
@@ -24,6 +23,7 @@
 #endif
 
 #ifdef USE_MKL
+#define USE_MKL_BATCH
 #include <mkl_lapack.h>
 #include <mkl_blas.h>
 #endif//USE_MKL
@@ -199,7 +199,7 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
                                   &alpha, d_A, ldda,
                                           d_B, lddb,
                                   &beta,  d_C, lddc) );
-        #ifdef USE_OPENMP
+        #if (defined USE_OPENMP) && (defined USE_MKL)
         if(opts.time){
           omp_set_num_threads(NUM_THREADS);
           //omp_set_nested(true);

@@ -122,8 +122,8 @@ kernel_syrk_US_LN_registers_Mfix_Nmul(const int m, const int n, int batchCount,
 template<typename T, int B_ROWS, int A_COLS_PTY>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_UN_LN_registers_Mfix_Nmul(const int m, const int n, int batchCount,
-                                      const T alpha, const T** __restrict__ A_array, int lda,
-                                      const T beta, T** B_array, int ldb)
+                                      const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
+                                      const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
 {
   if( m != B_ROWS ) return;//necessary condition
   if( n % A_COLS_PTY ) return;//necessary condition
@@ -132,6 +132,8 @@ kernel_syrk_UN_LN_registers_Mfix_Nmul(const int m, const int n, int batchCount,
 
   const T *A = A_array[blockIdx.x * blockDim.y + ty];
         T *B = B_array[blockIdx.x * blockDim.y + ty];
+  A += A_row_off + A_col_off * lda;
+  B += B_row_off + B_col_off * ldb;
   dev_syrk_U_LN_registers_Mfix_Nmul<T, B_ROWS, A_COLS_PTY>(
                                     m, n,
                                     alpha, A, lda,
@@ -229,8 +231,8 @@ kernel_syrk_US_LN_registers_Mfix_Nvar(const int m, const int n, int batchCount,
 template<typename T, int B_ROWS, int A_COLS_PTY>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_UN_LN_registers_Mfix_Nvar(const int m, const int n, int batchCount,
-                                      const T alpha, const T** __restrict__ A_array, int lda,
-                                      const T beta, T** B_array, int ldb)
+                                      const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
+                                      const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
 {
   if( m != B_ROWS ) return;//necessary condition
   //are we within bounds
@@ -238,6 +240,8 @@ kernel_syrk_UN_LN_registers_Mfix_Nvar(const int m, const int n, int batchCount,
 
   const T *A = A_array[blockIdx.x * blockDim.y + ty];
         T *B = B_array[blockIdx.x * blockDim.y + ty];
+  A += A_row_off + A_col_off * lda;
+  B += B_row_off + B_col_off * ldb;
   dev_syrk_U_LN_registers_Mfix_Nvar<T, B_ROWS, A_COLS_PTY>(
                                     m, n,
                                     alpha, A, lda,
@@ -349,9 +353,9 @@ kernel_syrk_US_LN_registers_MNvar( const int m, const int n, int batchCount,
 //----------------------------------------------
 template<typename T, int B_ROWS, int A_COLS_PTY>
 __global__ void  //__launch_bounds__(256)
-kernel_syrk_UN_LN_registers_MNvar( const int m, const int n, int batchCount,
-                                   const T alpha, const T** __restrict__ A_array, int lda,
-                                   const T beta, T** B_array, int ldb)
+kernel_syrk_UN_LN_registers_MNvar(const int m, const int n, int batchCount,
+                                  const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
+                                  const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
 {
   if(B_ROWS < m) return;
   //are we within bounds
@@ -359,6 +363,8 @@ kernel_syrk_UN_LN_registers_MNvar( const int m, const int n, int batchCount,
 
   const T *A = A_array[blockIdx.x * blockDim.y + ty];
         T *B = B_array[blockIdx.x * blockDim.y + ty];
+  A += A_row_off + A_col_off * lda;
+  B += B_row_off + B_col_off * ldb;
   dev_syrk_U_LN_registers_MNvar<T, B_ROWS, A_COLS_PTY>(
                                 m, n,
                                 alpha, A, lda,
@@ -452,8 +458,8 @@ kernel_syrk_US_LN_registers_Mblock2_Nmul( const int m, const int n, int batchCou
 template<typename T, int B_ROWS, int A_COLS_PTY>
 __global__ void
 kernel_syrk_UN_LN_registers_Mblock2_Nmul( const int m, const int n, int batchCount,
-                                          const T alpha, const T** __restrict__ A_array, int lda,
-                                          const T beta, T** B_array, int ldb)
+                                          const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
+                                          const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
 {
   if( m % (B_ROWS * 2) ) return;//necessary condition
   if( n % A_COLS_PTY != 0 ) return;//necessary condition
@@ -462,6 +468,8 @@ kernel_syrk_UN_LN_registers_Mblock2_Nmul( const int m, const int n, int batchCou
 
   const T *A = A_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS;
         T *B = B_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+  A += A_row_off + A_col_off * lda;
+  B += B_row_off + B_col_off * ldb;
   dev_syrk_U_LN_registers_Mblock2_Nmul<T, B_ROWS, A_COLS_PTY>(
                                         m, n,
                                         alpha, A, lda,
@@ -583,8 +591,8 @@ kernel_syrk_US_LN_registers_Mblock2_Nvar( const int m, const int n, int batchCou
 template<typename T, int B_ROWS, int A_COLS_PTY>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_UN_LN_registers_Mblock2_Nvar( const int m, const int n, int batchCount,
-                                          const T alpha, const T** __restrict__ A_array, int lda,
-                                          const T beta, T** B_array, int ldb)
+                                          const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
+                                          const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
 {
   if( m % (B_ROWS * 2) ) return;//necessary condition
   //are we within bounds
@@ -592,6 +600,8 @@ kernel_syrk_UN_LN_registers_Mblock2_Nvar( const int m, const int n, int batchCou
 
   const T *A = A_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS;
         T *B = B_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+  A += A_row_off + A_col_off * lda;
+  B += B_row_off + B_col_off * ldb;
   dev_syrk_U_LN_registers_Mblock2_Nvar<T, B_ROWS, A_COLS_PTY>(
                                         m, n,
                                         alpha, A, lda,
@@ -781,14 +791,16 @@ kernel_syrk_US_LN_registers_NMblock2var(const int m, const int n, int batchCount
 template<typename T, int B_ROWS, int A_COLS_PTY>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_UN_LN_registers_NMblock2var(const int m, const int n, int batchCount,
-                                        const T alpha, const T** __restrict__ A_array, int lda,
-                                        const T beta, T** B_array, int ldb)
+                                        const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
+                                        const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
 {
   //are we within bounds
   if(blockIdx.x * blockDim.y + ty >= batchCount) return;
 
   const T *A = A_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS;
         T *B = B_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+  A += A_row_off + A_col_off * lda;
+  B += B_row_off + B_col_off * ldb;
   dev_syrk_U_LN_registers_NMblock2var<T, B_ROWS, A_COLS_PTY>(
                                       m, n,
                                       alpha, A, lda,
@@ -882,8 +894,8 @@ kernel_syrk_US_LT_reg_shared_Mfix_Nmul( const int m, const int n, int batchCount
 template<typename T, int B_ROWS, int A_ROWS_PTY>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_UN_LT_reg_shared_Mfix_Nmul( const int m, const int n, int batchCount,
-                                        const T alpha, const T** __restrict__ A_array, int lda,
-                                        const T beta, T** B_array, int ldb)
+                                        const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
+                                        const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
 {
   if( m != B_ROWS ) return;//necessary condition
   if( n % B_ROWS ) return;//necessary condition
@@ -892,6 +904,8 @@ kernel_syrk_UN_LT_reg_shared_Mfix_Nmul( const int m, const int n, int batchCount
 
   const T *A = A_array[blockIdx.x * blockDim.y + ty];
         T *B = B_array[blockIdx.x * blockDim.y + ty];
+  A += A_row_off + A_col_off * lda;
+  B += B_row_off + B_col_off * ldb;
   dev_syrk_U_LT_reg_shared_Mfix_Nmul<T, B_ROWS, A_ROWS_PTY>(
                                       m, n,
                                       alpha, A, lda,
@@ -1013,8 +1027,8 @@ kernel_syrk_US_LT_reg_shared_Mfix_Nvar( const int m, const int n, int batchCount
 template<typename T, int B_ROWS, int A_ROWS_PTY>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_UN_LT_reg_shared_Mfix_Nvar( const int m, const int n, int batchCount,
-                                        const T alpha, const T** __restrict__ A_array, int lda,
-                                        const T beta, T** B_array, int ldb)
+                                        const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
+                                        const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
 {
   if( m != B_ROWS ) return;//necessary condition
   //are we within bounds
@@ -1022,6 +1036,8 @@ kernel_syrk_UN_LT_reg_shared_Mfix_Nvar( const int m, const int n, int batchCount
 
   const T *A = A_array[blockIdx.x * blockDim.y + ty];
         T *B = B_array[blockIdx.x * blockDim.y + ty];
+  A += A_row_off + A_col_off * lda;
+  B += B_row_off + B_col_off * ldb;
   dev_syrk_U_LT_reg_shared_Mfix_Nvar<T, B_ROWS, A_ROWS_PTY>(
                                       m, n,
                                       alpha, A, lda,
@@ -1166,8 +1182,8 @@ kernel_syrk_US_LT_reg_shared_MNvar( const int m, const int n, int batchCount,
 template<typename T, int B_ROWS, int A_ROWS_PTY>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_UN_LT_reg_shared_MNvar( const int m, const int n, int batchCount,
-                                    const T alpha, const T** __restrict__ A_array, int lda,
-                                    const T beta, T** B_array, int ldb)
+                                    const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
+                                    const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
 {
   if(B_ROWS < m) return;
   //are we within bounds
@@ -1175,6 +1191,8 @@ kernel_syrk_UN_LT_reg_shared_MNvar( const int m, const int n, int batchCount,
 
   const T *A = A_array[blockIdx.x * blockDim.y + ty];
         T *B = B_array[blockIdx.x * blockDim.y + ty];
+  A += A_row_off + A_col_off * lda;
+  B += B_row_off + B_col_off * ldb;
   dev_syrk_U_LT_reg_shared_MNvar<T, B_ROWS, A_ROWS_PTY>(
                                   m, n,
                                   alpha, A, lda,
@@ -1336,8 +1354,8 @@ kernel_syrk_US_LT_reg_shared_Mblock2_Nmul(const int m, const int n, int batchCou
 template<typename T, int B_ROWS, int A_COLS_PTY>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_UN_LT_reg_shared_Mblock2_Nmul(const int m, const int n, int batchCount,
-                                          const T alpha, const T** __restrict__ A_array, int lda,
-                                          const T beta, T** B_array, int ldb)
+                                          const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
+                                          const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
 {
   if( m % (B_ROWS * 2) ) return;//necessary condition
   if( n % B_ROWS != 0 ) return;//necessary condition
@@ -1346,6 +1364,8 @@ kernel_syrk_UN_LT_reg_shared_Mblock2_Nmul(const int m, const int n, int batchCou
 
   const T *A = A_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS;
         T *B = B_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+  A += A_row_off + A_col_off * lda;
+  B += B_row_off + B_col_off * ldb;
   dev_syrk_U_LT_reg_shared_Mblock2_Nmul<T, B_ROWS, A_COLS_PTY>(
                                         m, n,
                                         alpha, A, lda,
@@ -1554,8 +1574,8 @@ kernel_syrk_US_LT_reg_shared_Mblock2_Nvar(const int m, const int n, int batchCou
 template<typename T, int B_ROWS, int A_COLS_PTY>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_UN_LT_reg_shared_Mblock2_Nvar(const int m, const int n, int batchCount,
-                                          const T alpha, const T** __restrict__ A_array, int lda,
-                                          const T beta, T** B_array, int ldb)
+                                          const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
+                                          const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
 {
   if( m % (B_ROWS * 2) ) return;//necessary condition
   //are we within bounds
@@ -1563,6 +1583,8 @@ kernel_syrk_UN_LT_reg_shared_Mblock2_Nvar(const int m, const int n, int batchCou
 
   const T *A = A_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS * lda;
         T *B = B_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+  A += A_row_off + A_col_off * lda;
+  B += B_row_off + B_col_off * ldb;
   dev_syrk_U_LT_reg_shared_Mblock2_Nvar<T, B_ROWS, A_COLS_PTY>(
                                         m, n,
                                         alpha, A, lda,
@@ -1947,14 +1969,16 @@ kernel_syrk_US_LT_reg_shared_NMblock2var( const int m, const int n, int batchCou
 template<typename T, int B_ROWS, int A_COLS_PTY>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_UN_LT_reg_shared_NMblock2var( const int m, const int n, int batchCount,
-                                          const T alpha, const T** __restrict__ A_array, int lda,
-                                          const T beta, T** B_array, int ldb)
+                                          const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
+                                          const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
 {
   //are we within bounds
   if(blockIdx.x * blockDim.y + ty >= batchCount) return;
 
   const T *A = A_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS * lda;
         T *B = B_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+  A += A_row_off + A_col_off * lda;
+  B += B_row_off + B_col_off * ldb;
   dev_syrk_U_LT_reg_shared_NMblock2var<T, B_ROWS, A_COLS_PTY>(
                                         m, n,
                                         alpha, A, lda,
@@ -2077,8 +2101,8 @@ kernel_syrk_US_LN_registers_Mfix_Nvar_DB( const int m, const int n, int batchCou
 template<typename T, int B_ROWS, int A_COLS_PTY>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_UN_LN_registers_Mfix_Nvar_DB( const int m, const int n, int batchCount,
-                                          const T alpha, const T** __restrict__ A_array, int lda,
-                                          const T beta, T** B_array, int ldb)
+                                          const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
+                                          const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
 {
   if( m != B_ROWS ) return;//necessary condition
   //are we within bounds
@@ -2086,6 +2110,8 @@ kernel_syrk_UN_LN_registers_Mfix_Nvar_DB( const int m, const int n, int batchCou
 
   const T *A = A_array[blockIdx.x * blockDim.y + ty];
         T *B = B_array[blockIdx.x * blockDim.y + ty];
+  A += A_row_off + A_col_off * lda;
+  B += B_row_off + B_col_off * ldb;
   dev_syrk_U_LN_registers_Mfix_Nvar_DB<T, B_ROWS, A_COLS_PTY>(
                                         m, n,
                                         alpha, A, lda,
@@ -2234,9 +2260,9 @@ kernel_syrk_US_LN_registers_Mblock2_Nvar_DB( const int m, const int n, int batch
 //----------------------------------------------
 template<typename T, int B_ROWS, int A_COLS_PTY>
 __global__ void  //__launch_bounds__(256)
-kernel_syrk_UN_LN_registers_Mblock2_Nvar_DB( const int m, const int n, int batchCount,
-                                             const T alpha, const T** __restrict__ A_array, int lda,
-                                             const T beta, T** B_array, int ldb)
+kernel_syrk_UN_LN_registers_Mblock2_Nvar_DB(const int m, const int n, int batchCount,
+                                            const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
+                                            const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
 {
   if( m % (B_ROWS * 2) ) return;//necessary condition
   //are we within bounds
@@ -2244,6 +2270,8 @@ kernel_syrk_UN_LN_registers_Mblock2_Nvar_DB( const int m, const int n, int batch
 
   const T *A = A_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS;
         T *B = B_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+  A += A_row_off + A_col_off * lda;
+  B += B_row_off + B_col_off * ldb;
   dev_syrk_U_LN_registers_Mblock2_Nvar_DB<T, B_ROWS, A_COLS_PTY>(
                                            m, n,
                                            alpha, A, lda,

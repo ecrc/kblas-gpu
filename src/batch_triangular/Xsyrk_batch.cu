@@ -55,6 +55,22 @@
 
 // workspace needed: device pointers
 // A, B: host pointer to array of device pointers to device buffers
+int Xsyrk_batch_offset( kblasHandle_t handle,
+                        char uplo, char trans,
+                        const int m, const int n,
+                        const TYPE alpha, const TYPE** A, int A_row_off, int A_col_off, int lda,
+                        const TYPE beta,        TYPE** B, int B_row_off, int B_col_off, int ldb,
+                        int batchCount){
+  return Xsyrk_batch_core(handle,
+                          uplo, trans,
+                          m, n,
+                          alpha, A, A_row_off, A_col_off, lda,
+                          beta,  B, B_row_off, B_col_off, ldb,
+                          batchCount);
+}
+
+// workspace needed: device pointers
+// A, B: host pointer to array of device pointers to device buffers
 int kblas_syrk_batch(kblasHandle_t handle,
                     char uplo, char trans,
                     const int m, const int n,
@@ -64,8 +80,8 @@ int kblas_syrk_batch(kblasHandle_t handle,
   return Xsyrk_batch_core(handle,
                           uplo, trans,
                           m, n,
-                          alpha, A, lda,
-                          beta,  B, ldb,
+                          alpha, A, 0, 0, lda,
+                          beta,  B, 0, 0, ldb,
                           batchCount);
 }
 
@@ -82,8 +98,8 @@ int kblasXsyrk_batch(kblasHandle_t handle,
   return Xsyrk_batch_core(handle,
                           uplo, trans,
                           m, n,
-                          alpha, A, lda,
-                          beta,  B, ldb,
+                          alpha, A, 0, 0, lda,
+                          beta,  B, 0, 0, ldb,
                           batchCount);
 }
 }//extern "C"

@@ -5,6 +5,7 @@
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
 #include <kblas.h>
+#include <cusolverDn.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,15 +14,17 @@ extern "C" {
 ////////////////////////////////////////////////////////////
 // Error checking
 ////////////////////////////////////////////////////////////
-
 #define check_error(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 void gpuAssert(cudaError_t code, const char *file, int line);
 
 #define check_cublas_error(ans) { gpuCublasAssert((ans), __FILE__, __LINE__); }
 void gpuCublasAssert(cublasStatus_t code, const char *file, int line);
 
+#define check_cusolver_error(ans) { gpuCusolverAssert((ans), __FILE__, __LINE__); }
+void gpuCusolverAssert(cusolverStatus_t code, const char *file, int line);
+
 ////////////////////////////////////////////////////////////
-// Timers
+// Timers and related stuff
 ////////////////////////////////////////////////////////////
 double gettime(void);
 
@@ -33,6 +36,8 @@ void deleteGPU_Timer(GPU_Timer_t timer);
 void gpuTimerTic(GPU_Timer_t timer);
 void gpuTimerRecordEnd(GPU_Timer_t timer);
 double gpuTimerToc(GPU_Timer_t timer);
+
+void avg_and_stdev(double* values, int num_vals, double* avg, double* std_dev, int warmup);
 
 ////////////////////////////////////////////////////////////
 // Generate array of pointers from a strided array 
@@ -53,6 +58,22 @@ void generateSArrayOfPointers(float* original_array, float** array_of_arrays, in
 
 #define TESTING_FREE_CPU(ptr)	{ if( (ptr) ) free( (ptr) ); }  
 #define TESTING_FREE_DEV(ptr)	check_error( cudaFree( (ptr) ) );  
+
+////////////////////////////////////////////////////////////
+// Data generation
+////////////////////////////////////////////////////////////
+void generateDrandom(double* random_data, int num_elements, int num_ops);
+void generateSrandom(float* random_data, int num_elements, int num_ops);
+
+// set cond = 0 to use exp decay
+void generateDrandomMatrices(
+	double* M_strided, int stride_M, double* svals_strided, int stride_S, int rows, int cols, 
+	double cond, double exp_decay, int seed, int num_ops, int threads
+);
+void generateSrandomMatrices(
+	float* M_strided, int stride_M, float* svals_strided, int stride_S, int rows, int cols, 
+	float cond, float exp_decay, int seed, int num_ops, int threads
+);
 
 ////////////////////////////////////////////////////////////
 // Command line parser

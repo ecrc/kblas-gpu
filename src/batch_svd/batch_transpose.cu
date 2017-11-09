@@ -1,5 +1,7 @@
-#include <algorithm> 	// for std::min
+#include <cublas_v2.h>
+
 #include "kblas.h"
+#include "kblas_common.h"
 #include "kblas_struct.h"
 #include "kblas_gpu_util.ch"
 #include "batch_transpose.h"
@@ -54,7 +56,7 @@ int batch_transpose_template(kblasHandle_t handle, int m, int n, T_ptr matrix_da
 
 	while(op_start < ops)
     {
-		gridDim.z = std::min(ops_per_kernel, ops - op_start);
+		gridDim.z = kmin(ops_per_kernel, ops - op_start);
 		transpose_kernel<T, T_ptr><<< gridDim, blockDim, 0, handle->stream >>>(m, n, matrix_data, ldm, stride_m, transpose_data, ldt, stride_t, op_start, ops);
 		op_start += ops_per_kernel;
 	}	

@@ -1,10 +1,14 @@
 #include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
 #include <thrust/transform.h>
 #include <thrust/execution_policy.h>
+#include <thrust/system/omp/execution_policy.h>
+#include <thrust/random.h>
 
 #include <sys/time.h>
 #include <stdarg.h>
 
+#include <mkl.h>
 #include "testing_helper.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -133,6 +137,25 @@ extern "C" double gpuTimerToc(GPU_Timer* timer)
 	return timer->stop();
 }
 
+void avg_and_stdev(double* values, int num_vals, double* avg, double* std_dev, int warmup)
+{
+	if(num_vals == 0) return;
+
+	int start = 0;
+	if(warmup == 1 && num_vals != 1)
+		start = 1;
+	
+	*avg = 0;
+	for(int i = start; i < num_vals; i++) 
+		*avg += values[i];
+	*avg /= num_vals;
+	
+	*std_dev = 0;
+	for(int i = 0; i < num_vals; i++)
+		*std_dev += (values[i] - *avg) * (values[i] - *avg);
+	*std_dev = sqrt(*std_dev / num_vals);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Error helpers
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -170,6 +193,40 @@ const char* cublasGetErrorString(cublasStatus_t error)
     }
 }
 
+const char *cusolverGetErrorString(cusolverStatus_t error)
+{
+    switch (error)
+    {
+        case CUSOLVER_STATUS_SUCCESS:
+            return "CUSOLVER_SUCCESS";
+        case CUSOLVER_STATUS_NOT_INITIALIZED:
+            return "CUSOLVER_STATUS_NOT_INITIALIZED";
+        case CUSOLVER_STATUS_ALLOC_FAILED:
+            return "CUSOLVER_STATUS_ALLOC_FAILED";
+        case CUSOLVER_STATUS_INVALID_VALUE:
+            return "CUSOLVER_STATUS_INVALID_VALUE";
+        case CUSOLVER_STATUS_ARCH_MISMATCH:
+            return "CUSOLVER_STATUS_ARCH_MISMATCH";
+        case CUSOLVER_STATUS_EXECUTION_FAILED:
+            return "CUSOLVER_STATUS_EXECUTION_FAILED";
+        case CUSOLVER_STATUS_INTERNAL_ERROR:
+            return "CUSOLVER_STATUS_INTERNAL_ERROR";
+        case CUSOLVER_STATUS_MATRIX_TYPE_NOT_SUPPORTED:
+            return "CUSOLVER_STATUS_MATRIX_TYPE_NOT_SUPPORTED";
+		default:
+			return "unknown error code";
+    }
+}
+
+extern "C" void gpuCusolverAssert(cusolverStatus_t code, const char *file, int line)
+{
+	if(code != CUSOLVER_STATUS_SUCCESS) 
+	{
+        printf("GPUassert: %s %s %d\n", cusolverGetErrorString(code), file, line);
+		exit(-1);
+	}
+}
+
 extern "C" void gpuCublasAssert(cublasStatus_t code, const char *file, int line)
 {
 	if(code != CUBLAS_STATUS_SUCCESS) 
@@ -177,6 +234,123 @@ extern "C" void gpuCublasAssert(cublasStatus_t code, const char *file, int line)
         printf("GPUassert: %s %s %d\n", cublasGetErrorString(code), file, line);
 		exit(-1);
 	}
+}
+
+////////////////////////////////////////////////////////////
+// Data generation
+////////////////////////////////////////////////////////////
+template<class Real>
+struct prg
+{
+    Real a, b;
+
+    __host__ __device__
+    prg(Real _a=0, Real _b=1) : a(_a), b(_b) {};
+
+    __host__ __device__
+	Real operator()(const unsigned int n) const
+	{
+		thrust::default_random_engine rng;
+		thrust::random::normal_distribution<Real> dist(a, b);
+		rng.discard(n);
+
+		return dist(rng);
+	}
+};
+
+extern "C" void generateDrandom(double* random_data, int num_elements, int num_ops)
+{
+    thrust::counting_iterator<unsigned int> index_sequence_begin(0);
+
+    thrust::transform(thrust::system::omp::par,
+            index_sequence_begin,
+            index_sequence_begin + num_elements * num_ops,
+            random_data,
+            prg<double>());
+}
+
+extern "C" void generateSrandom(float* random_data, int num_elements, int num_ops)
+{
+    thrust::counting_iterator<unsigned int> index_sequence_begin(0);
+
+    thrust::transform(thrust::system::omp::par,
+            index_sequence_begin,
+            index_sequence_begin + num_elements * num_ops,
+            random_data,
+            prg<float>());
+}
+
+lapack_int LAPACKE_latms(int matrix_layout, lapack_int m, lapack_int n, char dist, lapack_int *iseed, char sym, float *d, lapack_int mode, float cond, float dmax, lapack_int kl, lapack_int ku, char pack, float *a, lapack_int lda)
+{ return LAPACKE_slatms(matrix_layout, m, n, dist, iseed, sym, d, mode, cond, dmax, kl, ku, pack, a, lda); }
+lapack_int LAPACKE_latms(int matrix_layout, lapack_int m, lapack_int n, char dist, lapack_int *iseed, char sym, double *d, lapack_int mode, double cond, double dmax, lapack_int kl, lapack_int ku, char pack, double *a, lapack_int lda)
+{ return LAPACKE_dlatms(matrix_layout, m, n, dist, iseed, sym, d, mode, cond, dmax, kl, ku, pack, a, lda); }
+
+template<class Real>
+void generate_randomMatrices(
+	Real* M_strided, int stride_M, Real* svals_strided, int stride_S, int rows, int cols, 
+	Real cond, Real exp_decay, int seed, int num_ops, int threads
+)
+{
+	// Generate a bunch of random seeds from the master seed
+	thrust::host_vector<int> random_seeds(num_ops);
+	thrust::default_random_engine seed_rng; seed_rng.seed(seed);
+	thrust::uniform_int_distribution <int> seed_dist(0, 10000);
+	for(int i = 0; i < num_ops; i++)
+		random_seeds[i] = seed_dist(seed_rng);
+
+	#pragma omp parallel for num_threads(threads)
+	for(int op_index = 0; op_index < num_ops; op_index++)
+	{
+		thrust::default_random_engine rng; rng.seed(random_seeds[op_index]);
+		thrust::uniform_int_distribution<int> dist(0, 4095);
+		int seeds[4] = {dist(rng), dist(rng), dist(rng), dist(rng)};
+		if(seeds[3] % 2 != 1) seeds[3]++;
+
+		int info;
+		Real* matrix = M_strided + stride_M * op_index;
+		Real* svals  = svals_strided + stride_S * op_index;
+		
+		// Sanitize input
+		for(int j = 0; j < cols; j++) 
+				svals[j] = 0;
+			
+		for(int i = 0; i < rows; i++)
+			for(int j = 0; j < cols; j++) 
+				matrix[i + j * rows] = 0;
+			
+		int mode = 5;
+		if(cond == 0)
+		{
+			mode = 0;
+			for(int i = 0; i < cols; i++) 
+				svals[i] = exp(-exp_decay*i);
+		}
+		info = LAPACKE_latms(LAPACK_COL_MAJOR, rows, cols, 'N', &seeds[0], 'N', svals, mode, cond, 1, rows, cols, 'N', matrix, rows);
+		if(info != 0) printf("Error generating random matrix: %d\n", info);
+		thrust::sort(svals, svals + cols, thrust::greater<Real>());
+	}
+}
+
+extern "C" void generateDrandomMatrices(
+	double* M_strided, int stride_M, double* svals_strided, int stride_S, int rows, int cols, 
+	double cond, double exp_decay, int seed, int num_ops, int threads
+)
+{
+	generate_randomMatrices<double>(
+		M_strided, stride_M, svals_strided, stride_S, rows, cols, 
+		cond, exp_decay, seed, num_ops, threads
+	);
+}
+
+extern "C" void generateSrandomMatrices(
+	float* M_strided, int stride_M, float* svals_strided, int stride_S, int rows, int cols, 
+	float cond, float exp_decay, int seed, int num_ops, int threads
+)
+{
+	generate_randomMatrices<float>(
+		M_strided, stride_M, svals_strided, stride_S, rows, cols, 
+		cond, exp_decay, seed, num_ops, threads
+	);
 }
 
 ////////////////////////////////////////////////////////////

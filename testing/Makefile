@@ -39,7 +39,7 @@ LIB+= -lmkl_intel_ilp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
 # LIB+= -mkl=sequential
 # LIB+= -mkl=parallel
 endif
-# LIB+= -liomp5
+LIB+= -lgomp
 LIB+= -lstdc++
 
 KBLAS_LIB=../lib/lib${LIB_KBLAS_NAME}.a
@@ -65,6 +65,7 @@ endif
 ifdef _SUPPORT_BATCH_TR_
 KBLAS_BATCH_DIR=batch_triangular
 include $(KBLAS_BATCH_DIR)/Makefile
+LIB+= -lcusolver -lcurand
 endif
 
 C_OBJ= $(patsubst %.c,$(OBJ_DIR)/%.o,$(C_SRC))
@@ -76,10 +77,13 @@ EXE= $(patsubst %.c,$(BIN_DIR)/%,$(C_SRC))
 
 all: $(EXE)
 
+$(OBJ_DIR)/testing_helper.o: testing_helper.cu
+	$(NVCC) $(NVOPTS) $(NVOPTS_3) $(INCLUDES) $(NVCCFLAGS) -c $< -o $@
+
 #$(EXE): $(C_OBJ)
 
-$(EXE): $(BIN_DIR)/%: $(OBJ_DIR)/%.o $(KBLAS_LIB)
-	$(CC) $(COPTS) $< -o $@ $(LIB_PATH) $(LIB)
+$(EXE): $(BIN_DIR)/%: $(OBJ_DIR)/%.o $(KBLAS_LIB) $(OBJ_DIR)/testing_helper.o
+	$(CC) $(COPTS) $(OBJ_DIR)/testing_helper.o $< -o $@ $(LIB_PATH) $(LIB)
 
 clean:
 	rm -f $(OBJ_DIR)/*.o $(EXE)

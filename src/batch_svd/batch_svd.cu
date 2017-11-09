@@ -1,4 +1,7 @@
 #include <curand.h>
+#include <cublas_v2.h>
+#include <vector>
+
 #include "kblas.h"
 #include "kblas_struct.h"
 #include "thrust_wrappers.h"
@@ -6,7 +9,6 @@
 #include "batch_qr.h"
 #include "batch_transpose.h"
 #include "batch_block_copy.h"
-#include <vector>
 
 #include "svd_kernels.cuh"
 

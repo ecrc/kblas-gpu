@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <cublas_v2.h>
+
 #include "kblas.h"
 #include "kblas_struct.h"
 #include "kblas_gpu_util.ch"

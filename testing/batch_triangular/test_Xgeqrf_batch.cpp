@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <kblas.h>
+#include <cublas_v2.h>
 #include <magma_v2.h>
+#include <kblas.h>
 #include <mkl.h>
 
 #include "testing_helper.h"
@@ -30,7 +31,7 @@ typedef Real**	RealPtrArray;
 typedef int*	IntArray;
 
 #define COPY_DATA_UP() \
-	for(g = 0; g < num_gpus; g++) \
+	for(int g = 0; g < num_gpus; g++) \
 	{	\
 		cudaSetDevice(opts.devices[g]); \
 		int entries = batchCount_gpu * rows * cols; \
@@ -40,7 +41,7 @@ typedef int*	IntArray;
 
 #define SYNC_TIMERS(timers, run_time) \
 	max_time = -1;	\
-	for(g = 0; g < num_gpus; g++) \
+	for(int g = 0; g < num_gpus; g++) \
 	{ \
 		cudaSetDevice(opts.devices[g]); \
 		double gpu_time = gpuTimerToc(timers[g]); \
@@ -50,7 +51,7 @@ typedef int*	IntArray;
 	run_time[i] = max_time;
 
 #define COPY_DATA_DOWN() \
-	for(g = 0; g < num_gpus; g++)	\
+	for(int g = 0; g < num_gpus; g++)	\
 	{	\
 		cudaSetDevice(opts.devices[g]);	\
 		int entries = batchCount_gpu * rows * cols; \
@@ -67,6 +68,7 @@ double batch_qr_cpu(Real* m, Real* tau, int rows, int cols, int num_ops, int num
     {
         Real* m_op = m + i * rows * cols;
         Real* tau_op = tau + i * cols;
+		
 		LAPACKE_Xgeqrf(LAPACK_COL_MAJOR, rows, cols, m_op, rows, tau_op);
     }
 	
@@ -86,7 +88,7 @@ Real compare_results_R(Real* m1, Real* m2, int rows, int cols, int num_ops)
         {
             for(int j = i; j < cols; j++)
             {
-                Real diff_entry = abs(abs(m1_op[i + j * rows]) - abs(m2_op[i + j * rows]));
+                Real diff_entry = fabs(fabs(m1_op[i + j * rows]) - fabs(m2_op[i + j * rows]));
                 err_op += diff_entry * diff_entry;
                 norm_f_op += m1_op[i + j * rows] * m1_op[i + j * rows];
 	        }
@@ -105,33 +107,14 @@ void syncGPUs(kblas_opts* opts)
 	}
 }
 
-void avg_and_stdev(double* values, int num_vals, double& avg, double& std_dev, int warmup)
-{
-	if(num_vals == 0) return;
-
-	int start = 0;
-	if(warmup == 1 && num_vals != 1)
-		start = 1;
-	
-	avg = 0;
-	for(int i = start; i < num_vals; i++) 
-		avg += values[i];
-	avg /= num_vals;
-	
-	std_dev = 0;
-	for(int i = 0; i < num_vals; i++)
-		std_dev += (values[i] - avg) * (values[i] - avg);
-	std_dev = sqrt(std_dev / num_vals);
-}
-
 int main(int argc, char** argv)
 {
 	kblas_opts opts;
 	int num_gpus, warmup, nruns, num_omp_threads, info;
-	int g, itest, iter, btest, batchCount, batchCount_gpu;
-	int rows, cols, i;
+	int batchCount, batchCount_gpu;
+	int rows, cols;
 
-	double max_time, hh_ops, kblas_err, magma_err, cublas_err;
+	double max_time, hh_ops;
 	double avg_cpu_time, sdev_cpu_time;
 	double avg_kblas_time, sdev_kblas_time;
 	double avg_magma_time, sdev_magma_time;
@@ -185,11 +168,11 @@ int main(int argc, char** argv)
     
 	printf("%-15s%-10s%-10s%-15s%-15s%-15s%-15s%-15s%-15s\n", "batchCount", "N", "K", "kblasQERF", "magmaQERF", "cublasQERF", "kblasErr", "magmaErr", "cublasErr");
 	printf("============================================================================================================================\n");
-	for(itest = 0; itest < opts.ntest; ++itest) 
+	for(int itest = 0; itest < opts.ntest; ++itest) 
 	{
-		for(iter = 0; iter < opts.niter; ++iter) 
+		for(int iter = 0; iter < opts.niter; ++iter) 
 		{
-			for(btest = 0; btest < opts.btest; ++btest) 
+			for(int btest = 0; btest < opts.btest; ++btest) 
 			{
 				batchCount = opts.batchCount;
 				if(opts.btest > 1)
@@ -209,11 +192,11 @@ int main(int argc, char** argv)
 				TESTING_MALLOC_CPU(m_original, Real, batchCount * rows * cols);
 				TESTING_MALLOC_CPU(tau, Real, batchCount * cols);
 				TESTING_MALLOC_CPU(gpu_results, Real, batchCount * rows * cols);
-				for(i = 0; i < batchCount * rows * cols; i++)
+				for(int i = 0; i < batchCount * rows * cols; i++)
 					m[i] = m_original[i] = (Real)rand() / RAND_MAX;
 
 				// Allocate the data
-				for(g = 0; g < num_gpus; g++)
+				for(int g = 0; g < num_gpus; g++)
 				{
 					cudaSetDevice(opts.devices[g]);
 					
@@ -233,9 +216,9 @@ int main(int argc, char** argv)
 				// Time the runs
 				////////////////////////////////////////////////////////////////////////
 				// Keep track of the times for each run
-				kblas_err = magma_err = cublas_err = 0;
+				double kblas_err = 0, magma_err = 0, cublas_err = 0;
 
-				for(i = 0; i < nruns; i++)
+				for(int i = 0; i < nruns; i++)
 				{
 					memcpy(m, m_original, sizeof(Real) * batchCount * rows * cols);
 					cpu_time[i] = batch_qr_cpu(m, tau, rows, cols, batchCount, num_omp_threads);
@@ -246,7 +229,7 @@ int main(int argc, char** argv)
 					// Reset the GPU data and sync
 					COPY_DATA_UP();
 					// Launch all kernels
-					for(g = 0; g < num_gpus; g++)
+					for(int g = 0; g < num_gpus; g++)
 					{
 						cudaSetDevice(opts.devices[g]);
 						gpuTimerTic(kblas_timers[g]);
@@ -267,7 +250,7 @@ int main(int argc, char** argv)
 					// Reset the GPU data and sync
 					COPY_DATA_UP();
 					// Launch all kernels
-					for(g = 0; g < num_gpus; g++)
+					for(int g = 0; g < num_gpus; g++)
 					{
 						cudaSetDevice(opts.devices[g]);
 						gpuTimerTic(magma_timers[g]);
@@ -290,7 +273,7 @@ int main(int argc, char** argv)
 					// Reset the GPU data and sync
 					COPY_DATA_UP();
 					// Launch all kernels
-					for(g = 0; g < num_gpus; g++)
+					for(int g = 0; g < num_gpus; g++)
 					{
 						cudaSetDevice(opts.devices[g]);
 						gpuTimerTic(cublas_timers[g]);
@@ -310,10 +293,10 @@ int main(int argc, char** argv)
 					cublas_err += compare_results_R(gpu_results, m, rows, cols, batchCount);
 				}
 
-				avg_and_stdev(cpu_time, nruns, avg_cpu_time, sdev_cpu_time, warmup);
-				avg_and_stdev(kblas_time, nruns, avg_kblas_time, sdev_kblas_time, warmup);
-				avg_and_stdev(magma_time, nruns, avg_magma_time, sdev_magma_time, warmup);
-				avg_and_stdev(cublas_time, nruns, avg_cublas_time, sdev_cublas_time, warmup);
+				avg_and_stdev(cpu_time, nruns, &avg_cpu_time, &sdev_cpu_time, warmup);
+				avg_and_stdev(kblas_time, nruns, &avg_kblas_time, &sdev_kblas_time, warmup);
+				avg_and_stdev(magma_time, nruns, &avg_magma_time, &sdev_magma_time, warmup);
+				avg_and_stdev(cublas_time, nruns, &avg_cublas_time, &sdev_cublas_time, warmup);
 				
 				printf(
 					"%-15d%-10d%-10d%-15.3f%-15.3f%-15.3f%-15.3e%-15.3e%-15.3e\n", 
@@ -328,7 +311,7 @@ int main(int argc, char** argv)
 				TESTING_FREE_CPU(tau); TESTING_FREE_CPU(gpu_results);
 
 				// Allocate the data
-				for(g = 0; g < num_gpus; g++)
+				for(int g = 0; g < num_gpus; g++)
 				{
 					cudaSetDevice(opts.devices[g]);
 					

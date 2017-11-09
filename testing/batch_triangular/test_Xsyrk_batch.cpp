@@ -211,7 +211,7 @@ int test_Xsyrk_batch(kblas_opts& opts, T alpha, T beta)
             }
           }
 
-          #ifdef USE_OPENMP
+          #if (defined USE_OPENMP) && (defined USE_MKL)
           if(opts.time){
             //memcpy(h_R, h_B, sizeB * batchCount * sizeof(T));
             omp_set_num_threads(NUM_THREADS);

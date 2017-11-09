@@ -49,24 +49,13 @@
 #include "kblas_prec_def.h"
 
 #include "kblas_common.h"
-// #include "Xblas_core.ch"
+#include "batch_common.ch"
 #include "Xhelper_funcs.ch"
 #include "Xgemm_batch_core.cuh"
 
 //=================================================================================
 //Non-Strided form
 
-void kblas_gemm_batch_wsquery(kblasHandle_t handle,
-                              int batchCount,
-                              int A_row_off, int A_col_off,
-                              int B_row_off, int B_col_off,
-                              int C_row_off, int C_col_off){
-  Xgemm_batch_wsquery_core<TYPE>( batchCount,
-                                  A_row_off, A_col_off,
-                                  B_row_off, B_col_off,
-                                  C_row_off, C_col_off,
-                                  &(handle->work_space.requested_ws_state));
-}
 
 // workspace needed: device pointers
 // A, B, C: host pointer to array of device pointers to device buffers
@@ -132,14 +121,11 @@ int kblasXgemm_batch( kblasHandle_t handle,
                           batchCount);
 }
 
-//=================================================================================
+//==============================================================================================
+//Strided form
+
 //TODO IMPORTANT: stride should be long long int since it is a memory address measure
 
-// template<>
-void Xgemm_batch_strided_wsquery(kblasHandle_t handle, int batchCount)
-{
-  Xgemm_batch_strided_wsquery_core<TYPE>(batchCount, &(handle->work_space.requested_ws_state));
-}
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++
 #if ( __CUDACC_VER_MAJOR__ < 8 )
@@ -147,23 +133,46 @@ void Xgemm_batch_strided_wsquery(kblasHandle_t handle, int batchCount)
 #else //( __CUDACC_VER_MAJOR__ < 8 )
 //workspace needed: none
 #endif //( __CUDACC_VER_MAJOR__ < 8 )
+
 // A, B, C: host pointers to device buffers
-int Xgemm_batch_strided(kblasHandle_t handle,
-                        char transA, char transB,
-                        const int m, const int n, const int k,
-                        const TYPE alpha,
-                        const TYPE* A, int lda, long strideA,
-                        const TYPE* B, int ldb, long strideB,
-                        const TYPE beta,
-                              TYPE* C, int ldc, long strideC,
-                        int batchCount){
-  return Xgemm_batch_strided_core(handle,
-                                  transA, transB,
-                                  m, n, k,
-                                  alpha,
-                                  A, lda, strideA,
-                                  B, ldb, strideB,
-                                  beta,
-                                  C, ldc, strideC,
-                                  batchCount);
+int kblas_gemm_batch( kblasHandle_t handle,
+                      char transA, char transB,
+                      const int m, const int n, const int k,
+                      const TYPE alpha,
+                      const TYPE* A, int lda, long strideA,
+                      const TYPE* B, int ldb, long strideB,
+                      const TYPE beta,
+                            TYPE* C, int ldc, long strideC,
+                      int batchCount){
+  return Xgemm_batch_core(handle,
+                          transA, transB,
+                          m, n, k,
+                          alpha,
+                          A, lda, strideA,
+                          B, ldb, strideB,
+                          beta,
+                          C, ldc, strideC,
+                          batchCount);
+}
+
+// A, B, C: host pointers to device buffers
+extern "C"
+int kblasXgemm_batch_strided( kblasHandle_t handle,
+                              char transA, char transB,
+                              const int m, const int n, const int k,
+                              const TYPE alpha,
+                              const TYPE* A, int lda, long strideA,
+                              const TYPE* B, int ldb, long strideB,
+                              const TYPE beta,
+                                    TYPE* C, int ldc, long strideC,
+                              int batchCount){
+  return Xgemm_batch_core(handle,
+                          transA, transB,
+                          m, n, k,
+                          alpha,
+                          A, lda, strideA,
+                          B, ldb, strideB,
+                          beta,
+                          C, ldc, strideC,
+                          batchCount);
 }

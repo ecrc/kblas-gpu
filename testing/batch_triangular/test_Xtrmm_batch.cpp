@@ -46,7 +46,7 @@
 #define USING printf("uplo %c, trans %c, batchCount %d, backDoor %d\n", opts.uplo, opts.transA, batchCount, opts.bd);
 
 template<class T>
-int test_Xtrsm_batch(kblas_opts& opts, T alpha)
+int test_Xtrmm_batch(kblas_opts& opts, T alpha)
 {
 
   bool strided = opts.strided;
@@ -140,7 +140,7 @@ int test_Xtrsm_batch(kblas_opts& opts, T alpha)
           }
         }
 
-        gflops = batchCount * FLOPS_TRSM<T>(opts.side, M, N ) / 1e9;
+        gflops = batchCount * FLOPS_TRMM<T>(opts.side, M, N ) / 1e9;
 
         if(opts.check || opts.time){
           TESTING_MALLOC_CPU( h_R, T, ldc * Cn * batchCount);
@@ -178,11 +178,11 @@ int test_Xtrsm_batch(kblas_opts& opts, T alpha)
         }
 
         for(int g = 0; g < ngpu; g++){
-          if(strided){
-            kblas_trsm_batch_strided_wsquery(kblas_handle[g], batchCount_gpu, opts.side, M, N);
-          }else{
-            kblas_trsm_batch_wsquery(kblas_handle[g], batchCount_gpu, opts.side, M, N);
-          }
+          // if(strided){
+          //   kblasXtrsm_batch_strided_wsquery(kblas_handle[g], batchCount_gpu, opts.side, M, N);
+          // }else{
+            kblas_trmm_batch_wsquery(kblas_handle[g], batchCount_gpu, opts.side, M, N);
+          // }
           check_error( kblasAllocateWorkspace(kblas_handle[g]) );
           check_error( cudaGetLastError() );
         }
@@ -199,14 +199,14 @@ int test_Xtrsm_batch(kblas_opts& opts, T alpha)
             check_error( cudaSetDevice( opts.devices[g] ));
             //check_error( cublasSetStream(cublas_handle, streams[g]) );
             if(strided){
-              check_error( kblas_trsm_batch(kblas_handle[g],
+              check_error( kblas_trmm_batch(kblas_handle[g],
                                             opts.side, opts.uplo, opts.transA, opts.diag,
                                             M, N,
                                             alpha, d_A[g], ldda, An*ldda,
                                                    d_C[g], lddc, Cn*lddc,
                                             batchCount_gpu) );
             }else{
-              check_error( kblas_trsm_batch(kblas_handle[g],
+              check_error( kblas_trmm_batch(kblas_handle[g],
                                             opts.side, opts.uplo, opts.transA, opts.diag,
                                             M, N,
                                             alpha, (const T**)(d_A_array[g]), ldda,
@@ -225,7 +225,7 @@ int test_Xtrsm_batch(kblas_opts& opts, T alpha)
               #pragma omp for //schedule(guided,10)
               for (int s=0; s < batchCount; s++)
               {
-                LAPACK_TRSM( (( opts.side == KBLAS_Right ) ? "Right" : "Left"),
+                LAPACK_TRMM( (( opts.side == KBLAS_Right ) ? "Right" : "Left"),
                              (( opts.uplo == KBLAS_Lower ) ? "Lower" : "Upper"),
                              (( opts.transA == KBLAS_NoTrans ) ? "No Transpose" : "Transpose"),
                              "Non-unit",
@@ -307,14 +307,14 @@ int test_Xtrsm_batch(kblas_opts& opts, T alpha)
             check_error( cudaSetDevice( opts.devices[g] ));
             //check_error( cublasSetStream(cublas_handle, streams[g]) );
             if(strided){
-                check_error( kblasXtrsm_batch_strided(kblas_handle[g],
-                                                      opts.side, opts.uplo, opts.transA, opts.diag,
-                                                      M, N,
-                                                      alpha, d_A[g], ldda, An*ldda,
-                                                             d_C[g], lddc, Cn*lddc,
-                                                      batchCount_gpu) );
+                check_error( kblas_trmm_batch(kblas_handle[g],
+                                              opts.side, opts.uplo, opts.transA, opts.diag,
+                                              M, N,
+                                              alpha, d_A[g], ldda, An*ldda,
+                                                     d_C[g], lddc, Cn*lddc,
+                                              batchCount_gpu) );
               }else{
-                check_error( kblasXtrsm_batch(kblas_handle[g],
+                check_error( kblas_trmm_batch(kblas_handle[g],
                                               opts.side, opts.uplo, opts.transA, opts.diag,
                                               M, N,
                                               alpha, (const T**)(d_A_array[g]), ldda,
@@ -334,50 +334,6 @@ int test_Xtrsm_batch(kblas_opts& opts, T alpha)
         kblas_perf = gflops / kblas_time_1;
         kblas_time_1 *= 1000.0;
 
-
-        if(opts.time){
-          for(int g = 0; g < ngpu; g++){
-            check_error( cudaSetDevice( opts.devices[g] ));
-            Xset_pointer_2( d_A_array[g], d_A[g], ldda, ldda*An,
-                            d_C_array[g], d_C[g], lddc, lddc*Cn,
-                            batchCount_gpu, kblas_handle[g]->stream);
-          }
-          for(int r = 0; r < nruns; r++)
-          {
-            for(int g = 0; g < ngpu; g++){
-              check_error( cudaSetDevice( opts.devices[g] ));
-              check_error( cublasSetMatrixAsync( Cm, Cn * batchCount_gpu, sizeof(T),
-                                                 h_C + Cm * Cn * batchCount_gpu * g, ldc,
-                                                 d_C[g], lddc, kblas_handle[g]->stream ) );
-            }
-            for(int g = 0; g < ngpu; g++){
-              check_error( cudaSetDevice( opts.devices[g] ));
-              cudaDeviceSynchronize();//TODO sync with streams instead
-            }
-            time = -gettime();
-            for(int g = 0; g < ngpu; g++){
-              check_error( cudaSetDevice( opts.devices[g] ));
-              cublasXtrsm_batched(kblas_handle[g]->cublas_handle,
-                                  (cublasSideMode_t)(CUBLAS_SIDE_LEFT + (opts.side == KBLAS_Right)),
-                                  (cublasFillMode_t)(CUBLAS_FILL_MODE_LOWER + (opts.uplo == KBLAS_Upper)),
-                                  (cublasOperation_t)(CUBLAS_OP_N + (opts.transA == KBLAS_Trans)),
-                                  (cublasDiagType_t)(CUBLAS_DIAG_NON_UNIT + (opts.diag == KBLAS_Unit)),
-                                  M, N, &alpha,
-                                  (const T**)d_A_array[g], ldda,
-                                             d_C_array[g], lddc,
-                                  batchCount_gpu);
-            }
-            for(int g = 0; g < ngpu; g++){
-              check_error( cudaSetDevice( opts.devices[g] ));
-              cudaDeviceSynchronize();//TODO sync with streams instead
-            }
-            time += gettime();
-            cublas_time += time;
-          }
-          cublas_time /= nruns;
-          cublas_perf = gflops / cublas_time;
-          cublas_time *= 1000.0;
-        }
 
 
         #ifdef USE_MKL
@@ -416,7 +372,7 @@ int test_Xtrsm_batch(kblas_opts& opts, T alpha)
               //if(opts.check && !opts.time)
               //  printMatrix(Bm, Bn, h_B + s * ldb * Bn, ldb, outO);
 
-              LAPACK_TRSM( (( opts.side == KBLAS_Right ) ? "Right" : "Left"),
+              LAPACK_TRMM( (( opts.side == KBLAS_Right ) ? "Right" : "Left"),
                            (( opts.uplo == KBLAS_Lower ) ? "Lower" : "Upper"),
                            (( opts.transA == KBLAS_NoTrans ) ? "No Transpose" : "Transpose"),
                            "Non-unit",
@@ -493,9 +449,8 @@ int test_Xtrsm_batch(kblas_opts& opts, T alpha)
         }
 
         //printf(" %7.4f %7.4f       %7.4f %7.4f %7.4f %7.4f    %7.4f %7.4f %7.4f %7.4f    %.4e \n",
-        printf(" %7.4f %7.4f %7.4f %7.4f %7.4f       %7.4f %7.4f %7.4f %7.4f    %.4e \n",
+        printf(" %7.4f %7.4f %7.4f       %7.4f %7.4f %7.4f %7.4f    %.4e \n",
                kblas_perf, kblas_time,  kblas_time_1,
-               cublas_perf, cublas_time,
                ref_avg_perf / nruns, ref_avg_time, ref_sdev_perf, ref_avg_time / kblas_time_1,
                //rec_avg_perf / nruns, rec_avg_time, rec_sdev_perf, rec_avg_time / kblas_time,
                ref_error);
@@ -543,6 +498,6 @@ int main(int argc, char** argv)
 #elif defined PREC_z
   TYPE alpha = make_cuDoubleComplex(1.2, -0.6);
 #endif
-  test_Xtrsm_batch<TYPE>(opts, alpha);
+  test_Xtrmm_batch<TYPE>(opts, alpha);
 
 }

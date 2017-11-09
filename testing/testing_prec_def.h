@@ -44,6 +44,7 @@
   #define LAPACK_AXPY saxpy
   #define LAPACK_LANSY slansy
   #define LAPACK_TRSM strsm
+  #define LAPACK_TRMM strmm
 
 #elif defined PREC_d
   #define cublasXtrsm_batched cublasDtrsmBatched
@@ -53,6 +54,7 @@
   #define LAPACK_AXPY daxpy
   #define LAPACK_LANSY dlansy
   #define LAPACK_TRSM dtrsm
+  #define LAPACK_TRMM dtrmm
 
 #elif defined PREC_c
   #define cublasXtrsm_batched cublasCtrsmBatched
@@ -62,6 +64,7 @@
   #define LAPACK_AXPY caxpy
   #define LAPACK_LANSY clansy
   #define LAPACK_TRSM ctrsm
+  #define LAPACK_TRMM ctrmm
 
 #elif defined PREC_z
   #define cublasXtrsm_batched cublasZtrsmBatched
@@ -71,6 +74,7 @@
   #define LAPACK_AXPY zaxpy
   #define LAPACK_LANSY zlansy
   #define LAPACK_TRSM ztrsm
+  #define LAPACK_TRMM ztrmm
 #endif
 
 #endif //__KBLAS_PREC_DEF__

@@ -69,10 +69,6 @@ LIB+= -lcusolver -lcurand
 endif
 
 C_OBJ= $(patsubst %.c,$(OBJ_DIR)/%.o,$(C_SRC))
-
-# $(BIN_DIR)/test_%: $(OBJ_DIR)/test_%.o
-# 	$(CC) $(COPTS) $< -o $@ $(LIB_PATH) $(LIB)
-
 EXE= $(patsubst %.c,$(BIN_DIR)/%,$(C_SRC))
 
 all: $(EXE)

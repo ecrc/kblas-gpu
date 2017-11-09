@@ -49,14 +49,14 @@
 //==============================================================================================
 #include "Xblas_core.ch"
 #include "Xhelper_funcs.ch"
-#include "Xtrsm_batch_drivers.cuh"
+#include "Xtrmm_batch_drivers.cuh"
 
 //==============================================================================================
 //Non-Strided form
 
 // workspace needed: device pointers
 // A, B: host pointer to array of device pointers to device buffers
-int kblas_trsm_batch(kblasHandle_t handle,
+int kblas_trmm_batch(kblasHandle_t handle,
                      char side, char uplo, char trans, char diag,
                      const int m, const int n,
                      const TYPE alpha,
@@ -65,7 +65,7 @@ int kblas_trsm_batch(kblasHandle_t handle,
                     int batchCount){
 
   KBlasWorkspaceState ws_needed;
-  trsm_batch_wsquery_core<false>( batchCount,
+  trmm_batch_wsquery_core<false>( batchCount,
                                   side, m, n,
                                   (kblasWorkspaceState_t)&ws_needed);
 
@@ -75,7 +75,7 @@ int kblas_trsm_batch(kblasHandle_t handle,
     return KBLAS_InsufficientWorkspace;
   }
 
-  return Xtrsm_batch_core<TYPE, TYPE**, false>(
+  return Xtrmm_batch_core<TYPE, TYPE**, false>(
                           handle,
                           side, uplo, trans, diag,
                           m, n,
@@ -87,18 +87,9 @@ int kblas_trsm_batch(kblasHandle_t handle,
 
 extern "C" {
 
-// void kblasXtrsm_batch_wsquery(kblasHandle_t handle,
-//                               int batchCount,
-//                               char side, int m, int n){
-//   Xtrsm_batch_wsquery_core<TYPE, false>(
-//                             batchCount,
-//                             side, m, n,
-//                             &(handle->work_space.requested_ws_state));
-// }
-
 // workspace needed: device pointers
 // A, B: host pointer to array of device pointers to device buffers
-int kblasXtrsm_batch(kblasHandle_t handle,
+int kblasXtrmm_batch(kblasHandle_t handle,
                      char side, char uplo, char trans, char diag,
                      const int m, const int n,
                      const TYPE alpha,
@@ -107,7 +98,7 @@ int kblasXtrsm_batch(kblasHandle_t handle,
                     int batchCount){
 
   KBlasWorkspaceState ws_needed;
-  trsm_batch_wsquery_core<false>( batchCount,
+  trmm_batch_wsquery_core<false>( batchCount,
                                   side, m, n,
                                   (kblasWorkspaceState_t)&ws_needed);
 
@@ -117,7 +108,7 @@ int kblasXtrsm_batch(kblasHandle_t handle,
     return KBLAS_InsufficientWorkspace;
   }
 
-  return Xtrsm_batch_core<TYPE, TYPE**, false> (
+  return Xtrmm_batch_core<TYPE, TYPE**, false> (
                           handle,
                           side, uplo, trans, diag,
                           m, n,
@@ -127,14 +118,15 @@ int kblasXtrsm_batch(kblasHandle_t handle,
                           batchCount);
 }
 
-}// extern "C"
+} //extern "C"
 
 //==============================================================================================
 //Strided form
+// template<>
 
 // workspace needed: device pointers
 // A, B: host pointer to array of device pointers to device buffers
-int kblas_trsm_batch(kblasHandle_t handle,
+int kblas_trmm_batch(kblasHandle_t handle,
                      char side, char uplo, char trans, char diag,
                      const int m, const int n,
                      const TYPE alpha,
@@ -143,7 +135,7 @@ int kblas_trsm_batch(kblasHandle_t handle,
                     int batchCount){
 
   KBlasWorkspaceState ws_needed;
-  trsm_batch_wsquery_core<true>(batchCount,
+  trmm_batch_wsquery_core<true>(batchCount,
                                 side, m, n,
                                 (kblasWorkspaceState_t)&ws_needed);
 
@@ -153,7 +145,7 @@ int kblas_trsm_batch(kblasHandle_t handle,
     return KBLAS_InsufficientWorkspace;
   }
 
-  return Xtrsm_batch_core<TYPE, TYPE*, true>(
+  return Xtrmm_batch_core<TYPE, TYPE*, true>(
                           handle,
                           side, uplo, trans, diag,
                           m, n,
@@ -165,18 +157,9 @@ int kblas_trsm_batch(kblasHandle_t handle,
 
 extern "C" {
 
-// void kblasXtrsm_batch_strided_wsquery(kblasHandle_t handle,
-//                                       int batchCount,
-//                                       char side, int m, int n){
-//   Xtrsm_batch_wsquery_core<TYPE, true>(
-//                             batchCount,
-//                             side, m, n,
-//                             &(handle->work_space.requested_ws_state));
-// }
-
 // workspace needed: device pointers
 // A, B: host pointer to device buffers
-int kblasXtrsm_batch_strided(kblasHandle_t handle,
+int kblasXtrmm_batch_strided(kblasHandle_t handle,
                              char side, char uplo, char trans, char diag,
                              const int m, const int n,
                              const TYPE alpha,
@@ -185,7 +168,7 @@ int kblasXtrsm_batch_strided(kblasHandle_t handle,
                              int batchCount){
 
   KBlasWorkspaceState ws_needed;
-  trsm_batch_wsquery_core<true>(batchCount,
+  trmm_batch_wsquery_core<true>(batchCount,
                                 side, m, n,
                                 (kblasWorkspaceState_t)&ws_needed);
 
@@ -195,7 +178,7 @@ int kblasXtrsm_batch_strided(kblasHandle_t handle,
     return KBLAS_InsufficientWorkspace;
   }
 
-  return Xtrsm_batch_core<TYPE, TYPE*, true> (
+  return Xtrmm_batch_core<TYPE, TYPE*, true> (
                           handle,
                           side, uplo, trans, diag,
                           m, n,

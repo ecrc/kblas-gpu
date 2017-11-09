@@ -31,31 +31,62 @@
   (INCLUDING  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
   OF  THIS  SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
-#ifndef __XBLAS_CORE__
-#define __XBLAS_CORE__
+#ifndef __KBLAS_BATCH_COMMON_H__
+#define __KBLAS_BATCH_COMMON_H__
 
 
-#include "kblas_struct.h"
-#include "kblas_prec_def.h"
 
 //==============================================================================================
+void gemm_batch_offset_wsquery_core(int batchCount,
+                                    int A_row_off, int A_col_off,
+                                    int B_row_off, int B_col_off,
+                                    int C_row_off, int C_col_off,
+                                    kblasWorkspaceState_t ws);
 
-void kblas_gemm_batch_wsquery(kblasHandle_t handle,
-                              int batchCount,
-                              int A_row_off, int A_col_off,
-                              int B_row_off, int B_col_off,
-                              int C_row_off, int C_col_off);
-
-int kblas_gemm_batch( kblasHandle_t handle,
-                      char transA, char transB,
-                      const int m, const int n, const int k,
-                      const TYPE alpha,
-                      const TYPE** A, int A_row_off, int A_col_off, int lda,
-                      const TYPE** B, int B_row_off, int B_col_off, int ldb,
-                      const TYPE beta,
-                            TYPE** C, int C_row_off, int C_col_off, int ldc,
-                      int batchCount);
+void gemm_batch_strided_wsquery_core(int batchCount, kblasWorkspaceState_t ws);
 
 //==============================================================================================
+void syrk_batch_wsquery_core(const int m, int batchCount, kblasWorkspaceState_t ws);
 
-#endif// __XBLAS_CORE__
+//==============================================================================================
+template<bool STRIDED>
+inline
+void trsm_batch_wsquery_core( int batchCount,
+                              char side, int m, int n,
+                              kblasWorkspaceState_t wss)
+{
+  if( ( (side == KBLAS_Right) && (n > 16) ) ||
+      ( (side == KBLAS_Left ) && (m > 16) ) ){
+    if(STRIDED){
+      gemm_batch_strided_wsquery_core(batchCount, wss);
+    }else{
+      gemm_batch_offset_wsquery_core( batchCount,
+                                      1, 1, 1, 1, 1, 1,
+                                      wss);
+    }
+  }else{
+    wss->reset();
+  }
+}
+//==============================================================================================
+template<bool STRIDED>
+inline
+void trmm_batch_wsquery_core( int batchCount,
+                              char side, int m, int n,
+                              kblasWorkspaceState_t wss)
+{
+  if( ( (side == KBLAS_Right) && (n > 16) ) ||
+      ( (side == KBLAS_Left ) && (m > 16) ) ){
+    if(STRIDED){
+      gemm_batch_strided_wsquery_core(batchCount, wss);
+    }else{
+      gemm_batch_offset_wsquery_core( batchCount,
+                                      1, 1, 1, 1, 1, 1,
+                                      wss);
+    }
+  }else{
+    wss->reset();
+  }
+}
+
+#endif //__KBLAS_BATCH_COMMON_H__

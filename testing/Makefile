@@ -68,18 +68,11 @@ include $(KBLAS_BATCH_DIR)/Makefile
 endif
 
 C_OBJ= $(patsubst %.c,$(OBJ_DIR)/%.o,$(C_SRC))
-
-# $(BIN_DIR)/test_%: $(OBJ_DIR)/test_%.o
-# 	$(CC) $(COPTS) $< -o $@ $(LIB_PATH) $(LIB)
-
 EXE= $(patsubst %.c,$(BIN_DIR)/%,$(C_SRC))
 
 all: $(EXE)
 
-#$(EXE): $(C_OBJ)
-
 $(EXE): $(BIN_DIR)/%: $(OBJ_DIR)/%.o $(KBLAS_LIB)
 	$(CC) $(COPTS) $< -o $@ $(LIB_PATH) $(LIB)
-
 clean:
 	rm -f $(OBJ_DIR)/*.o $(EXE)

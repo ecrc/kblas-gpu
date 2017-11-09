@@ -39,7 +39,8 @@
 
 
 //==============================================================================================
-int Xset_value_diff_1(int* output_array, const int* input_array1, int* input_array2, long batchCount, cudaStream_t cuda_stream);
+int iset_value_diff_1(int* output_array, const int* input_array1, int* input_array2,
+                      long batchCount, cudaStream_t cuda_stream);
 
 int Xset_value_1(
   TYPE *output_array, TYPE input,

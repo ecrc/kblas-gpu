@@ -35,28 +35,10 @@
 #define __XTRSM_BATCH_DRIVERS_H__
 
 
-#include "Xgemm_batch_core.cuh"
+// #include "Xgemm_batch_core.cuh"
 #include "Xtrsm_batch_kernels.cuh"
 
 //==============================================================================================
-template<class T, bool STRIDED>
-void Xtrsm_batch_wsquery_core(int batchCount,
-                              char side, int m, int n,
-                              kblasWorkspaceState_t ws)
-{
-  if( ( (side == KBLAS_Right) && (n > 16) ) ||
-      ( (side == KBLAS_Left ) && (m > 16) ) ){
-    if(STRIDED){
-      Xgemm_batch_strided_wsquery_core<T>(batchCount, ws);
-    }else{
-      Xgemm_batch_wsquery_core<T>(batchCount,
-                              1, 1, 1, 1, 1, 1,
-                              ws);
-    }
-  }else{
-    ws->reset();
-  }
-}
 
 //TODO tuning variable
 #define BY 64
@@ -198,13 +180,13 @@ int Xtrsm_batch_core( kblasHandle_t handle,
 
         //GEMM_BATCH
         if(STRIDED){
-          check_error_ret (status = Xgemm_batch_strided(handle,
-                                                        KBLAS_NoTrans, trans,
-                                                        m, n2, n1,
-                                                        mInvAlpha, (const T*)offB( 0,  0), ldb, strideB,
-                                                                   (const T*)offA(n1,  0), lda, strideA,
-                                                        one,             (T*)offB( 0, n1), ldb, strideB,
-                                                        batchCount), status);
+          check_error_ret (status = kblas_gemm_batch( handle,
+                                                      KBLAS_NoTrans, trans,
+                                                      m, n2, n1,
+                                                      mInvAlpha, (const T*)offB( 0,  0), ldb, strideB,
+                                                                 (const T*)offA(n1,  0), lda, strideA,
+                                                      one,             (T*)offB( 0, n1), ldb, strideB,
+                                                      batchCount), status);
         }else{
           check_error_ret (status = kblas_gemm_batch( handle,
                                                       KBLAS_NoTrans, trans,
@@ -217,12 +199,12 @@ int Xtrsm_batch_core( kblasHandle_t handle,
 
         //TRSM_BATCH
         check_error_ret ((status = Xtrsm_batch_core<T, T_PTR, STRIDED>(
-                                                  handle,
-                                                  side, uplo, trans, diag,
-                                                  m, n2,
-                                                  alpha, Aoff(n1, n1), lda, strideA,
-                                                         Boff( 0, n1), ldb, strideB,
-                                                  batchCount)), status);
+                                                    handle,
+                                                    side, uplo, trans, diag,
+                                                    m, n2,
+                                                    alpha, Aoff(n1, n1), lda, strideA,
+                                                           Boff( 0, n1), ldb, strideB,
+                                                    batchCount)), status);
       }
       //Right / Lower / NoTrans
       else{
@@ -239,13 +221,13 @@ int Xtrsm_batch_core( kblasHandle_t handle,
 
         //GEMM_BATCH
         if(STRIDED){
-          check_error_ret((status = Xgemm_batch_strided(handle,
-                                                        KBLAS_NoTrans, trans,
-                                                        m, n1, n2,
-                                                        mone, (const T*)offB( 0, n1), ldb, strideB,
-                                                              (const T*)offA(n1,  0), lda, strideA,
-                                                        alpha,      (T*)offB( 0,  0), ldb, strideB,
-                                                        batchCount)), status);
+          check_error_ret((status = kblas_gemm_batch( handle,
+                                                      KBLAS_NoTrans, trans,
+                                                      m, n1, n2,
+                                                      mone, (const T*)offB( 0, n1), ldb, strideB,
+                                                            (const T*)offA(n1,  0), lda, strideA,
+                                                      alpha,      (T*)offB( 0,  0), ldb, strideB,
+                                                      batchCount)), status);
         }else{
           // printf("non-strided %d\n", __LINE__);
           check_error_ret((status = kblas_gemm_batch( handle,
@@ -289,13 +271,13 @@ int Xtrsm_batch_core( kblasHandle_t handle,
 
         //GEMM_BATCH
         if(STRIDED){
-          check_error_ret (status = Xgemm_batch_strided(handle,
-                                                        trans, KBLAS_NoTrans,
-                                                        m1, n, m2,
-                                                        mone, (const T*)offA(m1, 0), lda, strideA,
-                                                              (const T*)offB(m1, 0), ldb, strideB,
-                                                        alpha,      (T*)offB( 0, 0), ldb, strideB,
-                                                        batchCount), status);
+          check_error_ret (status = kblas_gemm_batch( handle,
+                                                      trans, KBLAS_NoTrans,
+                                                      m1, n, m2,
+                                                      mone, (const T*)offA(m1, 0), lda, strideA,
+                                                            (const T*)offB(m1, 0), ldb, strideB,
+                                                      alpha,      (T*)offB( 0, 0), ldb, strideB,
+                                                      batchCount), status);
         }else{
           check_error_ret (status = kblas_gemm_batch( handle,
                                                       trans, KBLAS_NoTrans,
@@ -328,13 +310,13 @@ int Xtrsm_batch_core( kblasHandle_t handle,
 
         //GEMM_BATCH
         if(STRIDED){
-          check_error_ret((status = Xgemm_batch_strided(handle,
-                                                        trans, KBLAS_NoTrans,
-                                                        m2, n, m1,
-                                                        mone, (const T*)offA(m1, 0), lda, strideA,
-                                                              (const T*)offB( 0, 0), ldb, strideB,
-                                                        alpha,      (T*)offB(m1, 0), ldb, strideB,
-                                                        batchCount)), status);
+          check_error_ret((status = kblas_gemm_batch( handle,
+                                                      trans, KBLAS_NoTrans,
+                                                      m2, n, m1,
+                                                      mone, (const T*)offA(m1, 0), lda, strideA,
+                                                            (const T*)offB( 0, 0), ldb, strideB,
+                                                      alpha,      (T*)offB(m1, 0), ldb, strideB,
+                                                      batchCount)), status);
         }else{
           check_error_ret((status = kblas_gemm_batch( handle,
                                                       trans, KBLAS_NoTrans,

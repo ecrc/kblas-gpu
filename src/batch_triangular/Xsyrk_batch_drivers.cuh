@@ -41,21 +41,6 @@
 //TODO tuning variable
 #define A_COLS_PTY 8
 
-template<class T>
-void Xsyrk_batch_strided_wsquery_core(const int m, int batchCount, kblasWorkspaceState_t ws)
-{
-  if(m <= 16)
-    ws->d_ptrs_bytes = 0;
-  else
-  {
-    int depth = 0, s = 16;
-    while(s < m){
-      s = s << 1;
-      depth++;
-    }
-    ws->d_ptrs_bytes = (1 << (depth-1) ) * batchCount * 3 * sizeof(T*);
-  }
-}
 // workspace needed: device pointers
 // A, B: host pointer to device buffers
 template<class T>
@@ -234,7 +219,7 @@ int Xsyrk_batch_strided_core( kblasHandle_t handle,
 
   if(m > 16){
     KBlasWorkspaceState ws_needed;
-    Xsyrk_batch_strided_wsquery_core<T>( m, batchCount, (kblasWorkspaceState_t)&ws_needed);
+    syrk_batch_wsquery_core( m, batchCount, (kblasWorkspaceState_t)&ws_needed);
 
     bool suffWorkspace = (ws_needed.d_ptrs_bytes <= handle->work_space.allocated_ws_state.d_ptrs_bytes);
 
@@ -328,22 +313,6 @@ int Xsyrk_batch_strided_core( kblasHandle_t handle,
 }
 
 //==============================================================================================
-
-template<class T>
-void Xsyrk_batch_wsquery_core(const int m, int batchCount, kblasWorkspaceState_t ws)
-{
-  if(m <= 16)
-    ws->d_ptrs_bytes = 0;
-  else
-  {
-    int depth = 0, s = 16;
-    while(s < m){
-      s = s << 1;
-      depth++;
-    }
-    ws->d_ptrs_bytes = (1 << (depth-1) ) * batchCount * 3 * sizeof(T*);
-  }
-}
 
 // workspace needed: device pointers
 // d_A, d_B: host pointer to array of device pointers to device buffers
@@ -549,7 +518,7 @@ int Xsyrk_batch_core( kblasHandle_t handle,
   if(m > 16){
 
     KBlasWorkspaceState ws_needed;
-    Xsyrk_batch_wsquery_core<T>( m, batchCount, (kblasWorkspaceState_t)&ws_needed);
+    syrk_batch_wsquery_core( m, batchCount, (kblasWorkspaceState_t)&ws_needed);
 
     bool suffWorkspace = (ws_needed.d_ptrs_bytes <= handle->work_space.allocated_ws_state.d_ptrs_bytes);
 

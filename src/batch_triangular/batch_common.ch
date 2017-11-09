@@ -68,5 +68,25 @@ void trsm_batch_wsquery_core( int batchCount,
     wss->reset();
   }
 }
+//==============================================================================================
+template<bool STRIDED>
+inline
+void trmm_batch_wsquery_core( int batchCount,
+                              char side, int m, int n,
+                              kblasWorkspaceState_t wss)
+{
+  if( ( (side == KBLAS_Right) && (n > 16) ) ||
+      ( (side == KBLAS_Left ) && (m > 16) ) ){
+    if(STRIDED){
+      gemm_batch_strided_wsquery_core(batchCount, wss);
+    }else{
+      gemm_batch_offset_wsquery_core( batchCount,
+                                      1, 1, 1, 1, 1, 1,
+                                      wss);
+    }
+  }else{
+    wss->reset();
+  }
+}
 
 #endif //__KBLAS_BATCH_COMMON_H__

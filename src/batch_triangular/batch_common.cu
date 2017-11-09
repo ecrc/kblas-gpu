@@ -120,7 +120,6 @@ void kblas_syrk_batch_wsquery(kblasHandle_t handle, const int m, int batchCount)
 }
 
 //==============================================================================================
-
 void kblas_trsm_batch_wsquery(kblasHandle_t handle, int batchCount, char side, int m, int n){
   trsm_batch_wsquery_core<false>( batchCount,
                                   side, m, n,
@@ -128,6 +127,18 @@ void kblas_trsm_batch_wsquery(kblasHandle_t handle, int batchCount, char side, i
 }
 void kblas_trsm_batch_strided_wsquery(kblasHandle_t handle, int batchCount, char side, int m, int n){
   trsm_batch_wsquery_core<true>(batchCount,
+                                side, m, n,
+                                &(handle->work_space.requested_ws_state));
+}
+
+//==============================================================================================
+void kblas_trmm_batch_wsquery(kblasHandle_t handle, int batchCount, char side, int m, int n){
+  trmm_batch_wsquery_core<false>( batchCount,
+                                  side, m, n,
+                                  &(handle->work_space.requested_ws_state));
+}
+void kblas_trmm_batch_strided_wsquery(kblasHandle_t handle, int batchCount, char side, int m, int n){
+  trmm_batch_wsquery_core<true>(batchCount,
                                 side, m, n,
                                 &(handle->work_space.requested_ws_state));
 }

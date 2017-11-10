@@ -128,8 +128,6 @@ int Xtrmm_batch_core( kblasHandle_t handle,
                   );
 
     trmm_kernels[func_idx]<<< gridDim, blockDim, blockDim.x*(blockDim.x+2)*blockDim.y*sizeof(T), handle->stream>>>
-                              // (m, n, alpha, A, lda, strideA, B, ldb, strideB);
-    // trmm_kernels[func_idx]<<< gridDim, blockDim, trsm_kernels_sharedMem[(side == KBLAS_Left)], handle->stream>>>
                               ( m, n, batchCount,
                                 alpha, A, A_row_off, A_col_off, lda, strideA,
                                        B, B_row_off, B_col_off, ldb, strideB);

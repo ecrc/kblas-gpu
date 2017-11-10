@@ -226,7 +226,6 @@ dev_trmm_U_LLXN_reg_shared_MNvar(const int m, const int n,
                                  const T* __restrict__ A, int lda,
                                                     T* B, int ldb)
 {
-  if( TX < m ) return;//necessary condition
   const int TX1 = TX + 2;
   //setup shared memory
   extern __shared__ __align__(sizeof(T)) unsigned char sh_data[];
@@ -385,6 +384,9 @@ kernel_trmm_U_LLXN_reg_shared_MNvar(const int m, const int n, int batchCount,
                                                                 T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB)
 {
   if( TX < m ) return;//necessary condition
+
+  //are we within bounds
+  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
 
   //TODO better grid layout can be devised here
   int Bn_start = TY * blockIdx.y;

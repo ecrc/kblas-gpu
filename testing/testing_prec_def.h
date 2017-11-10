@@ -43,8 +43,10 @@
   #define LAPACK_SYRK ssyrk
   #define LAPACK_AXPY saxpy
   #define LAPACK_LANSY slansy
+  #define LAPACK_LANGE slange
   #define LAPACK_TRSM strsm
   #define LAPACK_TRMM strmm
+  #define LAPACK_POTRF spotrf
 
 #elif defined PREC_d
   #define cublasXtrsm_batched cublasDtrsmBatched
@@ -53,8 +55,10 @@
   #define LAPACK_SYRK dsyrk
   #define LAPACK_AXPY daxpy
   #define LAPACK_LANSY dlansy
+  #define LAPACK_LANGE dlange
   #define LAPACK_TRSM dtrsm
   #define LAPACK_TRMM dtrmm
+  #define LAPACK_POTRF dpotrf
 
 #elif defined PREC_c
   #define cublasXtrsm_batched cublasCtrsmBatched
@@ -63,8 +67,10 @@
   #define LAPACK_SYRK csyrk
   #define LAPACK_AXPY caxpy
   #define LAPACK_LANSY clansy
+  #define LAPACK_LANGE clange
   #define LAPACK_TRSM ctrsm
   #define LAPACK_TRMM ctrmm
+  #define LAPACK_POTRF cpotrf
 
 #elif defined PREC_z
   #define cublasXtrsm_batched cublasZtrsmBatched
@@ -73,8 +79,11 @@
   #define LAPACK_SYRK zsyrk
   #define LAPACK_AXPY zaxpy
   #define LAPACK_LANSY zlansy
+  #define LAPACK_LANGE zlange
   #define LAPACK_TRSM ztrsm
   #define LAPACK_TRMM ztrmm
+  #define LAPACK_POTRF zpotrf
+
 #endif
 
 #endif //__KBLAS_PREC_DEF__

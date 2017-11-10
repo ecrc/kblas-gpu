@@ -1,11 +1,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <cublas_v2.h>
-#include <magma_v2.h>
-#include <kblas.h>
-#include <mkl.h>
-
 #include "testing_helper.h"
 
 #ifdef PREC_d
@@ -135,13 +130,15 @@ int main(int argc, char** argv)
 	IntArray d_info[num_gpus];
 	
 	// Handles and timers
-    magma_queue_t queues[num_gpus];
+    #ifdef USE_MAGMA
+	magma_init();
+	magma_queue_t queues[num_gpus];
+	#endif
 	cublasHandle_t cublas_handles[num_gpus];
 	kblasHandle_t kblas_handles[num_gpus];
 	GPU_Timer_t magma_timers[num_gpus], cublas_timers[num_gpus], kblas_timers[num_gpus];
 	
 	double cpu_time[nruns], kblas_time[nruns], magma_time[nruns], cublas_time[nruns];
-	magma_init();
 		
 	for(int g = 0; g < num_gpus; g++)
 	{
@@ -151,9 +148,11 @@ int main(int argc, char** argv)
 		cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
 		#endif
 		
+		 #ifdef USE_MAGMA
 		// Init magma queue and timer
 		magma_queue_create(opts.devices[g], &queues[g]);
 		magma_timers[g] = newGPU_Timer(magma_queue_get_cuda_stream(queues[g]));
+		#endif
 		
 		// Init cublas handle and timer
 		check_cublas_error( cublasCreate(&cublas_handles[g]) );
@@ -244,6 +243,7 @@ int main(int argc, char** argv)
 					COPY_DATA_DOWN();
 					kblas_err += compare_results_R(gpu_results, m, rows, cols, batchCount);
 					
+					#ifdef USE_MAGMA
 					////////////////////////////////////////////////////////////////////////
 					// MAGMA
 					////////////////////////////////////////////////////////////////////////
@@ -266,6 +266,7 @@ int main(int argc, char** argv)
 					// Copy the data down from all the GPUs and compare with the CPU results
 					COPY_DATA_DOWN();
 					magma_err += compare_results_R(gpu_results, m, rows, cols, batchCount);
+					#endif
 					
 					////////////////////////////////////////////////////////////////////////
 					// CUBLAS
@@ -300,7 +301,7 @@ int main(int argc, char** argv)
 				
 				printf(
 					"%-15d%-10d%-10d%-15.3f%-15.3f%-15.3f%-15.3e%-15.3e%-15.3e\n", 
-					batchCount, rows, cols, hh_ops / avg_kblas_time, hh_ops / avg_magma_time, hh_ops / avg_cublas_time, 
+					batchCount, rows, cols, hh_ops / avg_kblas_time, (avg_magma_time == 0 ? 0 : hh_ops / avg_magma_time), hh_ops / avg_cublas_time, 
 					kblas_err / nruns, magma_err / nruns, cublas_err / nruns
 				);
 				

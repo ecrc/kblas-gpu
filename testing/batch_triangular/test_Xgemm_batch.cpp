@@ -5,33 +5,15 @@
 #include <assert.h>
 #include <math.h>
 #include <sys/time.h>
-#include <cuda.h>
-#include <cuda_runtime.h>
-#include <cuda_runtime_api.h>
-#include "cublas_v2.h"
-
-#include "kblas.h"
-
-
-// #include "Xtr_common.ch"
-#include "testing_prec_def.h"
-#include "batch_triangular/Xblas_core.ch"
 
 #if ((defined PREC_c) || (defined PREC_z)) && (defined USE_MKL)
 //TODO need to handle MKL types properly
 #undef USE_MKL
 #endif
 
-#ifdef USE_MKL
-// #define USE_MKL_BATCH
-#include <mkl.h>
-#endif//USE_MKL
-
-#include "testing_Xtr_common.h"
-
-#ifdef USE_OPENMP
-#include "omp.h"
-#endif//USE_OPENMP
+#include "testing_helper.h"
+#include "testing_prec_def.h"
+#include "flops.h"
 
 //==============================================================================================
 #ifdef USING
@@ -182,17 +164,17 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
         memcpy(h_R, h_C, sizeC * batchCount * sizeof(T));
       //int curDev;
       //cudaGetDevice(&curDev);
-      cudaStream_t curStream = kblas_handle->stream;
+      cudaStream_t curStream = kblasGetStream(kblas_handle);
       /*
       check_error( cudaStreamCreateWithFlags( &curStream, cudaStreamNonBlocking) );
       check_error(cublasSetStream(cublas_handle, curStream));*/
 
-      check_error( cublasSetMatrixAsync( Am, An * batchCount, sizeof(T), h_A, lda, d_A, ldda, curStream ) );
-      check_error( cublasSetMatrixAsync( Bm, Bn * batchCount, sizeof(T), h_B, ldb, d_B, lddb, curStream ) );
+      check_cublas_error( cublasSetMatrixAsync( Am, An * batchCount, sizeof(T), h_A, lda, d_A, ldda, curStream ) );
+      check_cublas_error( cublasSetMatrixAsync( Bm, Bn * batchCount, sizeof(T), h_B, ldb, d_B, lddb, curStream ) );
 
       if(opts.warmup){
-        check_error( cublasSetMatrixAsync( Cm, Cn * batchCount, sizeof(T), h_C, ldc, d_C, lddc, curStream ) );
-        check_error( cublasXgemm( kblas_handle->cublas_handle,
+        check_cublas_error( cublasSetMatrixAsync( Cm, Cn * batchCount, sizeof(T), h_C, ldc, d_C, lddc, curStream ) );
+        check_cublas_error( cublasXgemm( kblasGetCublasHandle(kblas_handle),
                                   cub_transA, cub_transB,
                                   M, N, K,
                                   &alpha, d_A, ldda,
@@ -221,7 +203,7 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
       }
 
       kblas_gemm_batch_strided_wsquery(kblas_handle, batchCount);
-      check_error( kblasAllocateWorkspace(kblas_handle) );
+      check_kblas_error( kblasAllocateWorkspace(kblas_handle) );
 
       double time = 0;
 
@@ -229,7 +211,7 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
       #ifdef USE_MAGMA
       // use_magma_gemm = 1; use_cublas_gemm = 0;
       //TODO this is not a safe access
-      kblas_handle->use_magma = 1;
+      kblas_handle->use_magma = 1; 
       for(int r = 0; r < nruns; r++)
       {
         check_error( cublasSetMatrixAsync( Cm, Cn * batchCount, sizeof(T), h_C, ldc, d_C, lddc, curStream ) );
@@ -250,7 +232,7 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
       #endif
 
       // use_magma_gemm = 0; use_cublas_gemm = 1;
-      kblas_handle->use_magma = 0;
+      // kblas_handle->use_magma = 0; // It's off by default so this should be OK to comment out
       /*for(int r = 0; r < nruns; r++)
       {
         check_error( cublasSetMatrixAsync( Cm, Cn * batchCount, sizeof(T), h_C, ldc, d_C, lddc, curStream ) );
@@ -272,17 +254,18 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
       // use_magma_gemm = 0; use_cublas_gemm = 0;
       for(int r = 0; r < nruns; r++)
       {
-        check_error( cublasSetMatrixAsync( Cm, Cn * batchCount, sizeof(T), h_C, ldc, d_C, lddc, curStream ) );
+        check_cublas_error( cublasSetMatrixAsync( Cm, Cn * batchCount, sizeof(T), h_C, ldc, d_C, lddc, curStream ) );
 
-        kblas_handle->tic();
-        check_error( kblas_gemm_batch(kblas_handle,
+        kblasTimerTic(kblas_handle);
+        check_kblas_error( kblas_gemm_batch(kblas_handle,
                                       opts.transA, opts.transB,
                                       M, N, K,
                                       alpha, d_A, ldda, An*ldda,
                                              d_B, lddb, Bn*lddb,
                                       beta,  d_C, lddc, Cn*lddc,
                                       batchCount) );
-        time = kblas_handle->toc();
+		kblasTimerRecordEnd(kblas_handle);
+        time = kblasTimerToc(kblas_handle);
         kblas_time += time;
       }
       kblas_time /= nruns;
@@ -293,7 +276,7 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
       #ifdef USE_MKL
       if(opts.check || opts.time){
         if(opts.check){
-          check_error( cublasGetMatrixAsync( Cm, Cn * batchCount, sizeof(T), d_C, lddc, h_R, ldc, curStream ) );
+          check_cublas_error( cublasGetMatrixAsync( Cm, Cn * batchCount, sizeof(T), d_C, lddc, h_R, ldc, curStream ) );
           cudaDeviceSynchronize();
         }
 
@@ -440,10 +423,7 @@ int main(int argc, char** argv)
   // kblas_init();
 
   kblas_opts opts;
-  if(!parse_opts( argc, argv, &opts )){
-    USAGE;
-    return -1;
-  }
+  parse_opts( argc, argv, &opts );
 
 #if (defined PREC_s) || (defined PREC_d)
   TYPE alpha = 0.28;

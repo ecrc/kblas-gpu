@@ -1,13 +1,7 @@
-#include <iostream>
-#include <iomanip>
-#include <stdlib.h>
 #include <stdio.h>
-#include <assert.h>
 #include <math.h>
 #include <string.h>
-
-#include <cuda.h>
-#include <mkl.h>
+#include <algorithm>
 
 #include "testing_helper.h"
 
@@ -18,10 +12,7 @@
 typedef double Real;
 #define generateXrandom					generateDrandom
 #define LAPACKE_Xgesvj					LAPACKE_dgesvj
-#define LAPACKE_Xgeqrf					LAPACKE_dgeqrf
-#define LAPACKE_Xorgqr					LAPACKE_dorgqr
 #define generateXrandomMatrices			generateDrandomMatrices
-#define cblas_Xgemm						cblas_dgemm
 #define kblasXgesvj_batch				kblasDgesvj_batch_strided
 #define cusolverDnXgesvd_bufferSize		cusolverDnDgesvd_bufferSize
 #define cusolverDnXgesvd				cusolverDnDgesvd
@@ -29,10 +20,7 @@ typedef double Real;
 typedef float Real;
 #define generateXrandom					generateSrandom
 #define LAPACKE_Xgesvj					LAPACKE_sgesvj
-#define LAPACKE_Xgeqrf					LAPACKE_sgeqrf
-#define LAPACKE_Xorgqr					LAPACKE_sorgqr
 #define generateXrandomMatrices			generateSrandomMatrices
-#define cblas_Xgemm						cblas_sgemm
 #define kblasXgesvj_batch				kblasSgesvj_batch_strided
 #define cusolverDnXgesvd_bufferSize		cusolverDnSgesvd_bufferSize
 #define cusolverDnXgesvd				cusolverDnSgesvd
@@ -170,7 +158,7 @@ int main(int argc, char** argv)
 		kblas_timers[g] = newGPU_Timer(kblasGetStream(kblas_handles[g]));
     }
 	
-	printf("%-15s%-10s%-10s%-15s%-15s%-15s%-15s%-15s%-15s\n", "batchCount", "N", "K", "kblasGESVJ(s)", "MKLGESVJ(s)", "CUSOLVER(s)", "kblasErr", "CPUerr", "cusovlerErr");
+	printf("%-15s%-10s%-10s%-15s%-15s%-15s%-15s%-15s%-15s\n", "batchCount", "N", "K", "kblasGESVJ(s)", "cpuGESVJ(s)", "CUSOLVER(s)", "kblasErr", "CPUerr", "cusovlerErr");
 	printf("============================================================================================================================\n");
 	for(int itest = 0; itest < opts.ntest; ++itest) 
 	{

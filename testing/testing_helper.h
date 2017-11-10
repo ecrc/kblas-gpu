@@ -3,9 +3,24 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <cuda_runtime_api.h>
 #include <cublas_v2.h>
 #include <kblas.h>
 #include <cusolverDn.h>
+
+#ifdef USE_MAGMA
+#include <magma_v2.h>
+#endif
+#ifdef USE_MKL
+#include <mkl.h>
+#else 
+// #include <cblas.h>		TODO: if MKL not set we need to use other libs 
+// #include <lapacke.h>
+#endif
+#ifdef USE_OPENMP
+#include <omp.h>
+#endif
+#include <kblas.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,6 +34,9 @@ void gpuAssert(cudaError_t code, const char *file, int line);
 
 #define check_cublas_error(ans) { gpuCublasAssert((ans), __FILE__, __LINE__); }
 void gpuCublasAssert(cublasStatus_t code, const char *file, int line);
+
+#define check_kblas_error(ans) { gpuKblasAssert((ans), __FILE__, __LINE__); }
+void gpuKblasAssert(int code, const char *file, int line);
 
 #define check_cusolver_error(ans) { gpuCusolverAssert((ans), __FILE__, __LINE__); }
 void gpuCusolverAssert(cusolverStatus_t code, const char *file, int line);
@@ -62,8 +80,17 @@ void generateSArrayOfPointers(float* original_array, float** array_of_arrays, in
 ////////////////////////////////////////////////////////////
 // Data generation
 ////////////////////////////////////////////////////////////
-void generateDrandom(double* random_data, int num_elements, int num_ops);
-void generateSrandom(float* random_data, int num_elements, int num_ops);
+void generateDrandom(double* random_data, long num_elements, int num_ops);
+void generateSrandom(float* random_data, long num_elements, int num_ops);
+void srand_matrix(long rows, long cols, float* A, long LDA);
+void drand_matrix(long rows, long cols, double* A, long LDA);
+void crand_matrix(long rows, long cols, cuFloatComplex* A, long LDA);
+void zrand_matrix(long rows, long cols, cuDoubleComplex* A, long LDA);
+
+void smatrix_make_hpd(int N, float* A, int lda);
+void dmatrix_make_hpd(int N, double* A, int lda);
+void cmatrix_make_hpd(int N, cuFloatComplex* A, int lda);
+void zmatrix_make_hpd(int N, cuDoubleComplex* A, int lda);
 
 // set cond = 0 to use exp decay
 void generateDrandomMatrices(
@@ -74,6 +101,33 @@ void generateSrandomMatrices(
 	float* M_strided, int stride_M, float* svals_strided, int stride_S, int rows, int cols, 
 	float cond, float exp_decay, int seed, int num_ops, int threads
 );
+
+////////////////////////////////////////////////////////////
+// Result checking
+////////////////////////////////////////////////////////////
+// Vectors
+float sget_max_error(float* ref, float *res, int n, int inc);
+double dget_max_error(double* ref, double *res, int n, int inc);
+float cget_max_error(cuFloatComplex* ref, cuFloatComplex *res, int n, int inc);
+double zget_max_error(cuDoubleComplex* ref, cuDoubleComplex *res, int n, int inc);
+// Matrices
+float sget_max_error_matrix(float* ref, float *res, long m, long n, long lda);
+double dget_max_error_matrix(double* ref, double *res, long m, long n, long lda);
+float cget_max_error_matrix(cuFloatComplex* ref, cuFloatComplex *res, long m, long n, long lda);
+double zget_max_error_matrix(cuDoubleComplex* ref, cuDoubleComplex *res, long m, long n, long lda);
+
+// float sget_max_error_matrix_uplo(float* ref, float *res, long m, long n, long lda, char uplo);
+// double dget_max_error_matrix_symm(double* ref, double *res, long m, long n, long lda, char uplo);
+
+#define printMatrix(m, n, A, lda, out) { \
+  for(int r = 0; r < (m); r++){ \
+    for(int c = 0; c < (n); c++){ \
+      fprintf((out), "%.4e  ", (A)[r + c * (lda)]); \
+    } \
+    fprintf((out), "\n"); \
+  } \
+  fprintf((out), "\n"); \
+}
 
 ////////////////////////////////////////////////////////////
 // Command line parser

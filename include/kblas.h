@@ -49,10 +49,15 @@ int kblasAllocateWorkspace(kblasHandle_t handle);
 int kblasFreeeWorkspace(kblasHandle_t handle);
 
 void kblasTimerTic(kblasHandle_t handle);
+void kblasTimerRecordEnd(kblasHandle_t handle);
 double kblasTimerToc(kblasHandle_t handle);
 
 cudaStream_t kblasGetStream(kblasHandle_t handle);
 void kblasSetStream(kblasHandle_t handle, cudaStream_t stream);
+
+cublasHandle_t kblasGetCublasHandle(kblasHandle_t handle);
+
+const char* kblasGetErrorString(int error);
 
 //============================================================================
 //BLAS2 routines

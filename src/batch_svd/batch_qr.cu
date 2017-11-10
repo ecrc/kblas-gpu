@@ -734,6 +734,7 @@ int batch_qr(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride, T_ptr tau
     }
 
 	#ifdef HLIB_PROFILING_ENABLED
+	handle->recordEnd();
 	double time_elapsed = handle->toc();
 	double qr_gflops = (double)((2 * rows * cols * cols - 2.0 / 3.0 * cols * cols * cols) * 1e-9) * num_ops;
 	PerformanceCounter::addOpCount(PerformanceCounter::QR, qr_gflops);
@@ -765,6 +766,7 @@ int batch_unpack_Q(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride, T_p
     }
 
 	#ifdef HLIB_PROFILING_ENABLED
+	handle->recordEnd();
 	double time_elapsed = handle->toc();
 	double qr_gflops = (double)((2 * rows * matrix_rank * matrix_rank - 2.0 / 3.0 * matrix_rank * matrix_rank * matrix_rank) * 1e-9) * num_ops;
 	PerformanceCounter::addOpCount(PerformanceCounter::QR, qr_gflops);

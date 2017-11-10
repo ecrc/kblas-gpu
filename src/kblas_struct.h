@@ -344,9 +344,10 @@ struct KBlasHandle
     this->stream = stream;
   }
   //-----------------------------------------------------------
-  void tic()   { timer.start(stream); }
-  double toc() { return timer.stop(stream);  }
-
+  void tic()   		{ timer.start(stream); 		 }
+  void recordEnd()	{ timer.recordEnd(stream);   }
+  double toc() 		{ return timer.stop(stream); }
+	
   //-----------------------------------------------------------
   KBlasHandle(cublasHandle_t& cublas_handle)
   {

@@ -8,7 +8,6 @@
 #include <sys/time.h>
 #include <stdarg.h>
 
-#include <mkl.h>
 #include "testing_helper.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -137,7 +136,7 @@ extern "C" double gpuTimerToc(GPU_Timer* timer)
 	return timer->stop();
 }
 
-void avg_and_stdev(double* values, int num_vals, double* avg, double* std_dev, int warmup)
+extern "C" void avg_and_stdev(double* values, int num_vals, double* avg, double* std_dev, int warmup)
 {
 	if(num_vals == 0) return;
 
@@ -163,7 +162,7 @@ extern "C" void gpuAssert(cudaError_t code, const char *file, int line)
 {
     if(code != cudaSuccess) 
 	{
-        printf("GPUassert: %s(%d) %s %d\n", cudaGetErrorString(code), (int)code, file, line);
+        printf("gpuAssert: %s(%d) %s %d\n", cudaGetErrorString(code), (int)code, file, line);
 		exit(-1);
 	}
 }
@@ -222,7 +221,7 @@ extern "C" void gpuCusolverAssert(cusolverStatus_t code, const char *file, int l
 {
 	if(code != CUSOLVER_STATUS_SUCCESS) 
 	{
-        printf("GPUassert: %s %s %d\n", cusolverGetErrorString(code), file, line);
+        printf("gpuCusolverAssert: %s %s %d\n", cusolverGetErrorString(code), file, line);
 		exit(-1);
 	}
 }
@@ -231,7 +230,16 @@ extern "C" void gpuCublasAssert(cublasStatus_t code, const char *file, int line)
 {
 	if(code != CUBLAS_STATUS_SUCCESS) 
 	{
-        printf("GPUassert: %s %s %d\n", cublasGetErrorString(code), file, line);
+        printf("gpuCublasAssert: %s %s %d\n", cublasGetErrorString(code), file, line);
+		exit(-1);
+	}
+}
+
+extern "C" void gpuKblasAssert(int code, const char *file, int line)
+{
+	if(code != 1)  // TODO replace by KBlas_Success
+	{
+        printf("gpuKblasAssert: %s %s %d\n", kblasGetErrorString(code), file, line);
 		exit(-1);
 	}
 }
@@ -258,30 +266,106 @@ struct prg
 	}
 };
 
-extern "C" void generateDrandom(double* random_data, int num_elements, int num_ops)
+template<class T>
+void generate_random(T* random_data, long num_elements, int num_ops)
 {
-    thrust::counting_iterator<unsigned int> index_sequence_begin(0);
+    thrust::counting_iterator<long> index_sequence_begin(0);
 
     thrust::transform(thrust::system::omp::par,
             index_sequence_begin,
             index_sequence_begin + num_elements * num_ops,
             random_data,
-            prg<double>());
-}
-
-extern "C" void generateSrandom(float* random_data, int num_elements, int num_ops)
+            prg<T>());
+}	
+	
+extern "C" void generateDrandom(double* random_data, long num_elements, int num_ops)
 {
-    thrust::counting_iterator<unsigned int> index_sequence_begin(0);
-
-    thrust::transform(thrust::system::omp::par,
-            index_sequence_begin,
-            index_sequence_begin + num_elements * num_ops,
-            random_data,
-            prg<float>());
+	generate_random<double>(random_data, num_elements, num_ops);
 }
+
+extern "C" void generateSrandom(float* random_data, long num_elements, int num_ops)
+{
+    generate_random<float>(random_data, num_elements, num_ops);
+}
+
+extern "C" void srand_matrix(long rows, long cols, float* A, long LDA)
+{
+	//generate_random<float>(A, cols * LDA, 1);
+	long i;
+    long size_a = cols * LDA;
+    for(i = 0; i < size_a; i++) A[i] = ( (float)rand() ) / (float)RAND_MAX;
+}
+
+extern "C" void drand_matrix(long rows, long cols, double* A, long LDA)
+{
+    //generate_random<double>(A, cols * LDA, 1);
+	long i;
+    long size_a = cols * LDA;
+    for(i = 0; i < size_a; i++) A[i] = ( (double)rand() ) / (double)RAND_MAX;
+}
+
+extern "C" void crand_matrix(long rows, long cols, cuFloatComplex* A, long LDA)
+{
+    // fill in the entire matrix with random values
+    long i;
+    long size_a = cols * LDA;
+    for(i = 0; i < size_a; i++)
+    {
+    	A[i].x = ( (float)rand() ) / (float)RAND_MAX;
+    	A[i].y = ( (float)rand() ) / (float)RAND_MAX;
+    }
+}
+
+extern "C" void zrand_matrix(long rows, long cols, cuDoubleComplex* A, long LDA)
+{
+	// fill in the entire matrix with random values
+	long i;
+	long size_a = cols * LDA;
+    for(i = 0; i < size_a; i++)
+    {
+    	A[i].x = ( (double)rand() ) / (double)RAND_MAX;
+    	A[i].y = ( (double)rand() ) / (double)RAND_MAX;
+    }
+}
+
+template<class T>
+void matrix_make_hpd(int N, T* A, int lda)
+{
+	for(int i = 0; i < N; i++) 
+	{
+		A[i + i * lda] += N;
+		for(int j = 0; j < i; j++) 
+			A[j + i*lda] = A[i + j*lda];
+	}
+}
+
+template<class T>
+void matrix_make_hpd_complex(int N, T* A, int lda)
+{
+	for(int i = 0; i < N; i++) 
+	{
+		A[i + i *  lda].x += N;
+		A[i + i *  lda].y += N;
+		for(int j = 0; j < i; j++) 
+			A[j + i*lda] = A[i + j*lda];
+	}
+}
+
+extern "C" void smatrix_make_hpd(int N, float* A, int lda)
+{ matrix_make_hpd<float>(N, A, lda); }
+
+extern "C" void dmatrix_make_hpd(int N, double* A, int lda)
+{ matrix_make_hpd<double>(N, A, lda); }
+
+extern "C" void cmatrix_make_hpd(int N, cuFloatComplex* A, int lda)
+{ matrix_make_hpd_complex<cuFloatComplex>(N, A, lda); }
+
+extern "C" void zmatrix_make_hpd(int N, cuDoubleComplex* A, int lda)
+{ matrix_make_hpd_complex<cuDoubleComplex>(N, A, lda); }
 
 lapack_int LAPACKE_latms(int matrix_layout, lapack_int m, lapack_int n, char dist, lapack_int *iseed, char sym, float *d, lapack_int mode, float cond, float dmax, lapack_int kl, lapack_int ku, char pack, float *a, lapack_int lda)
 { return LAPACKE_slatms(matrix_layout, m, n, dist, iseed, sym, d, mode, cond, dmax, kl, ku, pack, a, lda); }
+
 lapack_int LAPACKE_latms(int matrix_layout, lapack_int m, lapack_int n, char dist, lapack_int *iseed, char sym, double *d, lapack_int mode, double cond, double dmax, lapack_int kl, lapack_int ku, char pack, double *a, lapack_int lda)
 { return LAPACKE_dlatms(matrix_layout, m, n, dist, iseed, sym, d, mode, cond, dmax, kl, ku, pack, a, lda); }
 
@@ -352,6 +436,116 @@ extern "C" void generateSrandomMatrices(
 		cond, exp_decay, seed, num_ops, threads
 	);
 }
+
+
+////////////////////////////////////////////////////////////
+// Result checking
+////////////////////////////////////////////////////////////
+
+// Vectors
+template<class T, class T_complex>
+T get_magnitude(T_complex a){ return sqrt(a.x * a.x + a.y * a.y); }
+template<class T>
+T get_magnitude(T ax, T ay){ return sqrt(ax * ax + ay * ay); }
+
+template<class T>
+T get_max_error(T* ref, T *res, int n, int inc)
+{
+	int i;
+	T max_err = -1.0;
+	T err = -1.0;
+	inc = abs(inc);
+	for(i = 0; i < n; i++)
+	{
+		err = fabs(res[i * inc] - ref[i * inc]);
+		if(ref[i * inc] != 0.0)err /= fabs(ref[i * inc]);
+		if(err > max_err)max_err = err;
+		//printf("[%2d]   %-.2f   %-.2f   %-.2e \n", i, ref[i], res[i], err);
+	}
+	return max_err;	
+}
+
+template<class T, class T_complex>
+T get_max_error_complex(T_complex* ref, T_complex *res, int n, int inc)
+{
+	int i;
+	T max_err = get_magnitude<T>(0, 0);
+	T err;
+	inc = abs(inc);
+	for(i = 0; i < n; i++)
+	{
+		err = get_magnitude<T>(res[i * inc].x - ref[i * inc].x, res[i * inc].y - ref[i * inc].y);
+		if(get_magnitude<T, T_complex>(ref[i * inc]) > 0) 
+			err /= get_magnitude<T, T_complex>(ref[i * inc]);
+		if(err > max_err) max_err = err;
+	}
+	return max_err;
+}
+
+extern "C" float sget_max_error(float* ref, float *res, int n, int inc)
+{ return get_max_error<float>(ref, res, n, inc); }
+
+extern "C" double dget_max_error(double* ref, double *res, int n, int inc)
+{ return get_max_error<double>(ref, res, n, inc); }
+
+extern "C" float cget_max_error(cuFloatComplex* ref, cuFloatComplex *res, int n, int inc)
+{ return get_max_error_complex<float, cuFloatComplex>(ref, res, n, inc); }
+
+double zget_max_error(cuDoubleComplex* ref, cuDoubleComplex *res, int n, int inc)
+{ return get_max_error_complex<double, cuDoubleComplex>(ref, res, n, inc); }
+
+// Matrices
+template<class T>
+T get_max_error_matrix(T* ref, T *res, long m, long n, long lda)
+{
+	long i, j;
+	T max_err = -1.0;
+	T err = -1.0;
+	for(i = 0; i < m; i++)
+	{
+		for(j = 0; j < n; j++)
+		{
+			T ref_ = ref[j * lda + i];
+			T res_ = res[j * lda + i];
+			err = fabs(res_ - ref_);
+			if(ref_ != 0.0) err /= fabs(ref_);
+			if(err > max_err) max_err = err;
+			//printf("\n[%2d]   %-.2f   %-.2f   %-.2e \n", i, ref_, res_, err);
+		}
+	}
+	return max_err;
+}
+
+template<class T, class T_complex>
+T get_max_error_matrix_complex(T_complex* ref, T_complex *res, long m, long n, long lda)
+{
+	long i, j;
+	T max_err = -1.0;
+	T err = -1.0;
+	for(i = 0; i < m; i++)
+	{
+		for(j = 0; j < n; j++)
+		{
+			err = get_magnitude<T>(res[j * lda + i].x - ref[j * lda + i].x, res[j * lda + i].y - ref[j * lda + i].y);
+			if(get_magnitude<T, T_complex>(ref[j * lda + i]) > 0) err /= get_magnitude<T, T_complex>(ref[j * lda + i]);
+			if(err > max_err) max_err = err;
+			//printf("\n[%2d]   %-.2f   %-.2f   %-.2e \n", i, ref_, res_, err);
+		}
+	}
+	return max_err;
+}
+
+extern "C" float sget_max_error_matrix(float* ref, float *res, long m, long n, long lda)
+{ return get_max_error_matrix<float>(ref, res, m, n, lda); }
+
+extern "C" double dget_max_error_matrix(double* ref, double *res, long m, long n, long lda)
+{ return get_max_error_matrix<double>(ref, res, m, n, lda); }
+
+extern "C" float cget_max_error_matrix(cuFloatComplex* ref, cuFloatComplex *res, long m, long n, long lda)
+{ return get_max_error_matrix_complex<float, cuFloatComplex>(ref, res, m, n, lda); }
+
+extern "C" double zget_max_error_matrix(cuDoubleComplex* ref, cuDoubleComplex *res, long m, long n, long lda)
+{ return get_max_error_matrix_complex<double, cuDoubleComplex>(ref, res, m, n, lda); }
 
 ////////////////////////////////////////////////////////////
 // Command line parser

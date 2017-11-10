@@ -35,12 +35,10 @@ endif
 LIB+= -lcublas -lcudart
 ifdef _USE_MKL_
 LIB+= -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
-# LIB+= -lmkl_intel_lp64 -lmkl_sequential -lmkl_core
 # LIB+= -mkl=sequential
-#LIB+= -mkl=parallel
+# LIB+= -mkl=parallel
 endif
 LIB+= -lgomp
-# LIB+= -liomp5
 LIB+= -lstdc++
 
 KBLAS_LIB=../lib/lib${LIB_KBLAS_NAME}.a

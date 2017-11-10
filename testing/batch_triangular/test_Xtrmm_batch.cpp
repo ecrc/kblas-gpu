@@ -6,33 +6,17 @@
 #include <math.h>
 #include <sys/time.h>
 
-
-#include <cuda.h>
-#include <cuda_runtime.h>
-#include <cuda_runtime_api.h>
-#include "cublas_v2.h"
-
-#include "kblas.h"
-
-#include "testing_prec_def.h"
-#include "batch_triangular/Xblas_core.ch"
-#include "batch_triangular/Xhelper_funcs.ch"
-
 #if ((defined PREC_c) || (defined PREC_z)) && (defined USE_MKL)
 //TODO need to handle MKL types properly
 #undef USE_MKL
 #endif
 
-#ifdef USE_MKL
-#include <mkl.h>
-#endif//USE_MKL
+#include "testing_helper.h"
+#include "testing_prec_def.h"
+#include "flops.h"
 
-#include "testing_Xtr_common.h"
-
-#ifdef USE_OPENMP
-#include "omp.h"
-#endif//USE_OPENMP
-
+#include "batch_triangular/Xhelper_funcs.ch" // TODO: need Xset_pointer_2 from this
+#include "operators.h" // TODO: this has templates and C++ host/device functions (make_one and make_zero)
 
 //==============================================================================================
 // #define DEBUG_DUMP
@@ -159,20 +143,20 @@ int test_Xtrmm_batch(kblas_opts& opts, T alpha)
         Xrand_matrix(Am, An * batchCount, h_A, lda);
         Xrand_matrix(Cm, Cn * batchCount, h_C, ldc);
         for (int i=0; i < batchCount; i++){
-          kblas_make_hpd( Am, h_A + i * An * lda, lda );
+          Xmatrix_make_hpd( Am, h_A + i * An * lda, lda );
         }
         if(opts.time)
           memcpy(h_R, h_C, sizeC * batchCount * sizeof(T));
 
         for(int g = 0; g < ngpu; g++){
           check_error( cudaSetDevice( opts.devices[g] ));
-          check_error( cublasSetMatrixAsync( Am, An * batchCount_gpu, sizeof(T),
+          check_cublas_error( cublasSetMatrixAsync( Am, An * batchCount_gpu, sizeof(T),
                                              h_A + Am * An * batchCount_gpu * g, lda,
-                                             d_A[g], ldda, kblas_handle[g]->stream ) );
+                                             d_A[g], ldda, kblasGetStream(kblas_handle[g]) ) );
           if(!strided){
-            check_error( Xset_pointer_2(d_A_array[g], d_A[g], ldda, An*ldda,
+            check_kblas_error( Xset_pointer_2(d_A_array[g], d_A[g], ldda, An*ldda,
                                         d_C_array[g], d_C[g], lddc, Cn*lddc,
-                                        batchCount_gpu, kblas_handle[g]->stream) );
+                                        batchCount_gpu, kblasGetStream(kblas_handle[g])) );
           }
         }
 
@@ -182,30 +166,30 @@ int test_Xtrmm_batch(kblas_opts& opts, T alpha)
           // }else{
             kblas_trmm_batch_wsquery(kblas_handle[g], batchCount_gpu, opts.side, M, N);
           // }
-          check_error( kblasAllocateWorkspace(kblas_handle[g]) );
+          check_kblas_error( kblasAllocateWorkspace(kblas_handle[g]) );
           check_error( cudaGetLastError() );
         }
 
         if(opts.warmup){
           for(int g = 0; g < ngpu; g++){
             check_error( cudaSetDevice( opts.devices[g] ));
-            check_error( cublasSetMatrixAsync( Cm, Cn * batchCount_gpu, sizeof(T),
+            check_cublas_error( cublasSetMatrixAsync( Cm, Cn * batchCount_gpu, sizeof(T),
                                                h_C + Cm * Cn * batchCount_gpu * g, ldc,
-                                               d_C[g], lddc, kblas_handle[g]->stream) );
+                                               d_C[g], lddc, kblasGetStream(kblas_handle[g])) );
           }
 
           for(int g = 0; g < ngpu; g++){
             check_error( cudaSetDevice( opts.devices[g] ));
             //check_error( cublasSetStream(cublas_handle, streams[g]) );
             if(strided){
-              check_error( kblas_trmm_batch(kblas_handle[g],
+              check_kblas_error( kblas_trmm_batch(kblas_handle[g],
                                             opts.side, opts.uplo, opts.transA, opts.diag,
                                             M, N,
                                             alpha, d_A[g], ldda, An*ldda,
                                                    d_C[g], lddc, Cn*lddc,
                                             batchCount_gpu) );
             }else{
-              check_error( kblas_trmm_batch(kblas_handle[g],
+              check_kblas_error( kblas_trmm_batch(kblas_handle[g],
                                             opts.side, opts.uplo, opts.transA, opts.diag,
                                             M, N,
                                             alpha, (const T**)(d_A_array[g]), ldda,
@@ -241,9 +225,9 @@ int test_Xtrmm_batch(kblas_opts& opts, T alpha)
           for(int r = 0; r < nruns; r++){
             for(int g = 0; g < ngpu; g++){
               check_error( cudaSetDevice( opts.devices[g] ));
-              check_error( cublasSetMatrixAsync( Cm, Cn * batchCount_gpu, sizeof(T),
+              check_cublas_error( cublasSetMatrixAsync( Cm, Cn * batchCount_gpu, sizeof(T),
                                                  h_C + Cm * Cn * batchCount_gpu * g, ldc,
-                                                 d_C[g], lddc, kblas_handle[g]->stream ) );
+                                                 d_C[g], lddc, kblasGetStream(kblas_handle[g]) ) );
             }
 
 
@@ -257,14 +241,14 @@ int test_Xtrmm_batch(kblas_opts& opts, T alpha)
               check_error( cudaSetDevice( opts.devices[g] ));
               //check_error( cublasSetStream(cublas_handle, streams[g]) );
               if(strided){
-                check_error( kblasXtrsm_batch_strided(kblas_handle[g],
+                check_kblas_error( kblasXtrsm_batch_strided(kblas_handle[g],
                                                       opts.side, opts.uplo, opts.transA, opts.diag,
                                                       M, N,
                                                       alpha, d_A[g], ldda, An*ldda,
                                                              d_C[g], lddc, Cn*lddc,
                                                       batchCount_gpu) );
               }else{
-                check_error( kblasXtrsm_batch(kblas_handle[g],
+                check_kblas_error( kblasXtrsm_batch(kblas_handle[g],
                                               opts.side, opts.uplo, opts.transA, opts.diag,
                                               M, N,
                                               alpha, (const T**)(d_A_array[g]), ldda,
@@ -287,11 +271,11 @@ int test_Xtrmm_batch(kblas_opts& opts, T alpha)
 
         for(int r = 0;  r < nruns; r++){
           for(int g = 0; g < ngpu; g++){
-            kblas_handle[g]->use_magma = 0;
+            // kblas_handle[g]->use_magma = 0;
             check_error( cudaSetDevice( opts.devices[g] ));
-            check_error( cublasSetMatrixAsync( Cm, Cn * batchCount_gpu, sizeof(T),
+            check_cublas_error( cublasSetMatrixAsync( Cm, Cn * batchCount_gpu, sizeof(T),
                                                h_C + Cm * Cn * batchCount_gpu * g, ldc,
-                                               d_C[g], lddc, kblas_handle[g]->stream ) );
+                                               d_C[g], lddc, kblasGetStream(kblas_handle[g]) ) );
           }
 
           for(int g = 0; g < ngpu; g++){
@@ -304,14 +288,14 @@ int test_Xtrmm_batch(kblas_opts& opts, T alpha)
             check_error( cudaSetDevice( opts.devices[g] ));
             //check_error( cublasSetStream(cublas_handle, streams[g]) );
             if(strided){
-                check_error( kblas_trmm_batch(kblas_handle[g],
+                check_kblas_error( kblas_trmm_batch(kblas_handle[g],
                                               opts.side, opts.uplo, opts.transA, opts.diag,
                                               M, N,
                                               alpha, d_A[g], ldda, An*ldda,
                                                      d_C[g], lddc, Cn*lddc,
                                               batchCount_gpu) );
               }else{
-                check_error( kblas_trmm_batch(kblas_handle[g],
+                check_kblas_error( kblas_trmm_batch(kblas_handle[g],
                                               opts.side, opts.uplo, opts.transA, opts.diag,
                                               M, N,
                                               alpha, (const T**)(d_A_array[g]), ldda,
@@ -338,10 +322,10 @@ int test_Xtrmm_batch(kblas_opts& opts, T alpha)
           if(opts.check){
             for(int g = 0; g < ngpu; g++){
               check_error( cudaSetDevice( opts.devices[g] ));
-              check_error( cublasGetMatrixAsync( Cm, Cn * batchCount_gpu, sizeof(T),
+              check_cublas_error( cublasGetMatrixAsync( Cm, Cn * batchCount_gpu, sizeof(T),
                                                  d_C[g], lddc,
                                                  h_R + Cm * Cn * batchCount_gpu * g, ldc,
-                                                 kblas_handle[g]->stream ) );
+                                                 kblasGetStream(kblas_handle[g]) ) );
             }
             for(int g = 0; g < ngpu; g++){
               check_error(cudaSetDevice( opts.devices[g] ));
@@ -469,18 +453,10 @@ int main(int argc, char** argv)
 {
 
   kblas_opts opts;
-  if(!parse_opts( argc, argv, &opts )){
-    USAGE;
-    return -1;
-  }
+  parse_opts(argc, argv, &opts);
 
 #if defined PREC_d
-  cudaError_t error = cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
-  if(cudaSuccess != error)
-  {
-    printf("cudaDeviceSetSharedMemConfig returned error: %s\n", cudaGetErrorString(error));
-    exit(1);
-  }
+  check_error( cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte) );
 #endif
 
 #if (defined PREC_s) || (defined PREC_d)

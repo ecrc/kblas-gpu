@@ -47,21 +47,6 @@
 
 //==============================================================================================
 template<typename T>
-__global__ void kernel_set_value_diff_1(T* output_array, const T* input1, T* input2, long count){
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if(idx < count)
-    output_array[idx] = input1[idx] - input2[idx];
-}
-int Xset_value_diff_1(int* output_array, const int* input_array1, int* input_array2, long batchCount, cudaStream_t cuda_stream){
-  dim3 block(128,1);
-  dim3 grid(batchCount / block.x + ((batchCount % block.x) > 0),1);
-  kernel_set_value_diff_1<int><<< grid, block, 0, cuda_stream>>>(
-    output_array, input_array1, input_array2, batchCount);
-  check_error_ret( cudaGetLastError(), KBLAS_CUDA_Error);
-  return KBLAS_Success;
-}
-//==============================================================================================
-template<typename T>
 __global__ void kernel_set_value_1(T *output_array, T input, long count){
   long ind = blockIdx.x * blockDim.x + threadIdx.x;
   if(ind < count)

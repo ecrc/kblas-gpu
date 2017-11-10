@@ -12,7 +12,6 @@
 
 #include "kblas.h"
 
-#define USE_MKL_BATCH
 
 // #include "Xtr_common.ch"
 #include "testing_prec_def.h"
@@ -24,8 +23,8 @@
 #endif
 
 #ifdef USE_MKL
-#include <mkl_lapack.h>
-#include <mkl_blas.h>
+// #define USE_MKL_BATCH
+#include <mkl.h>
 #endif//USE_MKL
 
 #include "testing_Xtr_common.h"
@@ -199,7 +198,7 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
                                   &alpha, d_A, ldda,
                                           d_B, lddb,
                                   &beta,  d_C, lddc) );
-        #ifdef USE_OPENMP
+        #if (defined USE_OPENMP) && (defined USE_MKL)
         if(opts.time){
           omp_set_num_threads(NUM_THREADS);
           //omp_set_nested(true);
@@ -221,7 +220,7 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
         #endif//USE_OPENMP
       }
 
-      Xgemm_batch_strided_wsquery(kblas_handle, batchCount);
+      kblas_gemm_batch_strided_wsquery(kblas_handle, batchCount);
       check_error( kblasAllocateWorkspace(kblas_handle) );
 
       double time = 0;
@@ -236,13 +235,13 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
         check_error( cublasSetMatrixAsync( Cm, Cn * batchCount, sizeof(T), h_C, ldc, d_C, lddc, curStream ) );
 
         kblas_handle->tic();
-        check_error( Xgemm_batch_strided( kblas_handle,
-                                  opts.transA, opts.transB,
-                                  M, N, K,
-                                  alpha, d_A, ldda, An*ldda,
-                                         d_B, lddb, Bn*lddb,
-                                  beta,  d_C, lddc, Cn*lddc,
-                                  batchCount) );
+        check_error( kblas_gemm_batch(kblas_handle,
+                                      opts.transA, opts.transB,
+                                      M, N, K,
+                                      alpha, d_A, ldda, An*ldda,
+                                             d_B, lddb, Bn*lddb,
+                                      beta,  d_C, lddc, Cn*lddc,
+                                      batchCount) );
         time = kblas_handle->toc();
         magma_time += time;
       }
@@ -276,13 +275,13 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
         check_error( cublasSetMatrixAsync( Cm, Cn * batchCount, sizeof(T), h_C, ldc, d_C, lddc, curStream ) );
 
         kblas_handle->tic();
-        check_error( Xgemm_batch_strided( kblas_handle,
-                                  opts.transA, opts.transB,
-                                  M, N, K,
-                                  alpha, d_A, ldda, An*ldda,
-                                         d_B, lddb, Bn*lddb,
-                                  beta,  d_C, lddc, Cn*lddc,
-                                  batchCount) );
+        check_error( kblas_gemm_batch(kblas_handle,
+                                      opts.transA, opts.transB,
+                                      M, N, K,
+                                      alpha, d_A, ldda, An*ldda,
+                                             d_B, lddb, Bn*lddb,
+                                      beta,  d_C, lddc, Cn*lddc,
+                                      batchCount) );
         time = kblas_handle->toc();
         kblas_time += time;
       }

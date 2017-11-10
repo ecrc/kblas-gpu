@@ -250,6 +250,20 @@ operator/(const cuDoubleComplex a, const cuDoubleComplex b)
   return make_cuDoubleComplex(a.x*b.x + a.y*b.y, a.y*b.x - a.x*b.y) / (b.x*b.x + b.y*b.y);
 }
 
+__host__ __device__ static __inline__ cuDoubleComplex sqrt(cuDoubleComplex x)
+{
+  double radius = cuCabs(x);
+  double cosA = x.x / radius;
+  cuDoubleComplex out;
+  out.x = sqrt(radius * (cosA + 1.0) / 2.0);
+  out.y = sqrt(radius * (1.0 - cosA) / 2.0);
+  // signbit should be false if x.y is negative
+  if (signbit(x.y))
+    out.y *= -1.0;
+
+  return out;
+}
+
 __host__ __device__ static __inline__ void
 operator/=(cuDoubleComplex &a, const float s)
 {
@@ -362,6 +376,19 @@ operator/(const cuFloatComplex a, const cuFloatComplex b)
     return make_cuFloatComplex(a.x*b.x + a.y*b.y, a.y*b.x - a.x*b.y) / (b.x*b.x + b.y*b.y);
 }
 
+__host__ __device__ static __inline__ cuFloatComplex sqrt(cuFloatComplex x)
+{
+  float radius = cuCabsf(x);
+  float cosA = x.x / radius;
+  cuFloatComplex out;
+  out.x = sqrt(radius * (cosA + 1.0) / 2.0);
+  out.y = sqrt(radius * (1.0 - cosA) / 2.0);
+  // signbit should be false if x.y is negative
+  if (signbit(x.y))
+    out.y *= -1.0;
+
+  return out;
+}
 __host__ __device__ static __inline__ void
 operator/=(cuFloatComplex &a, const float s)
 {

@@ -168,24 +168,8 @@ int Xgemm_NX_batch( kblasHandle_t handle,
 //==============================================================================================
 //non-strided version
 
-template<class T>
-void Xgemm_batch_wsquery_core(int batchCount,
-                              int A_row_off, int A_col_off,
-                              int B_row_off, int B_col_off,
-                              int C_row_off, int C_col_off,
-                              kblasWorkspaceState_t ws)
-{
-  if ( (A_row_off > 0) || (A_col_off > 0)
-    || (B_row_off > 0) || (B_col_off > 0)
-    || (C_row_off > 0) || (C_col_off > 0) )
-  {
-    ws->d_ptrs_bytes = (batchCount > 1) * batchCount * 3 * sizeof(T*);
-  }else{
-    ws->d_ptrs_bytes = 0;
-  }
-}
 
-//workspace needed: none
+//workspace needed: device pointers
 // A, B, C: host pointer to array of device pointers to device buffers
 template<class T>
 int Xgemm_batch_core( kblasHandle_t handle,
@@ -209,11 +193,11 @@ int Xgemm_batch_core( kblasHandle_t handle,
     || (C_row_off > 0) || (C_col_off > 0) )
   {
     KBlasWorkspaceState ws_needed;
-    Xgemm_batch_wsquery_core<T>(batchCount,
-                                A_row_off, A_col_off,
-                                B_row_off, B_col_off,
-                                C_row_off, C_col_off,
-                                (kblasWorkspaceState_t)&ws_needed);
+    gemm_batch_offset_wsquery_core( batchCount,
+                                    A_row_off, A_col_off,
+                                    B_row_off, B_col_off,
+                                    C_row_off, C_col_off,
+                                    (kblasWorkspaceState_t)&ws_needed);
 
     // int work_ptrs_bytes = (batchCount > 1) * batchCount * 3 * sizeof(T*);
     bool suffWorkspace = (ws_needed.d_ptrs_bytes <= handle->work_space.allocated_ws_state.d_ptrs_bytes);
@@ -425,30 +409,24 @@ int Xgemm_batch_core( kblasHandle_t handle,
 //###############################################################################################
 #if ( __CUDACC_VER_MAJOR__ < 8 )
 
-template<class T>
-void Xgemm_batch_strided_wsquery_core(int batchCount, kblasWorkspaceState_t ws)
-{
-  ws->d_ptrs_bytes = (batchCount > 1) * batchCount * 3 * sizeof(T*);
-}
-
 //workspace needed: device pointers
 // A, B, C: host pointers to device buffers
 template<class T>
-int Xgemm_batch_strided_core( kblasHandle_t handle,
-                              char transA,char transB,
-                              const int m, const int n, const int k,
-                              const T alpha,
-                              const T* A, int lda, long strideA,
-                              const T* B, int ldb, long strideB,
-                              const T beta,
-                                    T* C, int ldc, long strideC,
-                              int batchCount)
+int Xgemm_batch_core( kblasHandle_t handle,
+                      char transA,char transB,
+                      const int m, const int n, const int k,
+                      const T alpha,
+                      const T* A, int lda, long strideA,
+                      const T* B, int ldb, long strideB,
+                      const T beta,
+                            T* C, int ldc, long strideC,
+                      int batchCount)
 {
   if(batchCount < 1)//TODO should not accept batch of size one
     return KBLAS_Error_WrongInput;
 
   KBlasWorkspaceState ws_needed;
-  Xgemm_batch_strided_wsquery_core<T>(batchCount, (kblasWorkspaceState_t)&ws_needed);
+  gemm_batch_strided_wsquery_core(batchCount, (kblasWorkspaceState_t)&ws_needed);
 
   // int work_ptrs_bytes = (batchCount > 1) * batchCount * 3 * sizeof(T*);
   bool suffWorkspace = (ws_needed.d_ptrs_bytes <= handle->work_space.allocated_ws_state.d_ptrs_bytes);
@@ -575,26 +553,21 @@ int Xgemm_batch_strided_core( kblasHandle_t handle,
 //###############################################################################################
 #else//__CUDACC_VER_MAJOR__ < 8
 
-template<class T>
-void Xgemm_batch_strided_wsquery_core(int batchCount, kblasWorkspaceState_t ws)
-{
-  ws->d_ptrs_bytes = 0;
-}
 //workspace needed: none
 // A, B, C: host pointers to device buffers
 template<class T>
-int Xgemm_batch_strided_core( kblasHandle_t handle,
-                              char transA,char transB,
-                              const int m, const int n, const int k,
-                              const T alpha,
-                              const T* A, int lda, long strideA,
-                              const T* B, int ldb, long strideB,
-                              const T beta,
-                                    T* C, int ldc, long strideC,
-                              int batchCount)
+int Xgemm_batch_core( kblasHandle_t handle,
+                      char transA,char transB,
+                      const int m, const int n, const int k,
+                      const T alpha,
+                      const T* A, int lda, long strideA,
+                      const T* B, int ldb, long strideB,
+                      const T beta,
+                            T* C, int ldc, long strideC,
+                      int batchCount)
 {
   KBlasWorkspaceState ws_needed;
-  Xgemm_batch_strided_wsquery_core<T>(batchCount, (kblasWorkspaceState_t)&ws_needed);
+  gemm_batch_strided_wsquery_core(batchCount, (kblasWorkspaceState_t)&ws_needed);
 
   // int work_ptrs_bytes = (batchCount > 1) * batchCount * 3 * sizeof(T*);
   bool suffWorkspace = (ws_needed.d_ptrs_bytes <= handle->work_space.allocated_ws_state.d_ptrs_bytes);

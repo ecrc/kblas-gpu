@@ -909,7 +909,7 @@ kernel_trsm_U_LLXN_registers_MNvar( const int m, const int n, int batchCount,
 
 //==============================================================================================
 #else
-  #error "Pre-Kepler architechture is not supported in KBLAS batch SYRK"
+  #error "Pre-Kepler architechture is not supported in KBLAS batch TRSM"
 #endif
 
 #endif //__XTRSM_BATCH_KERNELS_H__

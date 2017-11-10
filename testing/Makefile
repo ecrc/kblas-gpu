@@ -34,12 +34,13 @@ LIB+= -lmagma -lcusparse
 endif
 LIB+= -lcublas -lcudart
 ifdef _USE_MKL_
-LIB+= -lmkl_intel_ilp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
+LIB+= -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl
 # LIB+= -lmkl_intel_lp64 -lmkl_sequential -lmkl_core
 # LIB+= -mkl=sequential
-# LIB+= -mkl=parallel
+#LIB+= -mkl=parallel
 endif
 LIB+= -lgomp
+# LIB+= -liomp5
 LIB+= -lstdc++
 
 KBLAS_LIB=../lib/lib${LIB_KBLAS_NAME}.a
@@ -54,12 +55,12 @@ BIN_DIR=./bin
 
 ifdef _SUPPORT_BLAS2_
 KBLAS_TEST2_DIR=blas_l2
-# include $(KBLAS_TEST2_DIR)/Makefile
+include $(KBLAS_TEST2_DIR)/Makefile
 endif
 
 ifdef _SUPPORT_BLAS3_
 KBLAS_TEST3_DIR=blas_l3
-# include $(KBLAS_TEST3_DIR)/Makefile
+include $(KBLAS_TEST3_DIR)/Makefile
 endif
 
 ifdef _SUPPORT_BATCH_TR_
@@ -69,18 +70,12 @@ LIB+= -lcusolver -lcurand
 endif
 
 C_OBJ= $(patsubst %.c,$(OBJ_DIR)/%.o,$(C_SRC))
-
-# $(BIN_DIR)/test_%: $(OBJ_DIR)/test_%.o
-# 	$(CC) $(COPTS) $< -o $@ $(LIB_PATH) $(LIB)
-
 EXE= $(patsubst %.c,$(BIN_DIR)/%,$(C_SRC))
 
 all: $(EXE)
 
 $(OBJ_DIR)/testing_helper.o: testing_helper.cu
 	$(NVCC) $(NVOPTS) $(NVOPTS_3) $(INCLUDES) $(NVCCFLAGS) -c $< -o $@
-
-#$(EXE): $(C_OBJ)
 
 $(EXE): $(BIN_DIR)/%: $(OBJ_DIR)/%.o $(KBLAS_LIB) $(OBJ_DIR)/testing_helper.o
 	$(CC) $(COPTS) $(OBJ_DIR)/testing_helper.o $< -o $@ $(LIB_PATH) $(LIB)

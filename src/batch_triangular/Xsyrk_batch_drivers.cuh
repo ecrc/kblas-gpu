@@ -41,21 +41,6 @@
 //TODO tuning variable
 #define A_COLS_PTY 8
 
-template<class T>
-void Xsyrk_batch_strided_wsquery_core(const int m, int batchCount, kblasWorkspaceState_t ws)
-{
-  if(m <= 16)
-    ws->d_ptrs_bytes = 0;
-  else
-  {
-    int depth = 0, s = 16;
-    while(s < m){
-      s = s << 1;
-      depth++;
-    }
-    ws->d_ptrs_bytes = (1 << (depth-1) ) * batchCount * 3 * sizeof(T*);
-  }
-}
 // workspace needed: device pointers
 // A, B: host pointer to device buffers
 template<class T>
@@ -147,74 +132,6 @@ int Xsyrk_gemm_rec_flat_strided(kblasHandle_t handle,
   return KBLAS_Success;
 }
 
-#if 0
-//not used for now
-template<class T>
-int Xsyrk_gemm_rec_strided( kblasHandle_t handle,
-                            char uplo, char trans,
-                            const int m, const int n,
-                            const T alpha,
-                            const T* A, int lda, long strideA,
-                            const T beta,
-                                  T* B, int ldb, long strideB,
-                            int batchCount)
-{
-  if(m <= 16){
-    return KBLAS_Success;
-  }
-
-  int m1, m2;
-
-  if(REG_SIZE(m))
-    m1 = m2 = m/2;
-  else{
-    m1 = CLOSEST_REG_SIZE(m);
-    m2 = m-m1;
-  }
-
-  int status;
-  check_error_ret( status = Xsyrk_gemm_rec_strided( handle,
-                                                    uplo, trans,
-                                                    m1, n,
-                                                    alpha, (const T*)A, lda, strideA,
-                                                    beta,  B, ldb, strideB,
-                                                    batchCount), status);
-  //GEMM_BATCH
-  if(trans == KBLAS_NoTrans){
-    check_error_ret(status = Xgemm_batch_strided( handle,
-                                                  KBLAS_NoTrans, KBLAS_Trans,
-                                                  m2, m1, n,
-                                                  alpha, (const T*)(A+m1), lda, strideA,
-                                                         (const T*)A,    lda, strideA,
-                                                  beta,  B+m1, ldb, strideB,
-                                                  batchCount), status);
-
-    check_error_ret(status = Xsyrk_gemm_rec_strided( handle,
-                                                    uplo, trans,
-                                                    m2, n,
-                                                    alpha, (const T*)(A + m1), lda, strideA,
-                                                    beta,  B + m1 * (1+ldb), ldb, strideB,
-                                                    batchCount), status);
-  }else{//trans == KBLAS_Trans)
-    check_error_ret(status = Xgemm_batch_strided( handle,
-                                                  trans, KBLAS_NoTrans,
-                                                  m2, m1, n,
-                                                  alpha, (const T*)(A + m1 * lda), lda, strideA,
-                                                         (const T*)A,            lda, strideA,
-                                                  beta,  B + m1,       ldb, strideB,
-                                                  batchCount), status);
-
-    check_error_ret(status = Xsyrk_gemm_rec_strided( handle,
-                                                    uplo, trans,
-                                                    m2, n,
-                                                    alpha, (const T*)(A + m1 * lda), lda, strideA,
-                                                    beta,  B + m1 * (1+ldb), ldb, strideB,
-                                                    batchCount), status);
-  }
-  return KBLAS_Success;
-}
-#endif
-
 //-------------------------------------------------------------------
 // workspace needed: device pointers
 // A, B: host pointer to device buffers
@@ -234,7 +151,7 @@ int Xsyrk_batch_strided_core( kblasHandle_t handle,
 
   if(m > 16){
     KBlasWorkspaceState ws_needed;
-    Xsyrk_batch_strided_wsquery_core<T>( m, batchCount, (kblasWorkspaceState_t)&ws_needed);
+    syrk_batch_wsquery_core( m, batchCount, (kblasWorkspaceState_t)&ws_needed);
 
     bool suffWorkspace = (ws_needed.d_ptrs_bytes <= handle->work_space.allocated_ws_state.d_ptrs_bytes);
 
@@ -329,22 +246,6 @@ int Xsyrk_batch_strided_core( kblasHandle_t handle,
 
 //==============================================================================================
 
-template<class T>
-void Xsyrk_batch_wsquery_core(const int m, int batchCount, kblasWorkspaceState_t ws)
-{
-  if(m <= 16)
-    ws->d_ptrs_bytes = 0;
-  else
-  {
-    int depth = 0, s = 16;
-    while(s < m){
-      s = s << 1;
-      depth++;
-    }
-    ws->d_ptrs_bytes = (1 << (depth-1) ) * batchCount * 3 * sizeof(T*);
-  }
-}
-
 // workspace needed: device pointers
 // d_A, d_B: host pointer to array of device pointers to device buffers
 template<class T>
@@ -352,9 +253,9 @@ int Xsyrk_gemm_rec_flat(kblasHandle_t handle,
                         char uplo, char trans,
                         const int m, const int n,
                         const T alpha,
-                        const T** A, int lda,
+                        const T** A, int A_row_off, int A_col_off, int lda,
                         const T beta,
-                              T** B, int ldb,
+                              T** B, int B_row_off, int B_col_off, int ldb,
                         int batchCount)
 {
   //these gemm calls can run in parallel, through streams or merged batch call
@@ -393,11 +294,12 @@ int Xsyrk_gemm_rec_flat(kblasHandle_t handle,
     int b = 0;
     int uniform_batches = (d == 0) ? 1 : (m / row);
 
+    //TODO merge into one call
     while((b < uniform_batches) && m >= (mm+row+2*b*row) ){
       //append this batch call
-      Xset_pointer_3(A_work+b*batchCount, (const T**)(A), (trans == KBLAS_NoTrans)*(row+2*b*row), (trans == KBLAS_Trans)*(row+2*b*row), lda,
-                     B_work+b*batchCount, (const T**)(A), (trans == KBLAS_NoTrans)*(2*b*row), (trans == KBLAS_Trans)*(2*b*row), lda,
-                     C_work+b*batchCount, (const T**)(B), (uplo == KBLAS_Lower)*row+2*b*row, (uplo == KBLAS_Upper)*row+2*b*row, ldb,
+      Xset_pointer_3(A_work+b*batchCount, (const T**)(A), A_row_off + (trans == KBLAS_NoTrans)*(row+2*b*row), A_col_off + (trans == KBLAS_Trans)*(row+2*b*row), lda,
+                     B_work+b*batchCount, (const T**)(A), A_row_off + (trans == KBLAS_NoTrans)*(2*b*row),     A_col_off + (trans == KBLAS_Trans)*(2*b*row), lda,
+                     C_work+b*batchCount, (const T**)(B), B_row_off + (uplo == KBLAS_Lower)*row+2*b*row,      B_col_off + (uplo == KBLAS_Upper)*row+2*b*row, ldb,
                      batchCount, handle->stream);
       cur_batchCount += batchCount;
       b++;
@@ -414,9 +316,9 @@ int Xsyrk_gemm_rec_flat(kblasHandle_t handle,
     }
     if((d > 0) && ((m % row) != 0) && m > (row+2*b*row) ){
       //one block is remaining that is not regular size
-      Xset_pointer_3(A_work, (const T**)(A), (trans == KBLAS_NoTrans)*(row+2*b*row), (trans == KBLAS_Trans)*(row+2*b*row), lda,
-                     B_work, (const T**)(A), (trans == KBLAS_NoTrans)*(2*b*row), (trans == KBLAS_Trans)*(2*b*row), lda,
-                     C_work, (const T**)(B), (uplo == KBLAS_Lower)*row+2*b*row, (uplo == KBLAS_Upper)*row+2*b*row, ldb,
+      Xset_pointer_3(A_work, (const T**)(A), A_row_off + (trans == KBLAS_NoTrans)*(row+2*b*row), A_col_off + (trans == KBLAS_Trans)*(row+2*b*row), lda,
+                     B_work, (const T**)(A), A_row_off + (trans == KBLAS_NoTrans)*(2*b*row),     A_col_off + (trans == KBLAS_Trans)*(2*b*row), lda,
+                     C_work, (const T**)(B), B_row_off + (uplo == KBLAS_Lower)*row+2*b*row,      B_col_off + (uplo == KBLAS_Upper)*row+2*b*row, ldb,
                      batchCount, handle->stream);
       //issue one batch call
       kblas_gemm_batch( handle,
@@ -434,100 +336,6 @@ int Xsyrk_gemm_rec_flat(kblasHandle_t handle,
   return KBLAS_Success;
 }
 
-#if 0
-still faulty
-template<class T>
-int Xsyrk_gemm_rec( kblasHandle_t handle,
-                    char uplo, char trans,
-                    const int m, const int n,
-                    const T alpha,
-                    const T** A, int lda,
-                    const T beta,
-                          T** B, int ldb,
-                    int batchCount)
-{
-  //these gemm calls can run in parallel, through streams or merged batch call
-  if(m <= 16){
-    return KBLAS_Success;
-  }
-
-  int m1, m2;
-
-  if(REG_SIZE(m))
-    m1 = m2 = m/2;
-  else{
-    m1 = CLOSEST_REG_SIZE(m);
-    m2 = m-m1;
-  }
-  kblasWorkspace_t ws_current = &(handle->work_space);
-
-  T **A_work,
-    **B_work,
-    **C_work;
-  A_work = (T**)(ws_current->d_ptrs);
-  B_work = A_work + batchCount;
-  C_work = B_work + batchCount;
-
-  int status;
-  check_error_ret(status = Xsyrk_gemm_rec(handle,
-                                          uplo, trans,
-                                          m1, n,
-                                          alpha, (const T**)A, lda,
-                                          beta,  B, ldb,
-                                          batchCount), status);
-  //GEMM_BATCH
-  if(trans == KBLAS_NoTrans){
-    check_error_ret(status = Xset_pointer_3(A_work, (const T**)(A), m1, 0, lda,
-                                           B_work, (const T**)(A), 0,  0, lda,
-                                           C_work, (const T**)(B), m1, 0, ldb,
-                                           batchCount, handle->stream), status);
-
-    check_error_ret(status = Xgemm_batch(handle,
-                                          KBLAS_NoTrans, KBLAS_Trans,
-                                          m2, m1, n,
-                                          alpha, (const T**)A_work, lda,
-                                                 (const T**)B_work, lda,
-                                          beta,  C_work, ldb,
-                                          batchCount), status);
-
-    check_error_ret(status = Xset_pointer_2( A_work, (const T**)(A), m1, 0, lda,
-                                             B_work, (const T**)(B), m1, m1, ldb,
-                                             batchCount, handle->stream), status);
-
-    check_error_ret(status = Xsyrk_gemm_rec( handle,
-                                            uplo, trans,
-                                            m2, n,
-                                            alpha, (const T**)A_work, lda,
-                                            beta,  B_work, ldb,
-                                            batchCount), status);
-  }else{//trans == KBLAS_Trans)
-    check_error_ret(status = Xset_pointer_3(A_work, (const T**)(A), 0, m1, lda,
-                                           B_work, (const T**)(A), 0,  0, lda,
-                                           C_work, (const T**)(B), m1, 0, ldb,
-                                           batchCount, handle->stream), status);
-
-    check_error_ret(status = Xgemm_batch(handle,
-                                        trans, KBLAS_NoTrans,
-                                        m2, m1, n,
-                                        alpha, (const T**)A_work, lda,
-                                               (const T**)B_work, lda,
-                                        beta,  C_work, ldb,
-                                        batchCount), status);
-
-    check_error_ret(status = Xset_pointer_2(A_work, (const T**)(A), 0, m1, lda,
-                                           B_work, (const T**)(B), m1, m1, ldb,
-                                           batchCount, handle->stream), status);
-
-    check_error_ret(status = Xsyrk_gemm_rec( handle,
-                                            uplo, trans,
-                                            m2, n,
-                                            alpha, (const T**)A_work, lda,
-                                            beta,  B_work, ldb,
-                                            batchCount), status);
-  }
-  return KBLAS_Success;
-}
-#endif
 //-------------------------------------------------------------------
 // workspace needed: device pointers
 // A, B: host pointer to array of device pointers to device buffers
@@ -535,8 +343,8 @@ template<class T>
 int Xsyrk_batch_core( kblasHandle_t handle,
                       char uplo, char trans,
                       const int m, const int n,
-                      const T alpha, const T** A, int lda,
-                      const T beta,        T** B, int ldb,
+                      const T alpha, const T** A, int A_row_off, int A_col_off, int lda,
+                      const T beta,        T** B, int B_row_off, int B_col_off, int ldb,
                       int batchCount)
 {
   //printf("Xsyrk_batch_strided_core\n");
@@ -549,7 +357,7 @@ int Xsyrk_batch_core( kblasHandle_t handle,
   if(m > 16){
 
     KBlasWorkspaceState ws_needed;
-    Xsyrk_batch_wsquery_core<T>( m, batchCount, (kblasWorkspaceState_t)&ws_needed);
+    syrk_batch_wsquery_core( m, batchCount, (kblasWorkspaceState_t)&ws_needed);
 
     bool suffWorkspace = (ws_needed.d_ptrs_bytes <= handle->work_space.allocated_ws_state.d_ptrs_bytes);
 
@@ -569,8 +377,8 @@ int Xsyrk_batch_core( kblasHandle_t handle,
       check_error_ret( status = Xsyrk_gemm_rec_flat( handle,
                                                      uplo, trans,
                                                      m, n,
-                                                     alpha, A, lda,
-                                                     beta,  B, ldb,
+                                                     alpha, A, A_row_off, A_col_off, lda,
+                                                     beta,  B, B_row_off, B_col_off, ldb,
                                                      batchCount), status);
   }
 
@@ -592,8 +400,8 @@ int Xsyrk_batch_core( kblasHandle_t handle,
   {
 
     typedef void (*syrk_kernels_type)( const int m, const int n, int batchCount,
-                                       const T alpha, const T** __restrict__ A_array, int lda,
-                                       const T beta, T** B_array, int ldb);
+                                       const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
+                                       const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb);
 
     syrk_kernels_type syrk_kernels[] = {
       kernel_syrk_UN_LN_registers_Mfix_Nmul   <T, 8, A_COLS_PTY>,
@@ -634,7 +442,9 @@ int Xsyrk_batch_core( kblasHandle_t handle,
     };
 
     syrk_kernels[func_idx]<<< gridDim, blockDim, syrk_kernels_sharedMem[func_idx], handle->stream>>>
-                         (m, n, batchCount, alpha, A, lda, beta, B, ldb);
+                         (m, n, batchCount,
+                          alpha, A, A_row_off, A_col_off, lda,
+                          beta,  B, B_row_off, B_col_off, ldb);
 
     check_error_ret( cudaGetLastError(), KBLAS_UnknownError);
   }else

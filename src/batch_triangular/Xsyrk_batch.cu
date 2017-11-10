@@ -43,19 +43,49 @@
 #include "operators.h"
 #include "defs.h"
 #include "kblas_common.h"
+#include "batch_common.ch"
 
 //==============================================================================================
 #include "Xblas_core.ch"
 #include "Xhelper_funcs.ch"
 #include "Xsyrk_batch_drivers.cuh"
 
-extern "C" {
 //==============================================================================================
 //Non-Strided form
-// template<>
-void kblasXsyrk_batch_wsquery(kblasHandle_t handle, const int m, int batchCount){
-  Xsyrk_batch_wsquery_core<TYPE>(m, batchCount, &(handle->work_space.requested_ws_state));
+
+// workspace needed: device pointers
+// A, B: host pointer to array of device pointers to device buffers
+int Xsyrk_batch_offset( kblasHandle_t handle,
+                        char uplo, char trans,
+                        const int m, const int n,
+                        const TYPE alpha, const TYPE** A, int A_row_off, int A_col_off, int lda,
+                        const TYPE beta,        TYPE** B, int B_row_off, int B_col_off, int ldb,
+                        int batchCount){
+  return Xsyrk_batch_core(handle,
+                          uplo, trans,
+                          m, n,
+                          alpha, A, A_row_off, A_col_off, lda,
+                          beta,  B, B_row_off, B_col_off, ldb,
+                          batchCount);
 }
+
+// workspace needed: device pointers
+// A, B: host pointer to array of device pointers to device buffers
+int kblas_syrk_batch(kblasHandle_t handle,
+                    char uplo, char trans,
+                    const int m, const int n,
+                    const TYPE alpha, const TYPE** A, int lda,
+                    const TYPE beta,        TYPE** B, int ldb,
+                    int batchCount){
+  return Xsyrk_batch_core(handle,
+                          uplo, trans,
+                          m, n,
+                          alpha, A, 0, 0, lda,
+                          beta,  B, 0, 0, ldb,
+                          batchCount);
+}
+
+extern "C" {
 
 // workspace needed: device pointers
 // A, B: host pointer to array of device pointers to device buffers
@@ -68,17 +98,32 @@ int kblasXsyrk_batch(kblasHandle_t handle,
   return Xsyrk_batch_core(handle,
                           uplo, trans,
                           m, n,
-                          alpha, A, lda,
-                          beta,  B, ldb,
+                          alpha, A, 0, 0, lda,
+                          beta,  B, 0, 0, ldb,
                           batchCount);
 }
+}//extern "C"
 
 //==============================================================================================
 //Strided form
-// template<>
-void kblasXsyrk_batch_strided_wsquery(kblasHandle_t handle, const int m, int batchCount){
-  Xsyrk_batch_strided_wsquery_core<TYPE>(m, batchCount, &(handle->work_space.requested_ws_state));
+
+// workspace needed: device pointers
+// A, B: host pointer to device buffers
+int kblas_syrk_batch( kblasHandle_t handle,
+                      char uplo, char trans,
+                      const int m, const int n,
+                      const TYPE alpha, const TYPE* A, int lda, long strideA,
+                      const TYPE beta,        TYPE* B, int ldb, long strideB,
+                      int batchCount){
+  return Xsyrk_batch_strided_core(handle,
+                                  uplo, trans,
+                                  m, n,
+                                  alpha, A, lda, strideA,
+                                  beta,  B, ldb, strideB,
+                                  batchCount);
 }
+
+extern "C" {
 
 // workspace needed: device pointers
 // A, B: host pointer to device buffers

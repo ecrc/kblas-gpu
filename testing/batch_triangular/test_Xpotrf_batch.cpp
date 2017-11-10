@@ -393,11 +393,11 @@ int test_Xpotrf_batch(kblas_opts& opts)
                 }
                 #endif
               }
-              // if(opts.check) ref_error /= batchCount;
             }
             #ifdef USE_OPENMP
             }
             #endif//USE_OPENMP
+            // if(opts.check) ref_error /= batchCount;
             if(opts.time){
               time += gettime();
               perf = gflops / time;

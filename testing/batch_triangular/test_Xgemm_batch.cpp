@@ -23,9 +23,8 @@
 #endif
 
 #ifdef USE_MKL
-#define USE_MKL_BATCH
-#include <mkl_lapack.h>
-#include <mkl_blas.h>
+// #define USE_MKL_BATCH
+#include <mkl.h>
 #endif//USE_MKL
 
 #include "testing_Xtr_common.h"

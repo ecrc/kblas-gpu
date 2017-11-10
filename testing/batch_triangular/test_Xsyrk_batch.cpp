@@ -24,8 +24,7 @@
 #endif
 
 #ifdef USE_MKL
-#include <mkl_lapack.h>
-#include <mkl_blas.h>
+#include <mkl.h>
 #endif//USE_MKL
 
 #include "testing_Xtr_common.h"
@@ -310,19 +309,19 @@ int test_Xsyrk_batch(kblas_opts& opts, T alpha, T beta)
             check_error( cudaSetDevice( opts.devices[g] ));
             //check_error( cublasSetStream(cublas_handle, streams[g]) );
             if(strided){
-              check_error( kblasXsyrk_batch_strided( kblas_handle[g],
-                                                opts.uplo, opts.transA,
-                                                N, K,
-                                                alpha, d_A[g], ldda, An*ldda,
-                                                beta,  d_C[g], lddc, Cn*lddc,
-                                                batchCount_gpu) );
+              check_error( kblas_syrk_batch(kblas_handle[g],
+                                            opts.uplo, opts.transA,
+                                            N, K,
+                                            alpha, d_A[g], ldda, An*ldda,
+                                            beta,  d_C[g], lddc, Cn*lddc,
+                                            batchCount_gpu) );
             }else{
-              check_error( kblasXsyrk_batch( kblas_handle[g],
-                                        opts.uplo, opts.transA,
-                                        N, K,
-                                        alpha, (const T**)(d_A_array[g]), ldda,
-                                        beta,  d_C_array[g], lddc,
-                                        batchCount_gpu));
+              check_error( kblas_syrk_batch(kblas_handle[g],
+                                            opts.uplo, opts.transA,
+                                            N, K,
+                                            alpha, (const T**)(d_A_array[g]), ldda,
+                                            beta,  d_C_array[g], lddc,
+                                            batchCount_gpu));
             }
           }
           for(int g = 0; g < ngpu; g++){
@@ -384,21 +383,20 @@ int test_Xsyrk_batch(kblas_opts& opts, T alpha, T beta)
               if(opts.check && !opts.time){
                 // compute relative error for kblas, relative to lapack,
                 // |kblas - lapack| / |lapack|
-                double kblas_error = 0.;
-                // LAPACK_AXPY( &sizeC, &c_neg_one, h_C + s * ldc * Cn, &ione, h_R + s * ldc * Cn, &ione );
-                // double Cnorm = LAPACK_LANSY( "fro",
-                //                             (( opts.uplo == KBLAS_Lower ) ? "Lower" : "Upper"),
-                //                             &Cn, h_C + s * ldc * Cn, &ldc, work );
-                // double err = LAPACK_LANSY( "fro",
-                //                           (( opts.uplo == KBLAS_Lower ) ? "Lower" : "Upper"),
-                //                           &Cn, h_R + s * ldc * Cn, &ldc, work )
-                //               / Cnorm;
-                // /*if ( isnan(err) || isinf(err) ) {
-                //   ref_error = err;
-                //   break;
-                // }*/
-                // ref_error = fmax( err, ref_error );
-                ref_error += Xget_max_error_matrix(h_C + s * ldc * Cn, h_R + s * ldc * Cn, Cm, Cn, ldc, opts.uplo);
+                LAPACK_AXPY( &sizeC, &c_neg_one, h_C + s * ldc * Cn, &ione, h_R + s * ldc * Cn, &ione );
+                double Cnorm = LAPACK_LANSY( "fro",
+                                            (( opts.uplo == KBLAS_Lower ) ? "Lower" : "Upper"),
+                                            &Cn, h_C + s * ldc * Cn, &ldc, work );
+                double err = LAPACK_LANSY( "fro",
+                                          (( opts.uplo == KBLAS_Lower ) ? "Lower" : "Upper"),
+                                          &Cn, h_R + s * ldc * Cn, &ldc, work )
+                              / Cnorm;
+                /*if ( isnan(err) || isinf(err) ) {
+                  ref_error = err;
+                  break;
+                }*/
+                ref_error = fmax( err, ref_error );
+                // ref_error += Xget_max_error_matrix(h_C + s * ldc * Cn, h_R + s * ldc * Cn, Cm, Cn, ldc, opts.uplo);
                 #ifdef DEBUG_DUMP
                 printMatrix(Cm, Cn, h_C + s * ldc * Cn, ldc, outL);
                 printMatrix(Cm, Cn, h_R + s * ldc * Cn, ldc, outK);
@@ -407,6 +405,7 @@ int test_Xsyrk_batch(kblas_opts& opts, T alpha, T beta)
             }
             #ifdef USE_OPENMP
             }
+            // if(opts.check) ref_error /= batchCount;
             #endif//USE_OPENMP
             if(opts.time){
               time += gettime();
@@ -416,7 +415,6 @@ int test_Xsyrk_batch(kblas_opts& opts, T alpha, T beta)
               ref_avg_time += time;
             }
           }
-          if(opts.check) ref_error /= batchCount;
 
           /*if(opts.check){
             ref_error = Xget_max_error_matrix(h_A, h_R, K, K, lda);

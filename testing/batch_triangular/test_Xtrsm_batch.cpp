@@ -24,8 +24,7 @@
 #endif
 
 #ifdef USE_MKL
-#include <mkl_lapack.h>
-#include <mkl_blas.h>
+#include <mkl.h>
 #endif//USE_MKL
 
 #include "testing_Xtr_common.h"
@@ -425,21 +424,16 @@ int test_Xtrsm_batch(kblas_opts& opts, T alpha)
               if(opts.check && !opts.time){
                 // compute relative error for kblas, relative to lapack,
                 // |kblas - lapack| / |lapack|
-                double kblas_error = 0.;
-                // LAPACK_AXPY( &sizeC, &c_neg_one, h_C + s * ldc * Cn, &ione, h_R + s * ldc * Cn, &ione );
-                // double Cnorm = LAPACK_LANSY( "fro",
-                //                             (( opts.uplo == KBLAS_Lower ) ? "Lower" : "Upper"),
-                //                             &Cn, h_C + s * ldc * Cn, &ldc, work );
-                // double err = LAPACK_LANSY( "fro",
-                //                           (( opts.uplo == KBLAS_Lower ) ? "Lower" : "Upper"),
-                //                           &Cn, h_R + s * ldc * Cn, &ldc, work )
-                //               / Cnorm;
-                // /*if ( isnan(err) || isinf(err) ) {
-                //   ref_error = err;
-                //   break;
-                // }*/
-                // ref_error = fmax( err, ref_error );
-                ref_error += Xget_max_error_matrix(h_C + s * ldc * Cn, h_R + s * ldc * Cn, Cm, Cn, ldc);
+                LAPACK_AXPY( &sizeC, &c_neg_one, h_C + s * ldc * Cn, &ione, h_R + s * ldc * Cn, &ione );
+                double Cnorm = LAPACK_LANGE( "f", &Cm, &Cn, h_C + s * ldc * Cn, &ldc, work );
+                double err   = LAPACK_LANGE( "f", &Cm, &Cn, h_R + s * ldc * Cn, &ldc, work )
+                              / Cnorm;
+                /*if ( isnan(err) || isinf(err) ) {
+                  ref_error = err;
+                  break;
+                }*/
+                ref_error = fmax( err, ref_error );
+                // ref_error += Xget_max_error_matrix(h_C + s * ldc * Cn, h_R + s * ldc * Cn, Cm, Cn, ldc);
                 #ifdef DEBUG_DUMP
                 printMatrix(Cm, Cn, h_C + s * ldc * Cn, ldc, outL);
                 printMatrix(Cm, Cn, h_R + s * ldc * Cn, ldc, outK);
@@ -449,6 +443,7 @@ int test_Xtrsm_batch(kblas_opts& opts, T alpha)
             #ifdef USE_OPENMP
             }
             #endif//USE_OPENMP
+            // if(opts.check) ref_error /= batchCount;
             if(opts.time){
               time += gettime();
               perf = gflops / time;
@@ -457,7 +452,6 @@ int test_Xtrsm_batch(kblas_opts& opts, T alpha)
               ref_avg_time += time;
             }
           }
-          if(opts.check) ref_error /= batchCount;
 
           /*if(opts.check){
             ref_error = Xget_max_error_matrix(h_A, h_R, K, K, lda);

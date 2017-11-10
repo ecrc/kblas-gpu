@@ -172,6 +172,7 @@ int batch_svd_small(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int r
 	check_error_ret( cudaGetLastError(), KBLAS_UnknownError );
 	
 	#ifdef HLIB_PROFILING_ENABLED
+	handle->recordEnd();
 	double time_elapsed = handle->toc();
 	double svd_gflop_sum = reduceSum(svd_gflops, num_ops, handle->stream);
 	check_error_ret( cudaFree(svd_gflops), KBLAS_Error_Deallocation );

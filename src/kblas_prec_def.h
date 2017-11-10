@@ -50,9 +50,10 @@
   #define kblasXtrsm_batch_strided kblasStrsm_batch_strided
 
   #define kblasXtrmm_batch kblasStrmm_batch
-  #define kblasXtrmm_batch_wsquery kblasStrmm_batch_wsquery
   #define kblasXtrmm_batch_strided kblasStrmm_batch_strided
-  #define kblasXtrmm_batch_strided_wsquery kblasStrmm_batch_strided_wsquery
+
+  #define kblasXpotrf_batch kblasSpotrf_batch
+  #define kblasXpotrf_batch_strided kblasSpotrf_batch_strided
 
   #define cublasXgemm cublasSgemm
   #define cublasXgemmBatched cublasSgemmBatched
@@ -75,9 +76,10 @@
   #define kblasXtrsm_batch_strided kblasDtrsm_batch_strided
 
   #define kblasXtrmm_batch kblasDtrmm_batch
-  #define kblasXtrmm_batch_wsquery kblasDtrmm_batch_wsquery
   #define kblasXtrmm_batch_strided kblasDtrmm_batch_strided
-  #define kblasXtrmm_batch_strided_wsquery kblasDtrmm_batch_strided_wsquery
+
+  #define kblasXpotrf_batch kblasDpotrf_batch
+  #define kblasXpotrf_batch_strided kblasDpotrf_batch_strided
 
   #define cublasXgemm cublasDgemm
   #define cublasXgemmBatched cublasDgemmBatched
@@ -100,9 +102,10 @@
   #define kblasXtrsm_batch_strided kblasCtrsm_batch_strided
 
   #define kblasXtrmm_batch kblasCtrmm_batch
-  #define kblasXtrmm_batch_wsquery kblasCtrmm_batch_wsquery
   #define kblasXtrmm_batch_strided kblasCtrmm_batch_strided
-  #define kblasXtrmm_batch_strided_wsquery kblasCtrmm_batch_strided_wsquery
+
+  #define kblasXpotrf_batch kblasCpotrf_batch
+  #define kblasXpotrf_batch_strided kblasCpotrf_batch_strided
 
   #define cublasXgemm cublasCgemm
   #define cublasXgemmBatched cublasCgemmBatched
@@ -125,9 +128,10 @@
   #define kblasXtrsm_batch_strided kblasZtrsm_batch_strided
 
   #define kblasXtrmm_batch kblasZtrmm_batch
-  #define kblasXtrmm_batch_wsquery kblasZtrmm_batch_wsquery
   #define kblasXtrmm_batch_strided kblasZtrmm_batch_strided
-  #define kblasXtrmm_batch_strided_wsquery kblasZtrmm_batch_strided_wsquery
+
+  #define kblasXpotrf_batch kblasZpotrf_batch
+  #define kblasXpotrf_batch_strided kblasZpotrf_batch_strided
 
   #define cublasXgemm cublasZgemm
   #define cublasXgemmBatched cublasZgemmBatched

@@ -68,6 +68,7 @@ void trsm_batch_wsquery_core( int batchCount,
     wss->reset();
   }
 }
+
 //==============================================================================================
 template<bool STRIDED>
 inline
@@ -87,6 +88,23 @@ void trmm_batch_wsquery_core( int batchCount,
   }else{
     wss->reset();
   }
+}
+
+//==============================================================================================
+template<bool STRIDED>
+inline
+void potrf_batch_wsquery_core(const int n, int batchCount, kblasWorkspaceState_t wss)
+{
+  KBlasWorkspaceState ws_trsm;
+  int m = CLOSEST_REG_SIZE(n);
+
+  trsm_batch_wsquery_core<STRIDED>( batchCount,
+                                    KBLAS_Right, n, n,
+                                    (kblasWorkspaceState_t)&ws_trsm);
+
+  syrk_batch_wsquery_core( n, batchCount, wss);
+
+  wss->pad(&ws_trsm);
 }
 
 #endif //__KBLAS_BATCH_COMMON_H__

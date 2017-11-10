@@ -74,6 +74,10 @@ void kblasTimerTic(kblasHandle_t handle){
 	handle->tic();
 }
 
+void kblasTimerRecordEnd(kblasHandle_t handle){
+	handle->recordEnd();
+}
+
 double kblasTimerToc(kblasHandle_t handle) {
 	return handle->toc();
 }
@@ -84,6 +88,10 @@ cudaStream_t kblasGetStream(kblasHandle_t handle) {
 
 void kblasSetStream(kblasHandle_t handle, cudaStream_t stream) {
 	handle->stream = stream;
+}
+
+cublasHandle_t kblasGetCublasHandle(kblasHandle_t handle) {
+	return handle->cublas_handle;
 }
 //==============================================================================================
 extern "C"{

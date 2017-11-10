@@ -8,9 +8,12 @@ DEPS_BATCH=$(DEPS_COM) kblas_struct.h kblas_gpu_timer.h kblas_error.h
 KBLAS_BATCH_SVD_CU_SRC=  \
 			thrust_wrappers.cu \
 			batch_qr.cu \
-			batch_svd.cu \
 			batch_transpose.cu \
 			batch_block_copy.cu 
+
+ifdef _SUPPORT_SVD_
+KBLAS_BATCH_SVD_CU_SRC+=batch_svd.cu
+endif
 
 ALL_OBJ+= $(patsubst %.cu,$(OBJ_DIR)/%.cu_o,$(KBLAS_BATCH_SVD_CU_SRC))
 

@@ -46,6 +46,7 @@
 
 #include "kblas_error.h"
 #include "kblas_gpu_timer.h"
+#include "kblas_common.h"
 
 #ifdef KBLAS_ENABLE_BACKDOORS
 #define KBLAS_BACKDOORS       16
@@ -55,29 +56,45 @@ extern int kblas_back_door[KBLAS_BACKDOORS];
 // Structure defining the a state of the workspace, whether its allocated,
 // requested by a query routine, or consumed by a routine holding the handle
 struct KBlasWorkspaceState
-{
-	long h_data_bytes, h_ptrs_bytes;		// host data and pointer allocations
-	long d_data_bytes, d_ptrs_bytes;		// device data and pointer allocations
+  {
+  long h_data_bytes, h_ptrs_bytes;		// host data and pointer allocations
+  long d_data_bytes, d_ptrs_bytes;		// device data and pointer allocations
 
-	KBlasWorkspaceState()
-	{
-		reset();
-	}
+  KBlasWorkspaceState()
+  {
+    reset();
+  }
 
-	KBlasWorkspaceState(long h_data_bytes, long h_ptrs_bytes, long d_data_bytes, long d_ptrs_bytes)
-	{
-		this->h_data_bytes = h_data_bytes;
-		this->h_ptrs_bytes = h_ptrs_bytes;
+  KBlasWorkspaceState(long h_data_bytes, long h_ptrs_bytes, long d_data_bytes, long d_ptrs_bytes)
+  {
+    this->h_data_bytes = h_data_bytes;
+    this->h_ptrs_bytes = h_ptrs_bytes;
 
-		this->d_data_bytes = d_data_bytes;
-		this->d_ptrs_bytes = d_ptrs_bytes;
-	}
+    this->d_data_bytes = d_data_bytes;
+    this->d_ptrs_bytes = d_ptrs_bytes;
+  }
 
-	void reset()
-	{
-		h_data_bytes = h_ptrs_bytes = 0;
-		d_data_bytes = d_ptrs_bytes = 0;
-	}
+  void reset()
+  {
+    h_data_bytes = h_ptrs_bytes = 0;
+    d_data_bytes = d_ptrs_bytes = 0;
+  }
+
+  void pad(KBlasWorkspaceState* wss)
+  {
+    h_data_bytes = kmax(h_data_bytes, wss->h_data_bytes);
+    h_ptrs_bytes = kmax(h_ptrs_bytes, wss->h_ptrs_bytes);
+    d_data_bytes = kmax(d_data_bytes, wss->d_data_bytes);
+    d_ptrs_bytes = kmax(d_ptrs_bytes, wss->d_ptrs_bytes);
+  }
+
+  bool isSufficient(KBlasWorkspaceState* wss)
+  {
+    return (h_data_bytes <= wss->h_data_bytes)
+        && (h_ptrs_bytes <= wss->h_ptrs_bytes)
+        && (d_data_bytes <= wss->d_data_bytes)
+        && (d_ptrs_bytes <= wss->d_ptrs_bytes);
+  }
 };
 
 struct KBlasWorkspace
@@ -103,27 +120,28 @@ struct KBlasWorkspace
 
   void reset()
   {
+    // TODO need to deallocate first
     allocated = 0;
     h_data = NULL;
     h_ptrs = NULL;
     d_data = NULL;
     d_ptrs = NULL;
-  	allocated_ws_state.reset();
-  	requested_ws_state.reset();
-  	consumed_ws_state.reset();
+    allocated_ws_state.reset();
+    requested_ws_state.reset();
+    consumed_ws_state.reset();
   }
 
   KBlasWorkspaceState getAvailable()
   {
-  	KBlasWorkspaceState available;
+    KBlasWorkspaceState available;
 
-  	available.h_data_bytes = allocated_ws_state.h_data_bytes - consumed_ws_state.h_data_bytes;
-  	available.h_ptrs_bytes = allocated_ws_state.h_ptrs_bytes - consumed_ws_state.h_ptrs_bytes;
+    available.h_data_bytes = allocated_ws_state.h_data_bytes - consumed_ws_state.h_data_bytes;
+    available.h_ptrs_bytes = allocated_ws_state.h_ptrs_bytes - consumed_ws_state.h_ptrs_bytes;
 
-  	available.d_data_bytes = allocated_ws_state.d_data_bytes - consumed_ws_state.d_data_bytes;
-  	available.d_ptrs_bytes = allocated_ws_state.d_ptrs_bytes - consumed_ws_state.d_ptrs_bytes;
+    available.d_data_bytes = allocated_ws_state.d_data_bytes - consumed_ws_state.d_data_bytes;
+    available.d_ptrs_bytes = allocated_ws_state.d_ptrs_bytes - consumed_ws_state.d_ptrs_bytes;
 
-  	return available;
+    return available;
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -136,14 +154,14 @@ struct KBlasWorkspace
     assert(bytes + consumed_ws_state.d_data_bytes <= allocated_ws_state.d_data_bytes);
 
     void* ret_ptr = (WS_Byte*)d_data + consumed_ws_state.d_data_bytes;
-  	consumed_ws_state.d_data_bytes += bytes;
-  	return ret_ptr;
+    consumed_ws_state.d_data_bytes += bytes;
+    return ret_ptr;
   }
 
   void pop_d_data(long bytes)
   {
-  	assert(consumed_ws_state.d_data_bytes >= bytes);
-  	consumed_ws_state.d_data_bytes -= bytes;
+    assert(consumed_ws_state.d_data_bytes >= bytes);
+    consumed_ws_state.d_data_bytes -= bytes;
   }
 
   void* push_d_ptrs(long bytes)
@@ -151,15 +169,15 @@ struct KBlasWorkspace
     assert(bytes + consumed_ws_state.d_ptrs_bytes <= allocated_ws_state.d_ptrs_bytes);
 
     void* ret_ptr = (WS_Byte*)d_ptrs + consumed_ws_state.d_ptrs_bytes;
-  	consumed_ws_state.d_ptrs_bytes += bytes;
-  	return ret_ptr;
+    consumed_ws_state.d_ptrs_bytes += bytes;
+    return ret_ptr;
   }
 
   void pop_d_ptrs(long bytes)
   {
-  	assert(consumed_ws_state.d_ptrs_bytes >= bytes);
+    assert(consumed_ws_state.d_ptrs_bytes >= bytes);
 
-  	consumed_ws_state.d_ptrs_bytes -= bytes;
+    consumed_ws_state.d_ptrs_bytes -= bytes;
   }
   // Host workspace
   void* push_h_data(long bytes)
@@ -167,14 +185,14 @@ struct KBlasWorkspace
     assert(bytes + consumed_ws_state.h_data_bytes <= allocated_ws_state.h_data_bytes);
 
     void* ret_ptr = (WS_Byte*)h_data + consumed_ws_state.h_data_bytes;
-  	consumed_ws_state.h_data_bytes += bytes;
-  	return ret_ptr;
+    consumed_ws_state.h_data_bytes += bytes;
+    return ret_ptr;
   }
 
   void pop_h_data(long bytes)
   {
-  	assert(consumed_ws_state.h_data_bytes >= bytes);
-  	consumed_ws_state.h_data_bytes -= bytes;
+    assert(consumed_ws_state.h_data_bytes >= bytes);
+    consumed_ws_state.h_data_bytes -= bytes;
   }
 
   void* push_h_ptrs(long bytes)
@@ -182,14 +200,14 @@ struct KBlasWorkspace
     assert(bytes + consumed_ws_state.h_ptrs_bytes <= allocated_ws_state.h_ptrs_bytes);
 
     void* ret_ptr = (WS_Byte*)h_ptrs + consumed_ws_state.h_ptrs_bytes;
-  	consumed_ws_state.h_ptrs_bytes += bytes;
-  	return ret_ptr;
+    consumed_ws_state.h_ptrs_bytes += bytes;
+    return ret_ptr;
   }
 
   void pop_h_ptrs(long bytes)
   {
-  	assert(consumed_ws_state.h_ptrs_bytes >= bytes);
-  	consumed_ws_state.h_ptrs_bytes -= bytes;
+    assert(consumed_ws_state.h_ptrs_bytes >= bytes);
+    consumed_ws_state.h_ptrs_bytes -= bytes;
   }
 
   int allocate()
@@ -247,6 +265,8 @@ struct KBlasWorkspace
       #endif
       requested_ws_state.d_ptrs_bytes = 0;
     }
+
+    requested_ws_state.reset();
     #ifdef DEBUG_ON
     printf("\n");
     #endif
@@ -324,9 +344,10 @@ struct KBlasHandle
     this->stream = stream;
   }
   //-----------------------------------------------------------
-  void tic()   { timer.start(stream); }
-  double toc() { return timer.stop(stream);  }
-
+  void tic()   		{ timer.start(stream); 		 }
+  void recordEnd()	{ timer.recordEnd(stream);   }
+  double toc() 		{ return timer.stop(stream); }
+	
   //-----------------------------------------------------------
   KBlasHandle(cublasHandle_t& cublas_handle)
   {

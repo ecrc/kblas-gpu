@@ -1,13 +1,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <cublas_v2.h>
-#ifdef USE_MAGMA
-#include <magma_v2.h>
-#endif
-#include <kblas.h>
-#include <mkl.h>
-
 #include "testing_helper.h"
 
 #ifdef PREC_d

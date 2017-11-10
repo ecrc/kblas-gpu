@@ -27,9 +27,7 @@ endif
 ifdef _SUPPORT_BATCH_TR_
 KBLAS_BATCH_DIR=./batch_triangular
 include $(KBLAS_BATCH_DIR)/Makefile
-endif
 
-ifdef _SUPPORT_SVD_
 KBLAS_BATCH_SVD_DIR=./batch_svd
 include $(KBLAS_BATCH_SVD_DIR)/Makefile
 endif

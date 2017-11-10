@@ -31,10 +31,14 @@ struct kblas_gpu_timer
     {
         check_error( cudaEventRecord(start_event, stream) );
     }
-
+	
+	void recordEnd(cudaStream_t stream = 0)
+	{
+		check_error( cudaEventRecord(stop_event, stream) );
+	}
+	
     float stop(cudaStream_t stream = 0)
     {
-        check_error( cudaEventRecord(stop_event, stream) );
         check_error( cudaEventSynchronize(stop_event) );
 
         float time_since_last_start;

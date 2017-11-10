@@ -43,9 +43,15 @@
   #define LAPACK_SYRK ssyrk
   #define LAPACK_AXPY saxpy
   #define LAPACK_LANSY slansy
+  #define LAPACK_LANGE slange
   #define LAPACK_TRSM strsm
   #define LAPACK_TRMM strmm
+  #define LAPACK_POTRF spotrf
 
+  #define Xrand_matrix srand_matrix
+  #define Xget_max_error_matrix sget_max_error_matrix
+  #define Xmatrix_make_hpd smatrix_make_hpd
+  
 #elif defined PREC_d
   #define cublasXtrsm_batched cublasDtrsmBatched
   #define LAPACK_GEMM dgemm
@@ -53,9 +59,15 @@
   #define LAPACK_SYRK dsyrk
   #define LAPACK_AXPY daxpy
   #define LAPACK_LANSY dlansy
+  #define LAPACK_LANGE dlange
   #define LAPACK_TRSM dtrsm
   #define LAPACK_TRMM dtrmm
+  #define LAPACK_POTRF dpotrf
 
+  #define Xrand_matrix drand_matrix
+  #define Xget_max_error_matrix dget_max_error_matrix
+  #define Xmatrix_make_hpd dmatrix_make_hpd
+  
 #elif defined PREC_c
   #define cublasXtrsm_batched cublasCtrsmBatched
   #define LAPACK_GEMM cgemm
@@ -63,9 +75,15 @@
   #define LAPACK_SYRK csyrk
   #define LAPACK_AXPY caxpy
   #define LAPACK_LANSY clansy
+  #define LAPACK_LANGE clange
   #define LAPACK_TRSM ctrsm
   #define LAPACK_TRMM ctrmm
-
+  #define LAPACK_POTRF cpotrf
+  
+  #define Xrand_matrix crand_matrix
+  #define Xget_max_error_matrix cget_max_error_matrix
+  #define Xmatrix_make_hpd cmatrix_make_hpd
+  
 #elif defined PREC_z
   #define cublasXtrsm_batched cublasZtrsmBatched
   #define LAPACK_GEMM zgemm
@@ -73,8 +91,15 @@
   #define LAPACK_SYRK zsyrk
   #define LAPACK_AXPY zaxpy
   #define LAPACK_LANSY zlansy
+  #define LAPACK_LANGE zlange
   #define LAPACK_TRSM ztrsm
   #define LAPACK_TRMM ztrmm
+  #define LAPACK_POTRF zpotrf
+  
+  #define Xrand_matrix zrand_matrix
+  #define Xget_max_error_matrix zget_max_error_matrix  
+  #define Xmatrix_make_hpd zmatrix_make_hpd
+  
 #endif
 
 #endif //__KBLAS_PREC_DEF__

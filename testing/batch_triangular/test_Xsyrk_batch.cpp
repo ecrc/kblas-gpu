@@ -286,10 +286,9 @@ int test_Xsyrk_batch(kblas_opts& opts, T alpha, T beta)
           kblas_time *= 1000.0;
         #endif
 
-        #if 1
-        // use_magma_gemm = 0; use_cublas_gemm = 1;
         for(int r = 0;  r < nruns; r++){
           for(int g = 0; g < ngpu; g++){
+            kblas_handle[g]->use_magma = 0;
             check_error( cudaSetDevice( opts.devices[g] ));
             check_error( cublasSetMatrixAsync( Cm, Cn * batchCount_gpu, sizeof(T),
                                                h_C + Cm * Cn * batchCount_gpu * g, ldc,
@@ -338,7 +337,6 @@ int test_Xsyrk_batch(kblas_opts& opts, T alpha, T beta)
         kblas_time_1 /= nruns;
         kblas_perf = gflops / kblas_time_1;
         kblas_time_1 *= 1000.0;
-        #endif
 
         #ifdef USE_MKL
         if(opts.check || (opts.time && opts.lapack)){

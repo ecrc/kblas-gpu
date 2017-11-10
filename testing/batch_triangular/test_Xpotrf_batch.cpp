@@ -225,16 +225,14 @@ int test_Xpotrf_batch(kblas_opts& opts)
         }
         double time = 0;
 
-        #if 0
-        def USE_MAGMA
-          //TODO this is not a safe access
-          kblas_handle->use_magma = 1;
+        #ifdef USE_MAGMA
           for(int r = 0; r < nruns; r++){
             for(int g = 0; g < ngpu; g++){
               check_error( cudaSetDevice( opts.devices[g] ));
-              check_error( cublasSetMatrixAsync( Cm, Cn * batchCount_gpu, sizeof(T),
-                                                 h_C + Cm * Cn * batchCount_gpu * g, ldc,
-                                                 d_C[g], lddc, kblas_handle[g]->stream ) );
+              check_error( cublasSetMatrixAsync( Am, An * batchCount_gpu, sizeof(T),
+                                                 h_A + Am * An * batchCount_gpu * g, lda,
+                                                 d_A[g], ldda, kblas_handle[g]->stream ) );
+              check_error( cudaMemset(d_info[g], 0, batchCount_gpu * sizeof(int)) );
             }
 
 
@@ -246,21 +244,18 @@ int test_Xpotrf_batch(kblas_opts& opts)
             time = -gettime();
             for(int g = 0; g < ngpu; g++){
               check_error( cudaSetDevice( opts.devices[g] ));
-              //check_error( cublasSetStream(cublas_handle, streams[g]) );
               if(strided){
-                check_error( kblasXtrsm_batch_strided(kblas_handle[g],
-                                                      opts.side, opts.uplo, opts.transA, opts.diag,
-                                                      M, N,
-                                                      alpha, d_A[g], ldda, An*ldda,
-                                                             d_C[g], lddc, Cn*lddc,
-                                                      batchCount_gpu) );
+                check_error( kblas_potrf_batch( kblas_handle[g],
+                                                uplo, N,
+                                                d_A[g], ldda, An*ldda,
+                                                batchCount_gpu,
+                                                d_info[g]) );
               }else{
-                check_error( kblasXtrsm_batch(kblas_handle[g],
-                                              opts.side, opts.uplo, opts.transA, opts.diag,
-                                              M, N,
-                                              alpha, (const T**)(d_A_array[g]), ldda,
-                                                                 d_C_array[g], lddc,
-                                              batchCount_gpu));
+                check_error( kblas_potrf_batch( kblas_handle[g],
+                                                uplo, N,
+                                                d_A_array[g], ldda,
+                                                batchCount_gpu,
+                                                d_info[g]) );
               }
             }
             for(int g = 0; g < ngpu; g++){

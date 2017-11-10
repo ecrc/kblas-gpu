@@ -238,8 +238,6 @@ int test_Xtrsm_batch(kblas_opts& opts, T alpha)
         double time = 0;
 
         #ifdef USE_MAGMA
-          //TODO this is not a safe access
-          kblas_handle->use_magma = 1;
           for(int r = 0; r < nruns; r++){
             for(int g = 0; g < ngpu; g++){
               check_error( cudaSetDevice( opts.devices[g] ));

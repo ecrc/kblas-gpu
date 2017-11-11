@@ -29,6 +29,7 @@ template<class T>
 int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
 
   kblasHandle_t kblas_handle;
+  GPU_Timer_t kblas_timer;
   int nruns = opts.nruns;
   int M, N, K;
   int Am, An, Bm, Bn, Cm, Cn;
@@ -54,6 +55,7 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
 
   check_error( cudaSetDevice( opts.devices[0] ));
   kblasCreate(&kblas_handle);
+  kblas_timer = newGPU_Timer(kblasGetStream(kblas_handle));
 
 
   cublasOperation_t cub_transA = (opts.transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);
@@ -175,11 +177,11 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
       if(opts.warmup){
         check_cublas_error( cublasSetMatrixAsync( Cm, Cn * batchCount, sizeof(T), h_C, ldc, d_C, lddc, curStream ) );
         check_cublas_error( cublasXgemm( kblasGetCublasHandle(kblas_handle),
-                                  cub_transA, cub_transB,
-                                  M, N, K,
-                                  &alpha, d_A, ldda,
-                                          d_B, lddb,
-                                  &beta,  d_C, lddc) );
+                                        cub_transA, cub_transB,
+                                        M, N, K,
+                                        &alpha, d_A, ldda,
+                                                d_B, lddb,
+                                        &beta,  d_C, lddc) );
         #if (defined USE_OPENMP) && (defined USE_MKL)
         if(opts.time){
           omp_set_num_threads(NUM_THREADS);
@@ -211,20 +213,20 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
       #ifdef USE_MAGMA
       // use_magma_gemm = 1; use_cublas_gemm = 0;
       //TODO this is not a safe access
-      kblas_handle->use_magma = 1; 
+      // kblas_handle->use_magma = 1;
       for(int r = 0; r < nruns; r++)
       {
-        check_error( cublasSetMatrixAsync( Cm, Cn * batchCount, sizeof(T), h_C, ldc, d_C, lddc, curStream ) );
+        check_cublas_error( cublasSetMatrixAsync( Cm, Cn * batchCount, sizeof(T), h_C, ldc, d_C, lddc, curStream ) );
 
-        kblas_handle->tic();
-        check_error( kblas_gemm_batch(kblas_handle,
-                                      opts.transA, opts.transB,
-                                      M, N, K,
-                                      alpha, d_A, ldda, An*ldda,
-                                             d_B, lddb, Bn*lddb,
-                                      beta,  d_C, lddc, Cn*lddc,
-                                      batchCount) );
-        time = kblas_handle->toc();
+        gpuTimerTic(kblas_timer);
+        check_kblas_error( kblas_gemm_batch(kblas_handle,
+                                            opts.transA, opts.transB,
+                                            M, N, K,
+                                            alpha, d_A, ldda, An*ldda,
+                                                   d_B, lddb, Bn*lddb,
+                                            beta,  d_C, lddc, Cn*lddc,
+                                            batchCount) );
+        time = gpuTimerToc(kblas_timer);
         magma_time += time;
       }
       magma_time /= nruns;
@@ -258,13 +260,13 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
 
         kblasTimerTic(kblas_handle);
         check_kblas_error( kblas_gemm_batch(kblas_handle,
-                                      opts.transA, opts.transB,
-                                      M, N, K,
-                                      alpha, d_A, ldda, An*ldda,
-                                             d_B, lddb, Bn*lddb,
-                                      beta,  d_C, lddc, Cn*lddc,
-                                      batchCount) );
-		kblasTimerRecordEnd(kblas_handle);
+                                            opts.transA, opts.transB,
+                                            M, N, K,
+                                            alpha, d_A, ldda, An*ldda,
+                                                   d_B, lddb, Bn*lddb,
+                                            beta,  d_C, lddc, Cn*lddc,
+                                            batchCount) );
+		    kblasTimerRecordEnd(kblas_handle);
         time = kblasTimerToc(kblas_handle);
         kblas_time += time;
       }
@@ -335,12 +337,12 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
           }
 
           LAPACK_GEMM_BATCH( transA_bat, transB_bat,
-                      m_bat, n_bat, k_bat,
-                      &alpha, (const T**)h_A_array, &lda,
-                              (const T**)h_B_array, &ldb,
-                      &beta,  h_C_array, &ldc,
-                      &grp_size, &batchCount
-                    );
+                            m_bat, n_bat, k_bat,
+                            &alpha, (const T**)h_A_array, &lda,
+                                    (const T**)h_B_array, &ldb,
+                            &beta,  h_C_array, &ldc,
+                            &grp_size, &batchCount
+                          );
 
           if(opts.time){
             time += gettime();
@@ -414,6 +416,7 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
 
 
   kblasDestroy(&kblas_handle);
+  deleteGPU_Timer(kblas_timer);
 }
 
 

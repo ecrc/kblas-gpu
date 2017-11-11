@@ -2,6 +2,7 @@
 #include <thrust/host_vector.h>
 #include <thrust/transform.h>
 #include <thrust/execution_policy.h>
+#include <thrust/system/cuda/execution_policy.h>
 #include <thrust/system/omp/execution_policy.h>
 #include <thrust/random.h>
 

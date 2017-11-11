@@ -47,7 +47,7 @@ C_SRC=
 INC_SRC=testing_utils.h testing_Xtr_common.h
 
 OBJ_DIR=./obj
-C_OBJ =
+# C_OBJ =
 
 BIN_DIR=./bin
 
@@ -67,16 +67,22 @@ include $(KBLAS_BATCH_DIR)/Makefile
 LIB+= -lcusolver -lcurand
 endif
 
-C_OBJ= $(patsubst %.c,$(OBJ_DIR)/%.o,$(C_SRC))
-EXE= $(patsubst %.c,$(BIN_DIR)/%,$(C_SRC))
+# C_OBJ= $(patsubst %.c,$(OBJ_DIR)/%.o,$(C_SRC))
+# EXE= $(patsubst %.c,$(BIN_DIR)/%,$(C_SRC))
 
-all: $(EXE)
+all: $(EXE_l2) $(EXE_l3) $(EXE_BATCH)
 
 $(OBJ_DIR)/testing_helper.o: testing_helper.cu
 	$(NVCC) $(NVOPTS) $(NVOPTS_3) $(INCLUDES) $(NVCCFLAGS) -c $< -o $@
 
-$(EXE): $(BIN_DIR)/%: $(OBJ_DIR)/%.o $(KBLAS_LIB) $(OBJ_DIR)/testing_helper.o
+$(EXE_BATCH): $(BIN_DIR)/%: $(OBJ_DIR)/%.o $(KBLAS_LIB) $(OBJ_DIR)/testing_helper.o
 	$(CC) $(COPTS) $(OBJ_DIR)/testing_helper.o $< -o $@ $(LIB_PATH) $(LIB)
 
+$(EXE_l2): $(BIN_DIR)/%: $(OBJ_DIR)/%.o $(KBLAS_LIB)
+	$(CC) $(COPTS) $< -o $@ $(LIB_PATH) $(LIB)
+
+$(EXE_l3): $(BIN_DIR)/%: $(OBJ_DIR)/%.o $(KBLAS_LIB)
+	$(CC) $(COPTS) $< -o $@ $(LIB_PATH) $(LIB)
+
 clean:
-	rm -f $(OBJ_DIR)/*.o $(EXE)
+	rm -f $(OBJ_DIR)/*.o $(EXE_l2) $(EXE_l3) $(EXE_BATCH)

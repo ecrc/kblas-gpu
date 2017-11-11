@@ -1,25 +1,26 @@
 #WARNING: Don't invoke this file independently, must be included into parent folder makefile
 
 BATCH_INC_DEP= $(INC_SRC) testing_prec_def.h
-C_SRC+=	              \
+C_SRC_BATCH=
+C_SRC_BATCH+=         \
 	test_sgemm_batch.c  \
 	test_ssyrk_batch.c  \
 	test_strsm_batch.c  \
 	test_strmm_batch.c  \
 	test_spotrf_batch.c
-C_SRC+=	              \
+C_SRC_BATCH+=         \
 	test_dgemm_batch.c  \
 	test_dsyrk_batch.c  \
 	test_dtrsm_batch.c  \
 	test_dtrmm_batch.c  \
 	test_dpotrf_batch.c
-C_SRC+=	              \
+C_SRC_BATCH+=         \
 	test_cgemm_batch.c  \
 	test_csyrk_batch.c  \
 	test_ctrsm_batch.c  \
 	test_ctrmm_batch.c  \
 	test_cpotrf_batch.c
-C_SRC+=	              \
+C_SRC_BATCH+=         \
 	test_zgemm_batch.c  \
 	test_zsyrk_batch.c  \
 	test_ztrsm_batch.c  \
@@ -27,13 +28,13 @@ C_SRC+=	              \
 	test_zpotrf_batch.c
 
 ifdef _SUPPORT_SVD_
-C_SRC+= test_dgesvj_batch.c test_sgesvj_batch.c
+C_SRC_BATCH+= test_dgesvj_batch.c test_sgesvj_batch.c
 
 $(OBJ_DIR)/test_%gesvj_batch.o: $(KBLAS_BATCH_DIR)/test_Xgesvj_batch.cpp $(BATCH_INC_DEP)
 	$(CXX) $(COPTS) -DPREC_$* $(INCLUDES) -c $< -o $@
 endif
 
-C_SRC+= test_dgeqrf_batch.c test_sgeqrf_batch.c
+C_SRC_BATCH+= test_dgeqrf_batch.c test_sgeqrf_batch.c
 
 $(OBJ_DIR)/test_%geqrf_batch.o: $(KBLAS_BATCH_DIR)/test_Xgeqrf_batch.cpp $(BATCH_INC_DEP)
 	$(CXX) $(COPTS) -DPREC_$* $(INCLUDES) -c $< -o $@
@@ -55,3 +56,5 @@ $(OBJ_DIR)/test_%potrf_batch.o: $(KBLAS_BATCH_DIR)/test_Xpotrf_batch.cpp $(BATCH
 
 $(BIN_DIR)/test_%_batch: $(OBJ_DIR)/test_%_batch.o
 	$(CXX) $(COPTS) $< -o $@ $(LIB_PATH) $(LIB)
+
+EXE_BATCH= $(patsubst %.c,$(BIN_DIR)/%,$(C_SRC_BATCH))

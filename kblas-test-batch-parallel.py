@@ -37,12 +37,14 @@ if (NGPUS < 1):
     print 'Unable to detect an NVIDIA GPU device to test on! Exiting'
     exit()
 
+print 'NGPUS: ' + str(NGPUS)
+
 #set options
 #check = ''
-check = '-c'
-defaultBatchCount = 1000
-TEST_BATCH_SVD = 1
-TEST_BATCH_QR = 1
+check = ' -c'
+defaultBatchCount = 100
+TEST_BATCH_SVD = 0
+TEST_BATCH_QR = 0
 TEST_BATCH_TRSM = 1
 TEST_BATCH_TRMM = 1
 TEST_BATCH_GEMM = 1
@@ -73,7 +75,7 @@ def launchQueue(*taskQueue):
 def parallelTaskLaunch(variants, programs, ranges, options, batchCount):
     deviceQueue = [[] for _ in xrange(NGPUS)]
     deviceThread = []
-    
+
     dev = 0
     for p in programs:
         pp = BIN_PATH+p
@@ -98,7 +100,7 @@ def parallelTaskLaunch(variants, programs, ranges, options, batchCount):
         tq = deviceThread[dev]
         tq.join()
         dev = dev + 1
-        
+
 ############### BATCH_SVD
 if (TEST_BATCH_SVD == 1):
     variants = ['']
@@ -106,9 +108,9 @@ if (TEST_BATCH_SVD == 1):
     ranges = ['--range 32:512:32']
     options = ''
     batchCount = 200;
-    
+
     parallelTaskLaunch(variants, programs, ranges, options, batchCount)
-    
+
 ############### BATCH_QR
 if (TEST_BATCH_QR == 1):
     variants = ['']
@@ -116,55 +118,102 @@ if (TEST_BATCH_QR == 1):
     ranges = ['--range 32:512:32']
     batchCount = defaultBatchCount;
     options = ''
-	
+
     parallelTaskLaunch(variants, programs, ranges, options, batchCount)
-    
+
 ############### BATCH_GEMM
 if (TEST_BATCH_GEMM == 1):
-    variants = ['']
-    programs = ['test_dgemm_batch', 'test_sgemm_batch', 'test_cgemm_batch', 'test_zgemm_batch']
-    ranges = ['--range 32:512:32']
-    options = '-c -t'
+    variants = ['-NN',
+                '-TN',
+                '-NT',
+                '-TT',
+                ]
+    programs = ['test_sgemm_batch',
+                'test_dgemm_batch',
+                'test_cgemm_batch',
+                'test_zgemm_batch'
+                ]
+    ranges = ['--range 32:256:32']
+    options = check
     batchCount = defaultBatchCount;
-    
+
     parallelTaskLaunch(variants, programs, ranges, options, batchCount)
-    
+
 ############### BATCH_TRMM
 if (TEST_BATCH_TRMM == 1):
-    variants = ['']
-    programs = ['test_dtrmm_batch', 'test_strmm_batch', 'test_ctrmm_batch', 'test_ztrmm_batch']
-    ranges = ['--range 32:512:32']
-    options = '-c -t'
+    variants = ['-L -NN -DN',
+                '-L -TN -DN',
+                # '-SL -U -NN -DN',
+                # '-SL -U -TN -DN',
+                # '-SR -L -NN -DN',
+                # '-SR -L -TN -DN',
+                # '-SR -U -NN -DN',
+                # '-SR -U -TN -DN'
+                ]
+
+    programs = ['test_strmm_batch',
+                'test_dtrmm_batch',
+                'test_ctrmm_batch',
+                'test_ztrmm_batch'
+                ]
+    ranges = ['--range 32:256:32']
+    options = check
     batchCount = defaultBatchCount;
-    
+
     parallelTaskLaunch(variants, programs, ranges, options, batchCount)
-    
+
 ############### BATCH_TRSM
 if (TEST_BATCH_TRSM == 1):
-    variants = ['']
-    programs = ['test_dtrsm_batch', 'test_strsm_batch', 'test_ctrsm_batch', 'test_ztrsm_batch']
-    ranges = ['--range 32:512:32']
-    options = '-c -t'
+    variants = ['-SL -L -NN -DN',
+                '-SL -L -TN -DN',
+                # '-SL -U -NN -DN',
+                # '-SL -U -TN -DN',
+                '-SR -L -NN -DN',
+                '-SR -L -TN -DN',
+                # '-SR -U -NN -DN',
+                # '-SR -U -TN -DN'
+                ]
+    programs = ['test_strsm_batch',
+                'test_dtrsm_batch',
+                # 'test_ctrsm_batch',
+                # 'test_ztrsm_batch'
+                ]
+    ranges = ['--range 32:256:32']
+    options = check
     batchCount = defaultBatchCount;
-    
+
     parallelTaskLaunch(variants, programs, ranges, options, batchCount)
 
 ############### BATCH_SYRK
 if (TEST_BATCH_SYRK == 1):
-    variants = ['']
-    programs = ['test_dsyrk_batch', 'test_ssyrk_batch', 'test_csyrk_batch', 'test_zsyrk_batch']
-    ranges = ['--range 32:512:32']
-    options = '-c -t'
+    variants = ['-L -NN',
+                '-L -TN',
+                # '-U -NN',
+                # '-U -TN',
+                ]
+    programs = ['test_ssyrk_batch',
+                'test_dsyrk_batch',
+                'test_csyrk_batch',
+                'test_zsyrk_batch'
+                ]
+    ranges = ['--range 32:256:32']
+    options = check
     batchCount = defaultBatchCount;
-    
+
     parallelTaskLaunch(variants, programs, ranges, options, batchCount)
 
 ############### BATCH_POTRF
 if (TEST_BATCH_POTRF == 1):
-    variants = ['']
-    programs = ['test_dpotrf_batch', 'test_spotrf_batch', 'test_cpotrf_batch', 'test_zpotrf_batch']
-    ranges = ['--range 32:512:32']
-    options = '-c -t'
+    variants = ['-L',
+                # '-U',
+                ]
+    programs = ['test_spotrf_batch',
+                'test_dpotrf_batch',
+                'test_cpotrf_batch',
+                'test_zpotrf_batch'
+                ]
+    ranges = ['--range 32:256:32']
+    options = check
     batchCount = defaultBatchCount;
-    
+
     parallelTaskLaunch(variants, programs, ranges, options, batchCount)

@@ -450,6 +450,7 @@ int driver_hh_panel(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride, T_
 		case 14: batch_qr_panel<T, T_ptr,  448><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
 		case 15: batch_qr_panel<T, T_ptr,  480><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
 		case 16: batch_qr_panel<T, T_ptr,  512><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		#ifdef QR_SUPPORT_LARGE
 		case 17: batch_qr_panel<T, T_ptr,  544><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
 		case 18: batch_qr_panel<T, T_ptr,  576><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
 		case 19: batch_qr_panel<T, T_ptr,  608><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
@@ -466,6 +467,7 @@ int driver_hh_panel(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride, T_
 		case 30: batch_qr_panel<T, T_ptr,  960><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
 		case 31: batch_qr_panel<T, T_ptr,  992><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
 		case 32: batch_qr_panel<T, T_ptr, 1024><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		#endif
         default: { printf("driver_hh_panel: Invalid row size %d\n", panel_rows); return KBLAS_UnknownError; }
     }
 
@@ -511,6 +513,7 @@ int driver_unpackQ_panel(kblasHandle_t handle, T_ptr m_batch, int ldm, int strid
 		case 14: batch_unpackQ_panel<T, T_ptr,  448><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
 		case 15: batch_unpackQ_panel<T, T_ptr,  480><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
 		case 16: batch_unpackQ_panel<T, T_ptr,  512><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		#ifdef QR_SUPPORT_LARGE
 		case 17: batch_unpackQ_panel<T, T_ptr,  544><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
         case 18: batch_unpackQ_panel<T, T_ptr,  576><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
         case 19: batch_unpackQ_panel<T, T_ptr,  608><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
@@ -527,6 +530,7 @@ int driver_unpackQ_panel(kblasHandle_t handle, T_ptr m_batch, int ldm, int strid
 		case 30: batch_unpackQ_panel<T, T_ptr,  960><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
 		case 31: batch_unpackQ_panel<T, T_ptr,  992><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
 		case 32: batch_unpackQ_panel<T, T_ptr, 1024><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, smem_entries_per_op, panel_rows, num_ops); break;
+		#endif
         default: { printf("driver_unpackQ_panel: Invalid row size %d\n", panel_rows); return KBLAS_UnknownError; }
     }
 
@@ -573,6 +577,7 @@ int driver_apply_hh_panel(kblasHandle_t handle, T_ptr m_batch, int ldm, int stri
 		case 14: batch_apply_hh_panel<T, T_ptr,  448, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
 		case 15: batch_apply_hh_panel<T, T_ptr,  480, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
 		case 16: batch_apply_hh_panel<T, T_ptr,  512, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+		#ifdef QR_SUPPORT_LARGE
 		case 17: batch_apply_hh_panel<T, T_ptr,  544, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
         case 18: batch_apply_hh_panel<T, T_ptr,  576, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
         case 19: batch_apply_hh_panel<T, T_ptr,  608, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
@@ -589,6 +594,7 @@ int driver_apply_hh_panel(kblasHandle_t handle, T_ptr m_batch, int ldm, int stri
 		case 30: batch_apply_hh_panel<T, T_ptr,  960, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
 		case 31: batch_apply_hh_panel<T, T_ptr,  992, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
 		case 32: batch_apply_hh_panel<T, T_ptr, 1024, APPLY_FORWARD><<< dimGrid, dimBlock, smem_per_block, handle->stream >>>(m_batch, ldm, stride, tau_batch, stride_tau, rows, cols, row_offset, col_offset, trailing_blocks, smem_entries_per_op, panel_rows, num_ops); break;
+		#endif
         default: {printf("driver_apply_hh_panel: Invalid row size %d\n", panel_rows); return KBLAS_UnknownError;}
     }
 

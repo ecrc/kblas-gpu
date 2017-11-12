@@ -16,8 +16,9 @@ KBLAS provides highly optimized routines from various levels of BLAS and LAPACK,
 1. Legacy Level-2 BLAS: (⇟⎐ ⚭ ⚬) SYMV, GEMV, HEMV.
 2. Legacy Level-3 BLAS: (⇟⎐ ⚭ ⚬) TRSM, TRMM, GEMM (⚭ only).
 3. Batch Level-3 BLAS: (⇟⎏ ⚭ ⚬= ✼) TRSM, TRMM, SYRK.
-4. Batch Triangular: (⎏⇞ ⚭ ⚬= ✼) TRTRI, LAUUM. ◆ Batch Symmetric: (⎏⇞ ⚭ ⚬= ✼) POTRF, POTRS, POSV, POTRI, POTI.
-5. Batch General: (⎐⇟ ⚭ ⚬= ✼) GESVJ, GERSVD, GEQRF.
+4. Batch Triangular: (⎏⇞ ⚭ ⚬= ✼) TRTRI, LAUUM.
+5. Batch Symmetric: (⎏⇞ ⚭ ⚬= ✼) POTRF, POTRS, POSV, POTRI, POTI.
+6. Batch General: (⎐⇟ ⚭ ⚬= ✼) GESVJ, GERSVD, GEQRF.
 
 ⇟ Standard precisions: s/d/c/z.
 ⇞ Real precisions: s/d.
@@ -72,4 +73,4 @@ Testing
 The folder 'testing' includes a set of sample programs to illustrate the usage of each KBLAS routine, as well as to test the performance and accuracy of such routines against other vendor libraries.
 
 
-![Handout](docs/KBLAS-brochure.pdf)
+![Handout](docs/KBLAS_handout.png)

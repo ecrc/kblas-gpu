@@ -136,7 +136,10 @@ int main(int argc, char** argv)
 	GPU_Timer_t kblas_timers[num_gpus];
 	
 	double cpu_time[nruns], kblas_time[nruns], cusolver_time[nruns];
-
+	
+	int cuda_version;
+	check_error( cudaRuntimeGetVersion(&cuda_version) );
+	
 	for(int g = 0; g < num_gpus; g++)
 	{
 		cudaSetDevice(opts.devices[g]);
@@ -246,47 +249,50 @@ int main(int argc, char** argv)
 					// CUSPARSE
 					////////////////////////////////////////////////////////////////////////
 					// Reset the GPU data and sync
-					COPY_DATA_UP();
-					
-					cusolver_time[i] = gettime();
-					// Launch all kernels
-					for(int g = 0; g < num_gpus; g++)
+					if(cuda_version >= 8000)
 					{
-						cudaSetDevice(opts.devices[g]);
+						COPY_DATA_UP();
 						
-						int ops_done = 0;
-						while(ops_done < batchCount_gpu)
+						cusolver_time[i] = gettime();
+						// Launch all kernels
+						for(int g = 0; g < num_gpus; g++)
 						{
-							int ops_to_do = std::min(CUSOLVER_STREAMS, batchCount_gpu - ops_done);
+							cudaSetDevice(opts.devices[g]);
 							
-							// #pragma omp parallel for num_threads(ops_to_do)
-							for(int i = 0; i < ops_to_do; i++)
+							int ops_done = 0;
+							while(ops_done < batchCount_gpu)
 							{
-								int op_index = ops_done + i;
-								Real* matrix = d_A[g] + rows * cols * op_index;
-								Real* S_m = d_S[g] + cols * op_index;
-
-								Real* work_m = cusolver_ws[g] + work_size * i;
-								int* dev_info_m = d_info[g] + i;
+								int ops_to_do = std::min(CUSOLVER_STREAMS, batchCount_gpu - ops_done);
 								
-								check_cusolver_error(
-									cusolverDnXgesvd(
-										cusolver_handles[g][i], 'O', 'N', rows, cols,
-										matrix, rows, S_m, NULL, rows,
-										NULL, cols, work_m, work_size, NULL,
-										dev_info_m
-									)
-								);
+								// #pragma omp parallel for num_threads(ops_to_do)
+								for(int i = 0; i < ops_to_do; i++)
+								{
+									int op_index = ops_done + i;
+									Real* matrix = d_A[g] + rows * cols * op_index;
+									Real* S_m = d_S[g] + cols * op_index;
+
+									Real* work_m = cusolver_ws[g] + work_size * i;
+									int* dev_info_m = d_info[g] + i;
+									
+									check_cusolver_error(
+										cusolverDnXgesvd(
+											cusolver_handles[g][i], 'O', 'N', rows, cols,
+											matrix, rows, S_m, NULL, rows,
+											NULL, cols, work_m, work_size, NULL,
+											dev_info_m
+										)
+									);
+								}
+								ops_done += CUSOLVER_STREAMS;
 							}
-							ops_done += CUSOLVER_STREAMS;
 						}
+						syncGPUs(&opts);
+						cusolver_time[i] = gettime() - cusolver_time[i];
+						
+						// Copy the data down from all the GPUs and compare with the CPU results
+						COPY_DATA_DOWN();
+						cusolver_err += testSValues(gpu_results, host_S_exact, cols, cols, batchCount);
 					}
-					syncGPUs(&opts);
-					cusolver_time[i] = gettime() - cusolver_time[i];
-					
-					// Copy the data down from all the GPUs and compare with the CPU results
-					COPY_DATA_DOWN();
-					cusolver_err += testSValues(gpu_results, host_S_exact, cols, cols, batchCount);
 				}
 				
 				double avg_kblas_time, std_dev_kblas_time;

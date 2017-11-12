@@ -49,6 +49,7 @@ pipeline {
                     ./kblas-test-l3.py
                     sed -i "/--range 2048:15360:1024/d" ./kblas-test-l3.py
                     ./kblas-test-l3.py
+                    ./kblas-test-batch-parallel.py
                 '''
             }
         }
@@ -79,6 +80,7 @@ pipeline {
                     ./kblas-test-l3.py
                     sed -i "/--range 2048:15360:1024/d" ./kblas-test-l3.py
                     ./kblas-test-l3.py
+                    ./kblas-test-batch-parallel.py
                 '''
             }
         }
@@ -109,6 +111,7 @@ pipeline {
                     ./kblas-test-l3.py
                     sed -i "/--range 2048:15360:1024/d" ./kblas-test-l3.py
                     ./kblas-test-l3.py
+                    ./kblas-test-batch-parallel.py
                 '''
             }
         }

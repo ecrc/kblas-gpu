@@ -1,0 +1,35 @@
+KBLAS installation requires a recent **make**.
+To build KBLAS, please follow these instructions:
+
+1.  Get KBLAS from git repository
+
+        git clone git@github.com:ecrc/kblas-gpu
+
+    or
+
+        git clone https://github.com/ecrc/kblas-gpu
+
+2.  Go into KBLAS folder
+
+        cd kblas-gpu
+
+3.  Edit file make.inc to:
+    - Enable / disable KBLAS sub modules (_SUPPORT_BLAS2_, _SUPPORT_BLAS3_, _SUPPORT_BATCH_TR_, _SUPPORT_SVD_).
+    - Enable / disable usage of third party libraries (_USE_MKL_, _USE_MAGMA_) for performance comparsions.
+    - Provide path for third party libraries if required (_CUB_DIR_, _MAGMA_ROOT_).
+    - Specify CUDA architecture to compile for (_CUDA_ARCH_).
+
+    or
+
+    Provide equivalent environment variables.
+
+4.  Build KBLAS
+
+        make
+
+5.  Build local documentation (optional)
+
+        make docs
+
+KBLAS librari will be built in the folder ./lib
+Enjoy.

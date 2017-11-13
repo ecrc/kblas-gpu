@@ -43,13 +43,14 @@ print 'NGPUS: ' + str(NGPUS)
 #check = ''
 check = ' -c'
 defaultBatchCount = 100
-TEST_BATCH_SVD = 0
-TEST_BATCH_QR = 0
+TEST_BATCH_SVD = 1
+TEST_BATCH_QR = 1
 TEST_BATCH_TRSM = 1
 TEST_BATCH_TRMM = 1
 TEST_BATCH_GEMM = 1
 TEST_BATCH_SYRK = 1
 TEST_BATCH_POTRF = 1
+TEST_BATCH_LAUUM = 1
 
 #--------------------------------
 def task1(pVariants, pRanges, pExec, pOptions, pBatchCount, pDev, pOutfile):
@@ -211,6 +212,22 @@ if (TEST_BATCH_POTRF == 1):
                 'test_dpotrf_batch',
                 'test_cpotrf_batch',
                 'test_zpotrf_batch'
+                ]
+    ranges = ['--range 32:256:32']
+    options = check
+    batchCount = defaultBatchCount;
+
+    parallelTaskLaunch(variants, programs, ranges, options, batchCount)
+
+############### BATCH_POTRF
+if (TEST_BATCH_LAUUM == 1):
+    variants = ['-L',
+                # '-U',
+                ]
+    programs = ['test_slauum_batch',
+                'test_dlauum_batch',
+                'test_clauum_batch',
+                'test_zlauum_batch'
                 ]
     ranges = ['--range 32:256:32']
     options = check

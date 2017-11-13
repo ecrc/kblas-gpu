@@ -55,6 +55,9 @@
   #define kblasXpotrf_batch kblasSpotrf_batch
   #define kblasXpotrf_batch_strided kblasSpotrf_batch_strided
 
+  #define kblasXlauum_batch kblasSlauum_batch
+  #define kblasXlauum_batch_strided kblasSlauum_batch_strided
+
   #define cublasXgemm cublasSgemm
   #define cublasXgemmBatched cublasSgemmBatched
   #define cublasXgemmStridedBatched cublasSgemmStridedBatched
@@ -80,6 +83,9 @@
 
   #define kblasXpotrf_batch kblasDpotrf_batch
   #define kblasXpotrf_batch_strided kblasDpotrf_batch_strided
+
+  #define kblasXlauum_batch kblasDlauum_batch
+  #define kblasXlauum_batch_strided kblasDlauum_batch_strided
 
   #define cublasXgemm cublasDgemm
   #define cublasXgemmBatched cublasDgemmBatched
@@ -107,6 +113,9 @@
   #define kblasXpotrf_batch kblasCpotrf_batch
   #define kblasXpotrf_batch_strided kblasCpotrf_batch_strided
 
+  #define kblasXlauum_batch kblasClauum_batch
+  #define kblasXlauum_batch_strided kblasClauum_batch_strided
+
   #define cublasXgemm cublasCgemm
   #define cublasXgemmBatched cublasCgemmBatched
   #define cublasXgemmStridedBatched cublasCgemmStridedBatched
@@ -132,6 +141,9 @@
 
   #define kblasXpotrf_batch kblasZpotrf_batch
   #define kblasXpotrf_batch_strided kblasZpotrf_batch_strided
+
+  #define kblasXlauum_batch kblasZlauum_batch
+  #define kblasXlauum_batch_strided kblasZlauum_batch_strided
 
   #define cublasXgemm cublasZgemm
   #define cublasXgemmBatched cublasZgemmBatched

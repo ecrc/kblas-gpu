@@ -37,12 +37,14 @@
 
 
 //==============================================================================================
+/// Query workspace needed for batch GEMM with offset
 void gemm_batch_offset_wsquery_core(int batchCount,
                                     int A_row_off, int A_col_off,
                                     int B_row_off, int B_col_off,
                                     int C_row_off, int C_col_off,
                                     kblasWorkspaceState_t ws);
 
+/// Query workspace needed for batch strided GEMM
 void gemm_batch_strided_wsquery_core(int batchCount, kblasWorkspaceState_t ws);
 
 //==============================================================================================
@@ -96,13 +98,30 @@ inline
 void potrf_batch_wsquery_core(const int n, int batchCount, kblasWorkspaceState_t wss)
 {
   KBlasWorkspaceState ws_trsm;
-  int m = CLOSEST_REG_SIZE(n);
+  int n1 = CLOSEST_REG_SIZE(n);
 
   trsm_batch_wsquery_core<STRIDED>( batchCount,
-                                    KBLAS_Right, n, n,
+                                    KBLAS_Right, n-n1, n1,
                                     (kblasWorkspaceState_t)&ws_trsm);
 
-  syrk_batch_wsquery_core( n, batchCount, wss);
+  syrk_batch_wsquery_core( n-n1, batchCount, wss);
+
+  wss->pad(&ws_trsm);
+}
+
+//==============================================================================================
+template<bool STRIDED>
+inline
+void lauum_batch_wsquery_core(const int n, int batchCount, kblasWorkspaceState_t wss)
+{
+  KBlasWorkspaceState ws_trsm;
+  int n1 = CLOSEST_REG_SIZE(n);
+
+  trmm_batch_wsquery_core<STRIDED>( batchCount,
+                                    KBLAS_Left, n-n1, n1,
+                                    (kblasWorkspaceState_t)&ws_trsm);
+
+  syrk_batch_wsquery_core( n1, batchCount, wss);
 
   wss->pad(&ws_trsm);
 }

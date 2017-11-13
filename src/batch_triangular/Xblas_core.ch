@@ -39,13 +39,14 @@
 #include "kblas_prec_def.h"
 
 //==============================================================================================
-
+/// Query workspace needed for GEMM with offset
 void kblas_gemm_batch_wsquery(kblasHandle_t handle,
                               int batchCount,
                               int A_row_off, int A_col_off,
                               int B_row_off, int B_col_off,
                               int C_row_off, int C_col_off);
 
+/// Non-strided batch gemm with offset
 int kblas_gemm_batch( kblasHandle_t handle,
                       char transA, char transB,
                       const int m, const int n, const int k,

@@ -35,6 +35,12 @@
 #ifndef _KBLAS_H_
 #define _KBLAS_H_
 
+/** @defgroup C_API KBLAS C style API routines
+ */
+
+/** @defgroup CPP_API KBLAS C++ style API routines
+ */
+
 //TODO is this include necessary here?
 #include "defs.h"
 

@@ -39,11 +39,21 @@
 //wrappers around cuBLAS / MAGMA batch GEMM routines
 //############################################################################
 
+/// Workspace query for batch strided GEMM.
 void kblas_gemm_batch_strided_wsquery(kblasHandle_t handle, int batchCount);
 
+/** @addtogroup CPP_API
+*  @{
+*/
 #ifdef __cplusplus
+    /**
+     * @name Uniform-size batched GEMM wrapper functions around cuBLAS / MAGMA batch GEMM routines
+     */
+    //@{
     //------------------------------------------------------------------------------
-    // Non-Strided
+    /*
+     * @brief Non-Strided uniform-size single precision batched GEMM
+     */
     int kblas_gemm_batch( kblasHandle_t handle,
                           char transA, char transB,
                           const int m, const int n, const int k,
@@ -54,6 +64,9 @@ void kblas_gemm_batch_strided_wsquery(kblasHandle_t handle, int batchCount);
                                 float** C, int ldc,
                           int batchCount);
 
+    /**
+     * @brief Non-Strided uniform-size double precision batched GEMM
+     */
     int kblas_gemm_batch( kblasHandle_t handle,
                           char transA, char transB,
                           const int m, const int n, const int k,
@@ -64,6 +77,9 @@ void kblas_gemm_batch_strided_wsquery(kblasHandle_t handle, int batchCount);
                                 double** C, int ldc,
                           int batchCount);
 
+    /**
+     * @brief Non-Strided uniform-size single-complex precision batched GEMM
+     */
     int kblas_gemm_batch( kblasHandle_t handle,
                           char transA, char transB,
                           const int m, const int n, const int k,
@@ -74,6 +90,9 @@ void kblas_gemm_batch_strided_wsquery(kblasHandle_t handle, int batchCount);
                                 cuFloatComplex** C, int ldc,
                           int batchCount);
 
+    /**
+     * @brief Non-Strided uniform-size double-complex precision batched GEMM
+     */
     int kblas_gemm_batch( kblasHandle_t handle,
                           char transA, char transB,
                           const int m, const int n, const int k,
@@ -86,6 +105,10 @@ void kblas_gemm_batch_strided_wsquery(kblasHandle_t handle, int batchCount);
 
     //------------------------------------------------------------------------------
     // Strided
+
+    /**
+     * @brief Strided uniform-size single precision batched GEMM
+     */
     int kblas_gemm_batch( kblasHandle_t handle,
                           char transA, char transB,
                           const int m, const int n, const int k,
@@ -96,6 +119,9 @@ void kblas_gemm_batch_strided_wsquery(kblasHandle_t handle, int batchCount);
                                 float* C, int ldc, long strideC,
                           int batchCount);
 
+    /**
+     * @brief Strided uniform-size double precision batched GEMM
+     */
     int kblas_gemm_batch( kblasHandle_t handle,
                           char transA, char transB,
                           const int m, const int n, const int k,
@@ -106,6 +132,9 @@ void kblas_gemm_batch_strided_wsquery(kblasHandle_t handle, int batchCount);
                                 double* C, int ldc, long strideC,
                           int batchCount);
 
+    /**
+     * @brief Strided uniform-size single-complex precision batched GEMM
+     */
     int kblas_gemm_batch( kblasHandle_t handle,
                           char transA, char transB,
                           const int m, const int n, const int k,
@@ -116,6 +145,9 @@ void kblas_gemm_batch_strided_wsquery(kblasHandle_t handle, int batchCount);
                                 cuFloatComplex* C, int ldc, long strideC,
                           int batchCount);
 
+    /**
+     * @brief Strided uniform-size double-complex precision batched GEMM
+     */
     int kblas_gemm_batch( kblasHandle_t handle,
                           char transA, char transB,
                           const int m, const int n, const int k,
@@ -125,11 +157,19 @@ void kblas_gemm_batch_strided_wsquery(kblasHandle_t handle, int batchCount);
                           const cuDoubleComplex beta,
                                 cuDoubleComplex* C, int ldc, long strideC,
                           int batchCount);
+    //@}
 #endif
+/** @} */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/** @addtogroup C_API
+*  @{
+*/
+
+    /// Non-Strided single precision batched GEMM
     int kblasSgemm_batch( kblasHandle_t handle,
                           char transA, char transB,
                           const int m, const int n, const int k,
@@ -140,6 +180,7 @@ extern "C" {
                                 float** C, int ldc,
                           int batchCount);
 
+    /// Non-Strided single precision batched GEMM
     int kblasDgemm_batch( kblasHandle_t handle,
                           char transA, char transB,
                           const int m, const int n, const int k,
@@ -150,6 +191,7 @@ extern "C" {
                                 double** C, int ldc,
                           int batchCount);
 
+    /// Non-Strided single-complex precision batched GEMM
     int kblasCgemm_batch( kblasHandle_t handle,
                           char transA, char transB,
                           const int m, const int n, const int k,
@@ -160,6 +202,7 @@ extern "C" {
                                 cuFloatComplex** C, int ldc,
                           int batchCount);
 
+    /// Non-Strided double-complex precision batched GEMM
     int kblasZgemm_batch( kblasHandle_t handle,
                           char transA, char transB,
                           const int m, const int n, const int k,
@@ -171,7 +214,7 @@ extern "C" {
                           int batchCount);
 
     //------------------------------------------------------------------------------
-    // Strided
+    /// Strided single precision batched GEMM
     int kblasSgemm_batch_strided( kblasHandle_t handle,
                                   char transA, char transB,
                                   const int m, const int n, const int k,
@@ -182,6 +225,7 @@ extern "C" {
                                         float* C, int ldc, long strideC,
                                   int batchCount);
 
+    /// Strided single precision batched GEMM
     int kblasDgemm_batch_strided( kblasHandle_t handle,
                                   char transA, char transB,
                                   const int m, const int n, const int k,
@@ -192,6 +236,7 @@ extern "C" {
                                         double* C, int ldc, long strideC,
                                   int batchCount);
 
+    /// Strided single-complex precision batched GEMM
     int kblasCgemm_batch_strided( kblasHandle_t handle,
                                   char transA, char transB,
                                   const int m, const int n, const int k,
@@ -202,6 +247,7 @@ extern "C" {
                                         cuFloatComplex* C, int ldc, long strideC,
                                   int batchCount);
 
+    /// Strided double-complex precision batched GEMM
     int kblasZgemm_batch_strided( kblasHandle_t handle,
                                   char transA, char transB,
                                   const int m, const int n, const int k,
@@ -211,6 +257,7 @@ extern "C" {
                                   const cuDoubleComplex beta,
                                         cuDoubleComplex* C, int ldc, long strideC,
                                   int batchCount);
+/** @} */
 #ifdef __cplusplus
 }
 #endif
@@ -291,9 +338,14 @@ void kblas_syrk_batch_wsquery(kblasHandle_t handle, const int m, int batchCount)
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/** @addtogroup C_API
+*  @{
+*/
     //------------------------------------------------------------------------------
     // Non-Strided
 
+    /// Non-Strided uniform-size single precision batch SYRK
     int kblasSsyrk_batch( kblasHandle_t handle,
                           char uplo, char trans,
                           const int m, const int n,
@@ -301,6 +353,7 @@ extern "C" {
                           const float beta,        float** B, int ldb,
                           int batchCount);
 
+    /// Non-Strided uniform-size double precision batch SYRK
     int kblasDsyrk_batch( kblasHandle_t handle,
                           char uplo, char trans,
                           const int m, const int n,
@@ -308,6 +361,7 @@ extern "C" {
                           const double beta,        double** B, int ldb,
                           int batchCount);
 
+    /// Non-Strided uniform-size single-complex precision batch SYRK
     int kblasCsyrk_batch( kblasHandle_t handle,
                           char uplo, char trans,
                           const int m, const int n,
@@ -315,6 +369,7 @@ extern "C" {
                           const cuFloatComplex beta,        cuFloatComplex** B, int ldb,
                           int batchCount);
 
+    /// Non-Strided uniform-size double-complex precision batch SYRK
     int kblasZsyrk_batch( kblasHandle_t handle,
                           char uplo, char trans,
                           const int m, const int n,
@@ -352,6 +407,7 @@ extern "C" {
                                   const cuDoubleComplex alpha, const cuDoubleComplex* A, int lda, long strideA,
                                   const cuDoubleComplex beta,        cuDoubleComplex* B, int ldb, long strideB,
                                   int batchCount);
+/** @} */
 #ifdef __cplusplus
 }
 #endif
@@ -436,6 +492,9 @@ void kblas_trsm_batch_strided_wsquery(kblasHandle_t handle, int batchCount, char
 #ifdef __cplusplus
 extern "C" {
 #endif
+/** @addtogroup C_API
+*  @{
+*/
     //------------------------------------------------------------------------------
     // Non-Strided
 
@@ -505,6 +564,7 @@ extern "C" {
                                  const cuDoubleComplex* A, int lda, long strideA,
                                        cuDoubleComplex* B, int ldb, long strideB,
                                  int batchCount);
+/** @} */
 #ifdef __cplusplus
 }
 #endif
@@ -793,5 +853,7 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
+
+
 
 #endif // _KBLAS_BATCH_H_

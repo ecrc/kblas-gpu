@@ -56,9 +56,13 @@
 //=================================================================================
 //Non-Strided form
 
-
-// workspace needed: device pointers
-// A, B, C: host pointer to array of device pointers to device buffers
+/**
+ * Uniform-size batch non-strided GEMM wrapper
+ *
+ * Workspace needed: device pointers
+ * Use gemm_batch_offset_wsquery_core()
+ * A, B, C: host pointer to array of device pointers to device buffers
+ */
 int kblas_gemm_batch( kblasHandle_t handle,
                       char transA, char transB,
                       const int m, const int n, const int k,
@@ -79,8 +83,12 @@ int kblas_gemm_batch( kblasHandle_t handle,
                           batchCount);
 }
 
-// workspace needed: none
-// A, B, C: host pointer to array of device pointers to device buffers
+/**
+ *  Uniform-size batch non-strided GEMM wrapper
+ *
+ *  Workspace needed: none
+ *  @param A, B, C: host pointer to array of device pointers to device buffers
+ */
 int kblas_gemm_batch( kblasHandle_t handle,
                       char transA, char transB,
                       const int m, const int n, const int k,
@@ -127,14 +135,12 @@ int kblasXgemm_batch( kblasHandle_t handle,
 //TODO IMPORTANT: stride should be long long int since it is a memory address measure
 
 
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++
-#if ( __CUDACC_VER_MAJOR__ < 8 )
-// workspace needed: device pointers
-#else //( __CUDACC_VER_MAJOR__ < 8 )
-//workspace needed: none
-#endif //( __CUDACC_VER_MAJOR__ < 8 )
-
-// A, B, C: host pointers to device buffers
+/**
+ * Uniform-size batch strided GEMM wrapper
+ *
+ * Workspace needed= ( __CUDACC_VER_MAJOR__ < 8 ) ? device pointers : none
+ * @param A, B, C: host pointers to device buffers
+ */
 int kblas_gemm_batch( kblasHandle_t handle,
                       char transA, char transB,
                       const int m, const int n, const int k,

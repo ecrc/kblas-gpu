@@ -82,4 +82,21 @@ int Xtrsm_batch_offset( kblasHandle_t handle,
                               TYPE* B, int B_row_off, int B_col_off, int ldb, long strideB,
                         int batchCount);
 
+//==============================================================================================
+int Xtrmm_batch_offset( kblasHandle_t handle,
+                        char side, char uplo, char trans, char diag,
+                        const int m, const int n,
+                        const TYPE alpha,
+                        const TYPE** A, int A_row_off, int A_col_off, int lda,
+                              TYPE** B, int B_row_off, int B_col_off, int ldb,
+                        int batchCount);
+
+int Xtrmm_batch_offset( kblasHandle_t handle,
+                        char side, char uplo, char trans, char diag,
+                        const int m, const int n,
+                        const TYPE alpha,
+                        const TYPE* A, int A_row_off, int A_col_off, int lda, long strideA,
+                              TYPE* B, int B_row_off, int B_col_off, int ldb, long strideB,
+                        int batchCount);
+
 #endif// __XBLAS_CORE__

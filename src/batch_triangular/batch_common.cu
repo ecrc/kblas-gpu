@@ -67,9 +67,7 @@ void gemm_batch_offset_wsquery_core(int batchCount,
     || (B_row_off > 0) || (B_col_off > 0)
     || (C_row_off > 0) || (C_col_off > 0) )
   {
-    ws->d_ptrs_bytes = (batchCount > 1) * batchCount * 3 * sizeof(void*);
-  }else{
-    ws->d_ptrs_bytes = 0;
+    ws->d_ptrs_bytes = kmax((batchCount > 1) * batchCount * 3 * sizeof(void*), ws->d_ptrs_bytes);
   }
 }
 
@@ -88,9 +86,7 @@ void kblas_gemm_batch_offset_wsquery(kblasHandle_t handle,
 void gemm_batch_strided_wsquery_core(int batchCount, kblasWorkspaceState_t ws)
 {
 #if ( __CUDACC_VER_MAJOR__ < 8 )
-  ws->d_ptrs_bytes = (batchCount > 1) * batchCount * 3 * sizeof(void*);
-#else//__CUDACC_VER_MAJOR__ < 8
-  ws->d_ptrs_bytes = 0;
+  ws->d_ptrs_bytes = kmax((batchCount > 1) * batchCount * 3 * sizeof(void*), ws->d_ptrs_bytes);
 #endif
 }
 
@@ -102,16 +98,14 @@ void kblas_gemm_batch_strided_wsquery(kblasHandle_t handle, int batchCount)
 //==============================================================================================
 void syrk_batch_wsquery_core(const int m, int batchCount, kblasWorkspaceState_t ws)
 {
-  if(m <= 16)
-    ws->d_ptrs_bytes = 0;
-  else
+  if(m > 16)
   {
     int depth = 0, s = 16;
     while(s < m){
       s = s << 1;
       depth++;
     }
-    ws->d_ptrs_bytes = (1 << (depth-1) ) * batchCount * 3 * sizeof(void*);
+    ws->d_ptrs_bytes = kmax((1 << (depth-1) ) * batchCount * 3 * sizeof(void*), ws->d_ptrs_bytes);
   }
 }
 
@@ -150,3 +144,22 @@ void kblas_potrf_batch_wsquery(kblasHandle_t handle, const int n, int batchCount
 void kblas_potrf_batch_strided_wsquery(kblasHandle_t handle, const int n, int batchCount){
   potrf_batch_wsquery_core<true>(n, batchCount, &(handle->work_space.requested_ws_state));
 }
+
+//==============================================================================================
+void kblas_lauum_batch_wsquery(kblasHandle_t handle, const int n, int batchCount){
+  lauum_batch_wsquery_core<false>(n, batchCount, &(handle->work_space.requested_ws_state));
+}
+
+void kblas_lauum_batch_strided_wsquery(kblasHandle_t handle, const int n, int batchCount){
+  lauum_batch_wsquery_core<true>(n, batchCount, &(handle->work_space.requested_ws_state));
+}
+
+//==============================================================================================
+void kblas_trtri_batch_wsquery(kblasHandle_t handle, const int n, int batchCount){
+  trtri_batch_wsquery_core<false>(n, batchCount, &(handle->work_space.requested_ws_state));
+}
+
+void kblas_trtri_batch_strided_wsquery(kblasHandle_t handle, const int n, int batchCount){
+  trtri_batch_wsquery_core<true>(n, batchCount, &(handle->work_space.requested_ws_state));
+}
+

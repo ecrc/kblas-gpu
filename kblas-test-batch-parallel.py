@@ -43,13 +43,15 @@ print 'NGPUS: ' + str(NGPUS)
 #check = ''
 check = ' -c'
 defaultBatchCount = 100
-TEST_BATCH_SVD = 0
-TEST_BATCH_QR = 0
+TEST_BATCH_SVD = 1
+TEST_BATCH_QR = 1
 TEST_BATCH_TRSM = 1
 TEST_BATCH_TRMM = 1
 TEST_BATCH_GEMM = 1
 TEST_BATCH_SYRK = 1
 TEST_BATCH_POTRF = 1
+TEST_BATCH_LAUUM = 1
+TEST_BATCH_TRTRI = 1
 
 #--------------------------------
 def task1(pVariants, pRanges, pExec, pOptions, pBatchCount, pDev, pOutfile):
@@ -133,7 +135,10 @@ if (TEST_BATCH_GEMM == 1):
                 'test_cgemm_batch',
                 'test_zgemm_batch'
                 ]
-    ranges = ['--range 32:256:32']
+    ranges = [
+              '--range 2:70+1',
+              '--range 32:256:32'
+              ]
     options = check
     batchCount = defaultBatchCount;
 
@@ -156,7 +161,10 @@ if (TEST_BATCH_TRMM == 1):
                 'test_ctrmm_batch',
                 'test_ztrmm_batch'
                 ]
-    ranges = ['--range 32:256:32']
+    ranges = [
+              '--range 2:70+1',
+              '--range 32:256:32'
+              ]
     options = check
     batchCount = defaultBatchCount;
 
@@ -178,7 +186,10 @@ if (TEST_BATCH_TRSM == 1):
                 # 'test_ctrsm_batch',
                 # 'test_ztrsm_batch'
                 ]
-    ranges = ['--range 32:256:32']
+    ranges = [
+              '--range 2:70+1',
+              '--range 32:256:32'
+              ]
     options = check
     batchCount = defaultBatchCount;
 
@@ -196,7 +207,10 @@ if (TEST_BATCH_SYRK == 1):
                 'test_csyrk_batch',
                 'test_zsyrk_batch'
                 ]
-    ranges = ['--range 32:256:32']
+    ranges = [
+              '--range 2:70+1',
+              '--range 32:256:32'
+              ]
     options = check
     batchCount = defaultBatchCount;
 
@@ -212,7 +226,50 @@ if (TEST_BATCH_POTRF == 1):
                 'test_cpotrf_batch',
                 'test_zpotrf_batch'
                 ]
-    ranges = ['--range 32:256:32']
+    ranges = [
+              '--range 2:70+1',
+              '--range 32:256:32'
+              ]
+    options = check
+    batchCount = defaultBatchCount;
+
+    parallelTaskLaunch(variants, programs, ranges, options, batchCount)
+
+############### BATCH_LAUUM
+if (TEST_BATCH_LAUUM == 1):
+    variants = ['-L',
+                # '-U',
+                ]
+    programs = ['test_slauum_batch',
+                'test_dlauum_batch',
+                'test_clauum_batch',
+                'test_zlauum_batch'
+                ]
+    ranges = [
+              '--range 2:70+1',
+              '--range 32:256:32'
+              ]
+    options = check
+    batchCount = defaultBatchCount;
+
+    parallelTaskLaunch(variants, programs, ranges, options, batchCount)
+
+############### BATCH_TRTRI
+if (TEST_BATCH_TRTRI == 1):
+    variants = ['-L -DN',
+                # '-L -DU',
+                # '-U -DN',
+                # '-U -DU',
+                ]
+    programs = ['test_strtri_batch',
+                'test_dtrtri_batch',
+                'test_ctrtri_batch',
+                'test_ztrtri_batch'
+                ]
+    ranges = [
+              '--range 2:70+1',
+              '--range 32:256:32'
+              ]
     options = check
     batchCount = defaultBatchCount;
 

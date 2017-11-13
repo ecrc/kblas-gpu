@@ -855,5 +855,272 @@ extern "C" {
 #endif
 
 
+//============================================================================
+// batch LAUUM
+
+void kblas_lauum_batch_wsquery(kblasHandle_t handle, const int n, int batchCount);
+void kblas_lauum_batch_strided_wsquery(kblasHandle_t handle, const int n, int batchCount);
+
+#ifdef __cplusplus
+    //------------------------------------------------------------------------------
+    // Non-Strided
+    int kblas_lauum_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          float** A, int lda,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_lauum_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          double** A, int lda,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_lauum_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          cuFloatComplex** A, int lda,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_lauum_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          cuDoubleComplex** A, int lda,
+                          int batchCount,
+                          int *info_array);
+
+    //------------------------------------------------------------------------------
+    // Strided
+    int kblas_lauum_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          float* A, int lda, long strideA,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_lauum_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          double* A, int lda, long strideA,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_lauum_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          cuFloatComplex* A, int lda, long strideA,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_lauum_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          cuDoubleComplex* A, int lda, long strideA,
+                          int batchCount,
+                          int *info_array);
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+    //------------------------------------------------------------------------------
+    // Non-Strided
+    int kblasSlauum_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          float** A, int lda,
+                          int batchCount,
+                          int *info_array);
+
+    int kblasDlauum_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          double** A, int lda,
+                          int batchCount,
+                          int *info_array);
+
+    int kblasClauum_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          cuFloatComplex** A, int lda,
+                          int batchCount,
+                          int *info_array);
+
+    int kblasZlauum_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          cuDoubleComplex** A, int lda,
+                          int batchCount,
+                          int *info_array);
+    //------------------------------------------------------------------------------
+    // Strided
+    int kblasSlauum_batch_strided(kblasHandle_t handle,
+                                  char uplo,
+                                  const int n,
+                                  float* A, int lda, long strideA,
+                                  int batchCount,
+                                  int *info_array);
+
+    int kblasDlauum_batch_strided(kblasHandle_t handle,
+                                  char uplo,
+                                  const int n,
+                                  double* A, int lda, long strideA,
+                                  int batchCount,
+                                  int *info_array);
+
+    int kblasClauum_batch_strided(kblasHandle_t handle,
+                                  char uplo,
+                                  const int n,
+                                  cuFloatComplex* A, int lda, long strideA,
+                                  int batchCount,
+                                  int *info_array);
+
+    int kblasZlauum_batch_strided(kblasHandle_t handle,
+                                  char uplo,
+                                  const int n,
+                                  cuDoubleComplex* A, int lda, long strideA,
+                                  int batchCount,
+                                  int *info_array);
+#ifdef __cplusplus
+}
+#endif
+
+//============================================================================
+// batch TRTRI
+
+void kblas_trtri_batch_wsquery(kblasHandle_t handle, const int n, int batchCount);
+void kblas_trtri_batch_strided_wsquery(kblasHandle_t handle, const int n, int batchCount);
+
+#ifdef __cplusplus
+    //------------------------------------------------------------------------------
+    // Non-Strided
+    int kblas_trtri_batch(kblasHandle_t handle,
+                          char uplo, char diag,
+                          const int n,
+                          float** A, int lda,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_trtri_batch(kblasHandle_t handle,
+                          char uplo, char diag,
+                          const int n,
+                          double** A, int lda,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_trtri_batch(kblasHandle_t handle,
+                          char uplo, char diag,
+                          const int n,
+                          cuFloatComplex** A, int lda,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_trtri_batch(kblasHandle_t handle,
+                          char uplo, char diag,
+                          const int n,
+                          cuDoubleComplex** A, int lda,
+                          int batchCount,
+                          int *info_array);
+
+    //------------------------------------------------------------------------------
+    // Strided
+    int kblas_trtri_batch(kblasHandle_t handle,
+                          char uplo, char diag,
+                          const int n,
+                          float* A, int lda, long strideA,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_trtri_batch(kblasHandle_t handle,
+                          char uplo, char diag,
+                          const int n,
+                          double* A, int lda, long strideA,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_trtri_batch(kblasHandle_t handle,
+                          char uplo, char diag,
+                          const int n,
+                          cuFloatComplex* A, int lda, long strideA,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_trtri_batch(kblasHandle_t handle,
+                          char uplo, char diag,
+                          const int n,
+                          cuDoubleComplex* A, int lda, long strideA,
+                          int batchCount,
+                          int *info_array);
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+    //------------------------------------------------------------------------------
+    // Non-Strided
+    int kblasStrtri_batch(kblasHandle_t handle,
+                          char uplo, char diag,
+                          const int n,
+                          float** A, int lda,
+                          int batchCount,
+                          int *info_array);
+
+    int kblasDtrtri_batch(kblasHandle_t handle,
+                          char uplo, char diag,
+                          const int n,
+                          double** A, int lda,
+                          int batchCount,
+                          int *info_array);
+
+    int kblasCtrtri_batch(kblasHandle_t handle,
+                          char uplo, char diag,
+                          const int n,
+                          cuFloatComplex** A, int lda,
+                          int batchCount,
+                          int *info_array);
+
+    int kblasZtrtri_batch(kblasHandle_t handle,
+                          char uplo, char diag,
+                          const int n,
+                          cuDoubleComplex** A, int lda,
+                          int batchCount,
+                          int *info_array);
+    //------------------------------------------------------------------------------
+    // Strided
+    int kblasStrtri_batch_strided(kblasHandle_t handle,
+                                  char uplo, char diag,
+                                  const int n,
+                                  float* A, int lda, long strideA,
+                                  int batchCount,
+                                  int *info_array);
+
+    int kblasDtrtri_batch_strided(kblasHandle_t handle,
+                                  char uplo, char diag,
+                                  const int n,
+                                  double* A, int lda, long strideA,
+                                  int batchCount,
+                                  int *info_array);
+
+    int kblasCtrtri_batch_strided(kblasHandle_t handle,
+                                  char uplo, char diag,
+                                  const int n,
+                                  cuFloatComplex* A, int lda, long strideA,
+                                  int batchCount,
+                                  int *info_array);
+
+    int kblasZtrtri_batch_strided(kblasHandle_t handle,
+                                  char uplo, char diag,
+                                  const int n,
+                                  cuDoubleComplex* A, int lda, long strideA,
+                                  int batchCount,
+                                  int *info_array);
+#ifdef __cplusplus
+}
+#endif
+
+
 
 #endif // _KBLAS_BATCH_H_

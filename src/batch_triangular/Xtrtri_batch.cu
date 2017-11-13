@@ -49,30 +49,30 @@
 //==============================================================================================
 #include "Xblas_core.ch"
 #include "Xhelper_funcs.ch"
-#include "Xpotrf_batch_drivers.cuh"
+#include "Xtrtri_batch_drivers.cuh"
 
 //==============================================================================================
 //Non-Strided form
 
 // workspace needed: device pointers
 // A: host pointer to device buffer
-int Xpotrf_batch_offset(kblasHandle_t handle,
-                        char uplo,
+int Xtrtri_batch_offset(kblasHandle_t handle,
+                        char uplo, char diag,
                         const int n,
                         TYPE** A, int A_row_off, int A_col_off, int lda,
                         int batchCount,
                         int *info_array)
 {
   KBlasWorkspaceState ws_needed;
-  potrf_batch_wsquery_core<false>( n, batchCount, (kblasWorkspaceState_t)&ws_needed);
+  trtri_batch_wsquery_core<false>( n, batchCount, (kblasWorkspaceState_t)&ws_needed);
 
   if( !ws_needed.isSufficient( &(handle->work_space.allocated_ws_state) ) ){
     return KBLAS_InsufficientWorkspace;
   }
 
-  return Xpotrf_batch_core<TYPE, TYPE**, false>(
+  return Xtrtri_batch_core<TYPE, TYPE**, false>(
                           handle,
-                          uplo, n,
+                          uplo, diag, n,
                           (TYPE**)A, A_row_off, A_col_off, lda, (long)0,
                           batchCount,
                           info_array);
@@ -80,15 +80,15 @@ int Xpotrf_batch_offset(kblasHandle_t handle,
 
 // workspace needed: device pointers
 // A: host pointer to device buffer
-int kblas_potrf_batch(kblasHandle_t handle,
-                      char uplo,
+int kblas_trtri_batch(kblasHandle_t handle,
+                      char uplo, char diag,
                       const int n,
                       TYPE** A, int lda,
                       int batchCount,
                       int *info_array)
 {
-  return Xpotrf_batch_offset( handle,
-                              uplo, n,
+  return Xtrtri_batch_offset( handle,
+                              uplo, diag, n,
                               A, 0, 0, lda,
                               batchCount,
                               info_array);
@@ -98,15 +98,15 @@ int kblas_potrf_batch(kblasHandle_t handle,
 // workspace needed: device pointers
 // A: host pointer to device buffer
 extern "C"
-int kblasXpotrf_batch(kblasHandle_t handle,
-                      char uplo,
+int kblasXtrtri_batch(kblasHandle_t handle,
+                      char uplo, char diag,
                       const int n,
                       TYPE** A, int lda,
                       int batchCount,
                       int *info_array)
 {
-  return Xpotrf_batch_offset( handle,
-                              uplo, n,
+  return Xtrtri_batch_offset( handle,
+                              uplo, diag, n,
                               A, 0, 0, lda,
                               batchCount,
                               info_array);
@@ -119,23 +119,23 @@ int kblasXpotrf_batch(kblasHandle_t handle,
 
 // workspace needed: device pointers
 // A: host pointer to device buffer
-int Xpotrf_batch_offset(kblasHandle_t handle,
-                        char uplo,
+int Xtrtri_batch_offset(kblasHandle_t handle,
+                        char uplo, char diag,
                         const int n,
                         TYPE* A, int A_row_off, int A_col_off, int lda, long strideA,
                         int batchCount,
                         int *info_array)
 {
   KBlasWorkspaceState ws_needed;
-  potrf_batch_wsquery_core<true>( n, batchCount, (kblasWorkspaceState_t)&ws_needed);
+  trtri_batch_wsquery_core<true>( batchCount, n, (kblasWorkspaceState_t)&ws_needed);
 
   if( !ws_needed.isSufficient( &(handle->work_space.allocated_ws_state) ) ){
     return KBLAS_InsufficientWorkspace;
   }
 
-  return Xpotrf_batch_core<TYPE, TYPE*, true>(
+  return Xtrtri_batch_core<TYPE, TYPE*, true>(
                           handle,
-                          uplo, n,
+                          uplo, diag, n,
                           (TYPE*)A, A_row_off, A_col_off, lda, strideA,
                           batchCount,
                           info_array);
@@ -143,15 +143,15 @@ int Xpotrf_batch_offset(kblasHandle_t handle,
 
 // workspace needed: device pointers
 // A: host pointer to device buffer
-int kblas_potrf_batch(kblasHandle_t handle,
-                      char uplo,
+int kblas_trtri_batch(kblasHandle_t handle,
+                      char uplo, char diag,
                       const int n,
                       TYPE* A, int lda, long strideA,
                       int batchCount,
                       int *info_array)
 {
-  return Xpotrf_batch_offset( handle,
-                              uplo, n,
+  return Xtrtri_batch_offset( handle,
+                              uplo, diag, n,
                               A, 0, 0, lda, strideA,
                               batchCount,
                               info_array);
@@ -160,15 +160,15 @@ int kblas_potrf_batch(kblasHandle_t handle,
 // workspace needed: device pointers
 // A: host pointer to device buffer
 extern "C"
-int kblasXpotrf_batch_strided(kblasHandle_t handle,
-                              char uplo,
+int kblasXtrtri_batch_strided(kblasHandle_t handle,
+                              char uplo, char diag,
                               const int n,
                               TYPE* A, int lda, long strideA,
                               int batchCount,
                               int *info_array)
 {
-  return Xpotrf_batch_offset( handle,
-                              uplo, n,
+  return Xtrtri_batch_offset( handle,
+                              uplo, diag, n,
                               A, 0, 0, lda, strideA,
                               batchCount,
                               info_array);

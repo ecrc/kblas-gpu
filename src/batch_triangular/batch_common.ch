@@ -116,5 +116,22 @@ void lauum_batch_wsquery_core(const int n, int batchCount, kblasWorkspaceState_t
   syrk_batch_wsquery_core( n1, batchCount, wss);
 }
 
+//==============================================================================================
+template<bool STRIDED>
+inline
+void trtri_batch_wsquery_core(const int n, int batchCount, kblasWorkspaceState_t wss)
+{
+  if(n > 16){
+    int n1 = CLOSEST_REG_SIZE(n);
+
+    trsm_batch_wsquery_core<STRIDED>( batchCount,
+                                      KBLAS_Left, n-n1, n1,
+                                      wss);
+
+    trsm_batch_wsquery_core<STRIDED>( batchCount,
+                                      KBLAS_Right, n-n1, n1,
+                                      wss);
+  }
+}
 
 #endif //__KBLAS_BATCH_COMMON_H__

@@ -154,3 +154,12 @@ void kblas_lauum_batch_strided_wsquery(kblasHandle_t handle, const int n, int ba
   lauum_batch_wsquery_core<true>(n, batchCount, &(handle->work_space.requested_ws_state));
 }
 
+//==============================================================================================
+void kblas_trtri_batch_wsquery(kblasHandle_t handle, const int n, int batchCount){
+  trtri_batch_wsquery_core<false>(n, batchCount, &(handle->work_space.requested_ws_state));
+}
+
+void kblas_trtri_batch_strided_wsquery(kblasHandle_t handle, const int n, int batchCount){
+  trtri_batch_wsquery_core<true>(n, batchCount, &(handle->work_space.requested_ws_state));
+}
+

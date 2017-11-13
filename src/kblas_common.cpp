@@ -88,6 +88,9 @@ cudaStream_t kblasGetStream(kblasHandle_t handle) {
 
 void kblasSetStream(kblasHandle_t handle, cudaStream_t stream) {
 	handle->stream = stream;
+  if(handle->cublas_handle)
+    check_error( cublasSetStream(handle->cublas_handle, stream) );
+  // TODO need to set magma_queue stream also
 }
 
 cublasHandle_t kblasGetCublasHandle(kblasHandle_t handle) {

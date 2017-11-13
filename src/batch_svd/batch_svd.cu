@@ -72,15 +72,20 @@ void batch_wide_svd_workspace(int rows, int cols, int num_ops, KBlasWorkspaceSta
 template<class T>
 void batch_svd_randomized_workspace(int rows, int cols, int rank, int num_ops, KBlasWorkspaceState& requested_ws, int top_level)
 {
-	requested_ws.d_data_bytes += (
-		cols * rank + // Omega
-		rows * rank + // Y
-		rank * cols + // B
-		rank * rank + // R
-		rank          // tau
-	) * sizeof(T) * num_ops;
+	if(rank > cols || rank > rows) return;
+	
+	if(rank < cols)
+	{
+		requested_ws.d_data_bytes += (
+			cols * rank + // Omega
+			rows * rank + // Y
+			rank * cols + // B
+			rank * rank + // R
+			rank          // tau
+		) * sizeof(T) * num_ops;
 
-	requested_ws.d_ptrs_bytes += 5 * sizeof(T*) * num_ops;
+		requested_ws.d_ptrs_bytes += 5 * sizeof(T*) * num_ops;
+	}
 	
 	// Do we need to do osbj of the rank x rank matrix?
 	if(!top_level && rank > SHARED_SVD_DIM_LIMIT)
@@ -91,10 +96,10 @@ void batch_svd_randomized_workspace(int rows, int cols, int rank, int num_ops, K
 // Random matrix geenration using curand for the RSVD
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 template<class T>
-inline void generateRandomMatrices(T* d_m, int rows, int cols, unsigned int seed, int num_ops, cudaStream_t stream = 0);
+inline int generateRandomMatrices(T* d_m, int rows, int cols, unsigned int seed, int num_ops, cudaStream_t stream = 0);
 
 template<>
-inline void generateRandomMatrices(float* d_m, int rows, int cols, unsigned int seed, int num_ops, cudaStream_t stream)
+inline int generateRandomMatrices(float* d_m, int rows, int cols, unsigned int seed, int num_ops, cudaStream_t stream)
 {
     curandGenerator_t gen;
     curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
@@ -104,10 +109,13 @@ inline void generateRandomMatrices(float* d_m, int rows, int cols, unsigned int 
     curandGenerateNormal(gen, d_m, num_ops * rows * cols, 0, 1);
 
     curandDestroyGenerator(gen);
+	
+	check_error_ret( cudaGetLastError(), KBLAS_UnknownError );
+	return KBLAS_Success;
 }
 
 template<>
-inline void generateRandomMatrices(double* d_m, int rows, int cols, unsigned int seed, int num_ops, cudaStream_t stream)
+inline int generateRandomMatrices(double* d_m, int rows, int cols, unsigned int seed, int num_ops, cudaStream_t stream)
 {
     curandGenerator_t gen;
     curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
@@ -117,6 +125,9 @@ inline void generateRandomMatrices(double* d_m, int rows, int cols, unsigned int
     curandGenerateNormalDouble(gen, d_m, num_ops * rows * cols, 0, 1);
 
     curandDestroyGenerator(gen);
+	
+	check_error_ret( cudaGetLastError(), KBLAS_UnknownError );
+	return KBLAS_Success;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -208,7 +219,7 @@ int batchNormalizeColumns(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s,
 }
 
 template<class T, class T_ptr>
-void batchMaxOffdiagonalSum(T_ptr M, int ldm, int stride_m, int rows, int cols, T* offdiagonal, int num_ops, kblasHandle_t handle)
+int batchMaxOffdiagonalSum(T_ptr M, int ldm, int stride_m, int rows, int cols, T* offdiagonal, int num_ops, kblasHandle_t handle)
 {
     int ops_per_block = std::min(16, num_ops);
     int cols_per_thread = iDivUp(cols, WARP_SIZE);
@@ -220,6 +231,9 @@ void batchMaxOffdiagonalSum(T_ptr M, int ldm, int stride_m, int rows, int cols, 
     int smem_needed = ops_per_block * cols * sizeof(T);
     batchMaxOffdiagonalSumKernel<T, T_ptr>
 		<<< dimGrid, dimBlock, smem_needed, handle->stream >>>(M, ldm, stride_m, rows, cols, cols_per_thread, offdiagonal, num_ops);
+		
+	check_error_ret( cudaGetLastError(), KBLAS_UnknownError );
+	return KBLAS_Success;
 }
 
 // Special routine to handle tall ( rows in [65, 512] and cols <= 64 at this point) matrix svd
@@ -238,7 +252,7 @@ int batch_tall_svd(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int ro
 	
 	if(op_increment == 0)
 		return KBLAS_InsufficientWorkspace;
-
+	
 	T* R_strided   = (T*)handle->work_space.push_d_data(local_ws_per_op.d_data_bytes * op_increment);
 	T* tau_strided = R_strided + cols * cols * op_increment;
 	T* Q_strided   = tau_strided + cols * op_increment;
@@ -248,6 +262,11 @@ int batch_tall_svd(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int ro
 	T** M_ptrs     = R_ptrs + op_increment;
 	T** tau_ptrs   = M_ptrs + op_increment;
 
+	// Make sure the allocate workspace is popped when the function returns (success or not)
+	local_ws_per_op.d_data_bytes *= op_increment;
+	local_ws_per_op.d_ptrs_bytes *= op_increment;
+	KBlasWorkspaceGuard guard(local_ws_per_op, handle->work_space);
+	
 	// Generate the pointers for the workspace data only once
 	generateArrayOfPointers(Q_strided, Q_ptrs, rows * cols, op_increment, handle->stream);
 	generateArrayOfPointers(R_strided, R_ptrs, cols * cols, op_increment, handle->stream);
@@ -264,25 +283,32 @@ int batch_tall_svd(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int ro
 		generateArrayOfPointers(M_batch, M_ptrs, stride_m, batch_size, handle->stream);
 	
 		// [Q, R] = qr(M)
-		kblas_geqrf_batch(handle, rows, cols, M_batch, ldm, stride_m, selectPointerData<T, T_ptr>(tau_strided, tau_ptrs), cols, batch_size);
-		kblas_copy_upper_batch(handle, rows, cols, M_batch, ldm, stride_m, selectPointerData<T, T_ptr>(R_strided, R_ptrs), cols, cols * cols, batch_size);
-		kblas_orgqr_batch(handle, rows, cols, M_batch, ldm, stride_m, selectPointerData<T, T_ptr>(tau_strided, tau_ptrs), cols, batch_size);
-		kblas_copyBlock_batch(handle, rows, cols, selectPointerData<T, T_ptr>(Q_strided, Q_ptrs), 0, 0, rows, rows * cols, M_batch, 0, 0, ldm, stride_m, batch_size);
+		check_error_forward( kblas_geqrf_batch(
+			handle, rows, cols, M_batch, ldm, stride_m, selectPointerData<T, T_ptr>(tau_strided, tau_ptrs), cols, batch_size
+		) );
+		check_error_forward( kblas_copy_upper_batch(
+			handle, rows, cols, M_batch, ldm, stride_m, selectPointerData<T, T_ptr>(R_strided, R_ptrs), cols, cols * cols, batch_size
+		) );
+		check_error_forward( kblas_orgqr_batch(
+			handle, rows, cols, M_batch, ldm, stride_m, selectPointerData<T, T_ptr>(tau_strided, tau_ptrs), cols, batch_size
+		) );
+		check_error_forward( kblas_copyBlock_batch(
+			handle, rows, cols, selectPointerData<T, T_ptr>(Q_strided, Q_ptrs), 0, 0, rows, rows * cols, M_batch, 0, 0, ldm, stride_m, batch_size
+		) );
 		
 		// [U, S, ~] = svd(R)
-		batch_svd_small<T, T_ptr>(selectPointerData<T, T_ptr>(R_strided, R_ptrs), cols, cols * cols, S_batch, stride_s, cols, cols, batch_size, handle);
+		check_error_forward(( batch_svd_small<T, T_ptr>(
+			selectPointerData<T, T_ptr>(R_strided, R_ptrs), cols, cols * cols, S_batch, stride_s, cols, cols, batch_size, handle
+		) ));
 
 		// M = Q * U
-		kblas_gemm_batch(
+		check_error_forward( kblas_gemm_batch(
 			handle, KBLAS_NoTrans, KBLAS_NoTrans,
 			rows, cols, cols, 1,
 			(const T**)Q_ptrs, rows, (const T**)R_ptrs, cols,
 			0, M_ptrs, ldm, batch_size
-		);
+		) );
 	}
-	
-	handle->work_space.pop_d_ptrs(local_ws_per_op.d_ptrs_bytes * op_increment);
-	handle->work_space.pop_d_data(local_ws_per_op.d_data_bytes * op_increment);
 	
 	return KBLAS_Success;
 }
@@ -295,7 +321,8 @@ int batch_svd_osbj(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int ro
 	if(cols <= SHARED_SVD_DIM_LIMIT && rows <= SHARED_SVD_DIM_LIMIT)
 		return batch_svd_small<T, T_ptr>(M, ldm, stride_m, S, stride_s, rows, cols, num_ops, handle);
 
-    T tolerance = OSBJ_BS * KBlasEpsilon<T>::eps * cols * cols;
+    // T tolerance = OSBJ_BS * KBlasEpsilon<T>::eps * cols * cols;
+	T tolerance = OSBJ_BS * KBlasEpsilon<T>::eps * cols;
 	int block_cols = iDivUp(cols, OSBJ_BS);
 	
 	KBlasWorkspaceState ws_per_op, local_ws_per_op;
@@ -325,6 +352,11 @@ int batch_svd_osbj(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int ro
 	T** temp_i_ptrs  = gram_jj_ptrs + op_increment;
 	T** temp_j_ptrs  = temp_i_ptrs  + op_increment;
 
+	// Make sure the allocate workspace is popped when the function returns (success or not)
+	local_ws_per_op.d_data_bytes *= op_increment;
+	local_ws_per_op.d_ptrs_bytes *= op_increment;
+	KBlasWorkspaceGuard guard(local_ws_per_op, handle->work_space);
+	
 	std::vector<T**> block_col_ptrs(block_cols);
 	for(int i = 0; i < block_cols; i++)
         block_col_ptrs[i] = temp_j_ptrs + (i + 1) * op_increment;
@@ -369,63 +401,79 @@ int batch_svd_osbj(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int ro
 					// form the gram matrix in one gemm instead of 4
 					int Aij_cols = i_cols + j_cols;
 
-					kblas_copyBlock_batch(handle, rows, i_cols, temp_i_ptrs, 0, 0, rows, block_col_ptrs[i], 0, 0, ldm, batch_size);
-					kblas_copyBlock_batch(handle, rows, j_cols, temp_j_ptrs, 0, 0, rows, block_col_ptrs[j], 0, 0, ldm, batch_size);
+					check_error_forward( kblas_copyBlock_batch(handle, rows, i_cols, temp_i_ptrs, 0, 0, rows, block_col_ptrs[i], 0, 0, ldm, batch_size) );
+					check_error_forward( kblas_copyBlock_batch(handle, rows, j_cols, temp_j_ptrs, 0, 0, rows, block_col_ptrs[j], 0, 0, ldm, batch_size) );
 
 					if(use_gram)
 					{
 						// Get the gram matrix for the blocks i and j
 						// G = [Gii Gij; Gji Gjj]
-						kblas_gemm_batch(
+						check_error_forward( kblas_gemm_batch(
 							handle, KBLAS_Trans, KBLAS_NoTrans, Aij_cols, Aij_cols, rows, 1, 
 							(const T**)temp_i_ptrs, rows, (const T**)temp_i_ptrs, rows, 0, 
 							gram_ii_ptrs, 2 * OSBJ_BS, batch_size
-						);
+						) );
 
 						// Get the sum of the offdiagonal terms of G
-						batchMaxOffdiagonalSum<T, T*>(gram_strided, 2 * OSBJ_BS, 4 * OSBJ_BS * OSBJ_BS, Aij_cols, Aij_cols, offdiagonal, batch_size, handle);
+						check_error_forward(( batchMaxOffdiagonalSum<T, T*>(
+							gram_strided, 2 * OSBJ_BS, 4 * OSBJ_BS * OSBJ_BS, Aij_cols, Aij_cols, offdiagonal, batch_size, handle
+						) ));
 
 						// Get the SVD of G
-						batch_svd_small<T, T*>(gram_strided, 2 * OSBJ_BS, 4 * OSBJ_BS * OSBJ_BS, svals_strided, 2 * OSBJ_BS, Aij_cols, Aij_cols, batch_size, handle);
+						check_error_forward(( batch_svd_small<T, T*>(
+							gram_strided, 2 * OSBJ_BS, 4 * OSBJ_BS * OSBJ_BS, svals_strided, 2 * OSBJ_BS, Aij_cols, Aij_cols, batch_size, handle
+						) ));
 					}
 					else
 					{
 						// Get the QR decomposition of the block column and store R in G
-						kblas_geqrf_batch(handle, rows, Aij_cols, Aij_strided, rows, rows * 2 * OSBJ_BS, tau_strided, 2 * OSBJ_BS, batch_size);
-						kblas_copy_upper_batch(handle, rows, Aij_cols, Aij_strided, rows, rows * 2 * OSBJ_BS, gram_strided, 2 * OSBJ_BS, 4 * OSBJ_BS * OSBJ_BS, batch_size);
+						check_error_forward( kblas_geqrf_batch(
+							handle, rows, Aij_cols, Aij_strided, rows, rows * 2 * OSBJ_BS, tau_strided, 2 * OSBJ_BS, batch_size
+						) );
+						check_error_forward( kblas_copy_upper_batch(
+							handle, rows, Aij_cols, Aij_strided, rows, rows * 2 * OSBJ_BS, gram_strided, 2 * OSBJ_BS, 4 * OSBJ_BS * OSBJ_BS, batch_size
+						) );
 
 						// Get the sum of the offdiagonal terms of G
-						batchMaxOffdiagonalSum<T, T*>(gram_strided, 2 * OSBJ_BS, 4 * OSBJ_BS * OSBJ_BS, Aij_cols, Aij_cols, offdiagonal, batch_size, handle);
+						check_error_forward(( batchMaxOffdiagonalSum<T, T*>(
+							gram_strided, 2 * OSBJ_BS, 4 * OSBJ_BS * OSBJ_BS, Aij_cols, Aij_cols, offdiagonal, batch_size, handle
+						) ));
 
 						// Get the SVD of G
-						batch_svd_small<T, T*>(gram_strided, 2 * OSBJ_BS, 4 * OSBJ_BS * OSBJ_BS, svals_strided, 2 * OSBJ_BS, Aij_cols, Aij_cols, 0, batch_size, handle);
+						check_error_forward(( batch_svd_small<T, T*>(
+							gram_strided, 2 * OSBJ_BS, 4 * OSBJ_BS * OSBJ_BS, svals_strided, 2 * OSBJ_BS, Aij_cols, Aij_cols, 0, batch_size, handle
+						) ));
 
 						// Get Q from the reflectors
-						kblas_orgqr_batch(handle, rows, Aij_cols, Aij_strided, rows, rows * 2 * OSBJ_BS, tau_strided, 2 * OSBJ_BS, batch_size);
+						check_error_forward( kblas_orgqr_batch(
+							handle, rows, Aij_cols, Aij_strided, rows, rows * 2 * OSBJ_BS, tau_strided, 2 * OSBJ_BS, batch_size
+						) );
 					}
 
 					// Rotate the block columns
-					kblas_gemm_batch(
+					check_error_forward( kblas_gemm_batch(
 						handle, KBLAS_NoTrans, KBLAS_NoTrans, rows, i_cols, i_cols, 1, 
 						(const T**)temp_i_ptrs, rows, (const T**)gram_ii_ptrs, 2 * OSBJ_BS, 0, 
 						block_col_ptrs[i], ldm, batch_size
-					);
-					kblas_gemm_batch(
+					) );
+					
+					check_error_forward( kblas_gemm_batch(
 						handle, KBLAS_NoTrans, KBLAS_NoTrans, rows, i_cols, j_cols, 1, 
 						(const T**)temp_j_ptrs, rows, (const T**)gram_ji_ptrs, 2 * OSBJ_BS, 1, 
 						block_col_ptrs[i], ldm, batch_size
-					);
+					) );
 
-					kblas_gemm_batch(
+					check_error_forward( kblas_gemm_batch(
 						handle, KBLAS_NoTrans, KBLAS_NoTrans, rows, j_cols, j_cols, 1, 
 						(const T**)temp_j_ptrs, rows, (const T**)gram_jj_ptrs, 2 * OSBJ_BS, 0, 
 						block_col_ptrs[j], ldm, batch_size
-					);
-					kblas_gemm_batch(
+					) );
+					
+					check_error_forward( kblas_gemm_batch(
 						handle, KBLAS_NoTrans, KBLAS_NoTrans, rows, j_cols, i_cols, 1, 
 						(const T**)temp_i_ptrs, rows, (const T**)gram_ij_ptrs, 2 * OSBJ_BS, 1, 
 						block_col_ptrs[j], ldm, batch_size
-					);
+					) );
 				}
 			}
 			T max_off_diag = getMaxElement(offdiagonal, batch_size, handle->stream);
@@ -435,14 +483,13 @@ int batch_svd_osbj(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int ro
 		}
 
 		// Normalize the columns of the matrix and compute the singular values
-		batchNormalizeColumns<T, T_ptr>(M_batch, ldm, stride_m, S_batch, stride_s, rows, cols, batch_size, handle);
+		check_error_forward(( batchNormalizeColumns<T, T_ptr>(
+			M_batch, ldm, stride_m, S_batch, stride_s, rows, cols, batch_size, handle
+		) ));
 		
 		if(converged != 1) 
 			result = KBLAS_SVD_NoConvergence;
 	}
-
-	handle->work_space.pop_d_ptrs(local_ws_per_op.d_ptrs_bytes * op_increment);
-	handle->work_space.pop_d_data(local_ws_per_op.d_data_bytes * op_increment);
 	
 	return result;
 }
@@ -501,7 +548,12 @@ int batch_svd_randomized(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, 
 	T** Y_ptrs       = M_ptrs     + op_increment;
 	T** B_ptrs       = Y_ptrs     + op_increment;
 	T** R_ptrs       = B_ptrs     + op_increment;
-
+	
+	// Make sure the allocate workspace is popped when the function returns (success or not)
+	local_ws_per_op.d_data_bytes *= op_increment;
+	local_ws_per_op.d_ptrs_bytes *= op_increment;
+	KBlasWorkspaceGuard guard(local_ws_per_op, handle->work_space);
+	
 	// Generate array of pointers for the intermediate data
 	generateArrayOfPointers(Omega_strided, Omega_ptrs, cols * rank, op_increment, handle->stream);
 	generateArrayOfPointers(Y_strided,     Y_ptrs,     rows * rank, op_increment, handle->stream);
@@ -517,7 +569,9 @@ int batch_svd_randomized(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, 
 		T_ptr S_batch = advanceOperationPtr(S, op_start, stride_s);
 
 		// generate the sampling matrices
-		generateRandomMatrices(Omega_strided, cols, rank, op_start, batch_size, handle->stream);
+		check_error_forward( generateRandomMatrices(
+			Omega_strided, cols, rank, op_start, batch_size, handle->stream
+		) );
 
 		// generate the pointer arrays
 		generateArrayOfPointers(M_batch, M_ptrs, stride_m, batch_size, handle->stream);
@@ -526,57 +580,67 @@ int batch_svd_randomized(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, 
 		T alpha = 1, beta = 0;
 
 		// First form the sampled matrix Y = A * omega
-		kblas_gemm_batch(
+		check_error_forward( kblas_gemm_batch(
 			handle, KBLAS_NoTrans, KBLAS_NoTrans, rows, rank, cols, alpha,
 			(const T**)M_ptrs, ldm, (const T**)Omega_ptrs, cols, beta, 
 			Y_ptrs, rows, batch_size
-		);
+		) );
 
 		// Overwrite Y with Q of its QR decomposition
-		kblas_geqrf_batch(handle, rows, rank, Y_strided, rows, rows * rank, tau_strided, rank, batch_size);
-		kblas_geqrf_batch(handle, rows, rank, Y_strided, rows, rows * rank, tau_strided, rank, batch_size);
+		check_error_forward( kblas_geqrf_batch(
+			handle, rows, rank, Y_strided, rows, rows * rank, tau_strided, rank, batch_size
+		) );
+		check_error_forward( kblas_orgqr_batch(
+			handle, rows, rank, Y_strided, rows, rows * rank, tau_strided, rank, batch_size
+		) );
 
 		// Form B = A' * Q_Y
-		kblas_gemm_batch(
+		check_error_forward( kblas_gemm_batch(
 			handle, KBLAS_Trans, KBLAS_NoTrans, cols, rank, rows, alpha,
 			(const T**)M_ptrs, ldm, (const T**)Y_ptrs, rows, beta, 
 			B_ptrs, cols, batch_size
-		);
+		) );
 
 		// Do the QR of B - we only need the Q of B if we want the right singular vectors
-		kblas_geqrf_batch(
+		check_error_forward( kblas_geqrf_batch(
 			handle, cols, rank, B_strided, cols, cols * rank,
 			tau_strided, rank, batch_size
-		);
-		kblas_copy_upper_batch(
+		) );
+		check_error_forward( kblas_copy_upper_batch(
 			handle, cols, rank, B_strided, cols, cols * rank,
 			R_strided, rank, rank * rank, batch_size
-		);
+		) );
 
 		// Transpose R so that we can get its right singular vectors when we
 		// do the svd (since the svd gets the left singular vectors, which are
 		// the right singular vectors of the transpose of the matrix). Store the
 		// transpose in omega
 		generateArrayOfPointers(Omega_strided, Omega_ptrs, rank * rank, batch_size, handle->stream);
-		kblas_transpose_batch(handle, rank, rank, R_ptrs, rank, Omega_ptrs, rank, batch_size);
+		check_error_forward( kblas_transpose_batch(
+			handle, rank, rank, R_ptrs, rank, Omega_ptrs, rank, batch_size
+		) );
 
 		// Now do the SVD of omega = R'
 		if(rank <= SHARED_SVD_DIM_LIMIT)
-			batch_svd_small<T, T_ptr>(selectPointerData<T, T_ptr>(Omega_strided, Omega_ptrs), rank, rank * rank, S_batch, stride_s, rank, rank, batch_size, handle);
+		{
+			check_error_forward(( batch_svd_small<T, T_ptr>(
+				selectPointerData<T, T_ptr>(Omega_strided, Omega_ptrs), rank, rank * rank, S_batch, stride_s, rank, rank, batch_size, handle
+			) ));
+		}
 		else
-			batch_svd_osbj_qr<T, T_ptr>(selectPointerData<T, T_ptr>(Omega_strided, Omega_ptrs), rank, rank * rank, S_batch, stride_s, rank, rank, batch_size, handle);
-
+		{
+			check_error_forward(( batch_svd_osbj_qr<T, T_ptr>(
+				selectPointerData<T, T_ptr>(Omega_strided, Omega_ptrs), rank, rank * rank, S_batch, stride_s, rank, rank, batch_size, handle
+			) ));
+		}
 		// Finally, we overwrite the matrix with left singular values of the
 		// truncated SVD as the product U_A = Q_Y * V_B
-		kblas_gemm_batch(
+		check_error_forward( kblas_gemm_batch(
 			handle, KBLAS_NoTrans, KBLAS_NoTrans, rows, rank, rank, alpha,
 			(const T**)Y_ptrs, rows, (const T**)Omega_ptrs, rank, beta, 
 			M_ptrs, ldm, batch_size
-		);
+		) );
 	}
-	
-	handle->work_space.pop_d_ptrs(local_ws_per_op.d_ptrs_bytes * op_increment);
-	handle->work_space.pop_d_data(local_ws_per_op.d_data_bytes * op_increment);
 	
 	return KBLAS_Success;
 }
@@ -620,12 +684,12 @@ extern "C" void kblasSgesvj_gram_batch_wsquery(kblasHandle_t handle, int m, int 
 	batch_svd_osbj_workspace<double>(m, n, ops, handle->work_space.requested_ws_state, 0);
 }
 
-extern "C" void kblasDrsvd_batch_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int ops)
+extern "C" void kblasDrsvd_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int ops)
 {
 	batch_svd_randomized_workspace<double>(m, n, rank, ops, handle->work_space.requested_ws_state, 0);
 }
 
-extern "C" void kblasSrsvd_batch_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int ops)
+extern "C" void kblasSrsvd_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int ops)
 {
 	batch_svd_randomized_workspace<float>(m, n, rank, ops, handle->work_space.requested_ws_state, 0);
 }

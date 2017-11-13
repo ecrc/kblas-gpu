@@ -15,8 +15,8 @@ void kblasSgesvj_batch_wsquery(kblasHandle_t handle, int m, int n, int ops);
 void kblasDgesvj_gram_batch_wsquery(kblasHandle_t handle, int m, int n, int ops);
 void kblasSgesvj_gram_batch_wsquery(kblasHandle_t handle, int m, int n, int ops);
 
-void kblasDrsvd_batch_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int ops);
-void kblasSrsvd_batch_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int ops);
+void kblasDrsvd_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int ops);
+void kblasSrsvd_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int ops);
 
 // Strided interface
 int kblasDgesvj_batch_strided(kblasHandle_t handle, int m, int n, double* A_strided, int lda, int stride_a, double* S_strided, int stride_s, int num_ops);
@@ -57,11 +57,11 @@ template<> inline void kblas_gesvj_gram_batch_wsquery<double>(kblasHandle_t hand
 template<> inline void kblas_gesvj_gram_batch_wsquery<float>(kblasHandle_t handle, int m, int n, int ops)
 { kblasSgesvj_gram_batch_wsquery(handle, m, n, ops); }
 
-template<class T> inline void kblas_rsvd_batch_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int ops);
-template<> inline void kblas_rsvd_batch_batch_wsquery<double>(kblasHandle_t handle, int m, int n, int rank, int ops)
-{ kblasDrsvd_batch_batch_wsquery(handle, m, n, rank, ops); }
-template<> inline void kblas_rsvd_batch_batch_wsquery<float>(kblasHandle_t handle, int m, int n, int rank, int ops)
-{ kblasSrsvd_batch_batch_wsquery(handle, m, n, rank, ops); }
+template<class T> inline void kblas_rsvd_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int ops);
+template<> inline void kblas_rsvd_batch_wsquery<double>(kblasHandle_t handle, int m, int n, int rank, int ops)
+{ kblasDrsvd_batch_wsquery(handle, m, n, rank, ops); }
+template<> inline void kblas_rsvd_batch_wsquery<float>(kblasHandle_t handle, int m, int n, int rank, int ops)
+{ kblasSrsvd_batch_wsquery(handle, m, n, rank, ops); }
 
 // Strided interface
 inline int kblas_gesvj_batch(kblasHandle_t handle, int m, int n, double* A_strided, int lda, int stride_a, double* S_strided, int stride_s, int num_ops)

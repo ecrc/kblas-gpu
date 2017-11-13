@@ -31,7 +31,7 @@ NVOPTS_3 = -DSM=35 -arch sm_35 -Xcompiler -fopenmp #-lineinfo -Xptxas -v
 
 #-----------------------------------------
 ifdef _SUPPORT_SVD_
-  _CUB_DIR_?=$(HOME)/git_codes/cub
+  _CUB_DIR_?=$(HOME)/cub
   #COPTS += -DSUPPORT_SVD -D__NO_NCCL__
   #NVOPTS += -DSUPPORT_SVD -D__NO_NCCL__
 endif
@@ -39,7 +39,7 @@ endif
 #-----------------------------------------
 ifdef _USE_MAGMA_
   COPTS += -DUSE_MAGMA
-  _MAGMA_ROOT_?=/home/chararam/codes/magma-2.2.0
+  _MAGMA_ROOT_?=$(HOME)/magma
   NVOPTS += -DUSE_MAGMA
 endif
 

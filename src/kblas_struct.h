@@ -295,6 +295,25 @@ struct KBlasWorkspace
   }
 };
 
+struct KBlasWorkspaceGuard 
+{
+	KBlasWorkspaceState pushed_ws;
+	KBlasWorkspace* ws_ptr;
+	
+	KBlasWorkspaceGuard(KBlasWorkspaceState& pushed_ws, KBlasWorkspace& ws)
+	{
+		this->pushed_ws = pushed_ws;
+		ws_ptr = &ws;
+	}
+	~KBlasWorkspaceGuard()
+	{
+		ws_ptr->pop_d_data(pushed_ws.d_data_bytes);
+		ws_ptr->pop_d_ptrs(pushed_ws.d_ptrs_bytes);
+		ws_ptr->pop_h_data(pushed_ws.h_data_bytes);
+		ws_ptr->pop_h_ptrs(pushed_ws.h_ptrs_bytes);
+	}                             
+};                                
+
 struct KBlasHandle
 {
   typedef unsigned char WS_Byte;

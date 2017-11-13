@@ -7,6 +7,9 @@
 
 // The number of streams on each GPU for cusolver
 #define CUSOLVER_STREAMS 	10
+#define RSVD_RANK			64
+// #define USE_RSVD
+
 
 #ifdef PREC_d
 typedef double Real;
@@ -14,6 +17,9 @@ typedef double Real;
 #define LAPACKE_Xgesvj					LAPACKE_dgesvj
 #define generateXrandomMatrices			generateDrandomMatrices
 #define kblasXgesvj_batch				kblasDgesvj_batch_strided
+#define kblasXrsvd_batch				kblasDrsvd_batch_strided
+#define kblasXrsvd_batch_wsquery		kblasDrsvd_batch_wsquery
+#define kblasXgesvj_batch_wsquery		kblasDgesvj_batch_wsquery
 #define cusolverDnXgesvd_bufferSize		cusolverDnDgesvd_bufferSize
 #define cusolverDnXgesvd				cusolverDnDgesvd
 #else
@@ -22,6 +28,9 @@ typedef float Real;
 #define LAPACKE_Xgesvj					LAPACKE_sgesvj
 #define generateXrandomMatrices			generateSrandomMatrices
 #define kblasXgesvj_batch				kblasSgesvj_batch_strided
+#define kblasXrsvd_batch				kblasSrsvd_batch_strided
+#define kblasXrsvd_batch_wsquery		kblasSrsvd_batch_wsquery
+#define kblasXgesvj_batch_wsquery		kblasSgesvj_batch_wsquery
 #define cusolverDnXgesvd_bufferSize		cusolverDnSgesvd_bufferSize
 #define cusolverDnXgesvd				cusolverDnSgesvd
 #endif
@@ -177,7 +186,7 @@ int main(int argc, char** argv)
 				
 				rows = opts.msize[itest];
 				cols = opts.nsize[itest];
-
+				
 				////////////////////////////////////////////////////////////////////////
 				// Set up the data
 				////////////////////////////////////////////////////////////////////////
@@ -188,11 +197,18 @@ int main(int argc, char** argv)
 				TESTING_MALLOC_CPU(gpu_results, Real, batchCount * cols);
 				
 				int rand_seed = itest + iter * opts.ntest + btest * opts.ntest * opts.niter;
+				#ifdef USE_RSVD
+				int rank = std::min(cols, RSVD_RANK);
+				generateXrandomMatrices(
+					host_A_original, rows * cols, host_S_exact, cols, rows, cols, 
+					0, 0.4, rand_seed, batchCount, num_omp_threads
+				);
+				#else
 				generateXrandomMatrices(
 					host_A_original, rows * cols, host_S_exact, cols, rows, cols, 
 					1e7, 0.4, rand_seed, batchCount, num_omp_threads
 				);
-
+				#endif
 				// Allocate the device data
 				for(int g = 0; g < num_gpus; g++)
 				{
@@ -201,7 +217,11 @@ int main(int argc, char** argv)
 					TESTING_MALLOC_DEV(d_S[g], Real, batchCount_gpu * cols);
 					
 					// KBlas workspace
-					kblas_gesvj_batch_wsquery<Real>(kblas_handles[g], rows, cols, batchCount_gpu);
+					#ifdef USE_RSVD
+					kblasXrsvd_batch_wsquery(kblas_handles[g], rows, cols, rank, batchCount_gpu);
+					#else
+					kblasXgesvj_batch_wsquery(kblas_handles[g], rows, cols, batchCount_gpu);
+					#endif
 					kblasAllocateWorkspace(kblas_handles[g]);
 					
 					// Cusolver workspace
@@ -234,8 +254,11 @@ int main(int argc, char** argv)
 						cudaSetDevice(opts.devices[g]);
 						gpuTimerTic(kblas_timers[g]);
 						
+						#ifdef USE_RSVD
+						kblasXrsvd_batch(kblas_handles[g], rows, cols, rank, d_A[g], rows, rows * cols, d_S[g], cols, batchCount_gpu);
+						#else
 						kblasXgesvj_batch(kblas_handles[g], rows, cols, d_A[g], rows, rows * cols, d_S[g], cols, batchCount_gpu);
-						
+						#endif
 						gpuTimerRecordEnd(kblas_timers[g]);
 					}
 					// The time all gpus finish at is the max of all the individual timers
@@ -243,7 +266,11 @@ int main(int argc, char** argv)
 					
 					// Copy the data down from all the GPUs and compare with the CPU results
 					COPY_DATA_DOWN();
+					#ifdef USE_RSVD
+					kblas_err += testSValues(gpu_results, host_S_exact, cols, rank, batchCount);
+					#else
 					kblas_err += testSValues(gpu_results, host_S_exact, cols, cols, batchCount);
+					#endif
 					
 					////////////////////////////////////////////////////////////////////////
 					// CUSPARSE

@@ -50,7 +50,7 @@ To build KBLAS, please follow these instructions:
 
 3.  Edit file make.inc to:
     - Enable / disable KBLAS sub modules (_SUPPORT_BLAS2_, _SUPPORT_BLAS3_, _SUPPORT_BATCH_TR_, _SUPPORT_SVD_).
-    - Enable / disable usage of third party libraries (_USE_MKL_, _USE_MAGMA_) for performance comparsions.
+    - Enable / disable usage of third party libraries (_USE_MKL_, _USE_MAGMA_) for performance comparisons.
     - Provide path for third party libraries if required (_CUB_DIR_, _MAGMA_ROOT_).
     - Specify CUDA architecture to compile for (_CUDA_ARCH_).
 

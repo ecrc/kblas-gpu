@@ -10,7 +10,7 @@ struct kblas_gpu_timer
 
     void init()
     {
-        #pragma omp critical (create_timer)
+        // #pragma omp critical (create_timer)
         {
             check_error( cudaEventCreate(&start_event) );
             check_error( cudaEventCreate(&stop_event ) );
@@ -20,7 +20,7 @@ struct kblas_gpu_timer
 
     void destroy()
     {
-        #pragma omp critical (delete_timer)
+        // #pragma omp critical (delete_timer)
         {
             check_error( cudaEventDestroy(start_event));
             check_error( cudaEventDestroy(stop_event ));
@@ -31,12 +31,12 @@ struct kblas_gpu_timer
     {
         check_error( cudaEventRecord(start_event, stream) );
     }
-	
+
 	void recordEnd(cudaStream_t stream = 0)
 	{
 		check_error( cudaEventRecord(stop_event, stream) );
 	}
-	
+
     float stop(cudaStream_t stream = 0)
     {
         check_error( cudaEventSynchronize(stop_event) );

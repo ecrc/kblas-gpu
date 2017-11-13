@@ -340,6 +340,8 @@ struct KBlasHandle
 
     timer.init();
 
+    work_space.reset();
+
     this->device_id = device_id;
     this->stream = stream;
   }
@@ -347,7 +349,7 @@ struct KBlasHandle
   void tic()   		{ timer.start(stream); 		 }
   void recordEnd()	{ timer.recordEnd(stream);   }
   double toc() 		{ return timer.stop(stream); }
-	
+
   //-----------------------------------------------------------
   KBlasHandle(cublasHandle_t& cublas_handle)
   {
@@ -360,6 +362,8 @@ struct KBlasHandle
     check_error( cublasGetStream(cublas_handle, &stream) );
 
     timer.init();
+
+    work_space.reset();
 
     check_error( cudaGetDevice(&device_id) );
   }

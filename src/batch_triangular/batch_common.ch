@@ -66,8 +66,6 @@ void trsm_batch_wsquery_core( int batchCount,
                                       1, 1, 1, 1, 1, 1,
                                       wss);
     }
-  }else{
-    wss->reset();
   }
 }
 
@@ -87,8 +85,6 @@ void trmm_batch_wsquery_core( int batchCount,
                                       1, 1, 1, 1, 1, 1,
                                       wss);
     }
-  }else{
-    wss->reset();
   }
 }
 
@@ -97,16 +93,13 @@ template<bool STRIDED>
 inline
 void potrf_batch_wsquery_core(const int n, int batchCount, kblasWorkspaceState_t wss)
 {
-  KBlasWorkspaceState ws_trsm;
   int n1 = CLOSEST_REG_SIZE(n);
 
   trsm_batch_wsquery_core<STRIDED>( batchCount,
                                     KBLAS_Right, n-n1, n1,
-                                    (kblasWorkspaceState_t)&ws_trsm);
+                                    wss);
 
   syrk_batch_wsquery_core( n-n1, batchCount, wss);
-
-  wss->pad(&ws_trsm);
 }
 
 //==============================================================================================
@@ -114,16 +107,14 @@ template<bool STRIDED>
 inline
 void lauum_batch_wsquery_core(const int n, int batchCount, kblasWorkspaceState_t wss)
 {
-  KBlasWorkspaceState ws_trsm;
   int n1 = CLOSEST_REG_SIZE(n);
 
   trmm_batch_wsquery_core<STRIDED>( batchCount,
                                     KBLAS_Left, n-n1, n1,
-                                    (kblasWorkspaceState_t)&ws_trsm);
+                                    wss);
 
   syrk_batch_wsquery_core( n1, batchCount, wss);
-
-  wss->pad(&ws_trsm);
 }
+
 
 #endif //__KBLAS_BATCH_COMMON_H__

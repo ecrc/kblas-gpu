@@ -112,7 +112,7 @@ int Xpotrf_batch_core(kblasHandle_t handle,
       n1 = n2 = n/2;
     }else{
       n1 = CLOSEST_REG_SIZE(n);
-      if(n-n1 < 16) n1 = CLOSEST_REG_SIZE(n1-1);
+      //TODO if(n-n1 < 16) n1 = CLOSEST_REG_SIZE(n1-1);
       n2 = n-n1;
     }
 

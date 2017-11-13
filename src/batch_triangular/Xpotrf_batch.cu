@@ -127,7 +127,7 @@ int Xpotrf_batch_offset(kblasHandle_t handle,
                         int *info_array)
 {
   KBlasWorkspaceState ws_needed;
-  potrf_batch_wsquery_core<true>( batchCount, n, (kblasWorkspaceState_t)&ws_needed);
+  potrf_batch_wsquery_core<true>( n, batchCount, (kblasWorkspaceState_t)&ws_needed);
 
   if( !ws_needed.isSufficient( &(handle->work_space.allocated_ws_state) ) ){
     return KBLAS_InsufficientWorkspace;

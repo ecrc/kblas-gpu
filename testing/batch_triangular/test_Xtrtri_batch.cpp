@@ -184,13 +184,13 @@ int test_Xtrtri_batch(kblas_opts& opts)
               check_error( cudaSetDevice( opts.devices[g] ));
               if(strided){
                 check_kblas_error( kblas_trtri_batch( kblas_handle[g],
-                                                      uplo, N,
+                                                      uplo, diag, N,
                                                       d_A[g], ldda, An*ldda,
                                                       batchCount_gpu,
                                                       d_info[g]) );
               }else{
                 check_kblas_error( kblas_trtri_batch( kblas_handle[g],
-                                                      uplo, N,
+                                                      uplo, diag, N,
                                                       d_A_array[g], ldda,
                                                       batchCount_gpu,
                                                       d_info[g]) );

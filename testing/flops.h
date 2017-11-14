@@ -111,6 +111,11 @@ template<class T>
 double FLOPS_POTRI(int n){
   return FLOPS_TRTRI<T>(n) + FLOPS_LAUUM<T>(n);
 }
+//==============================================================================================
+template<class T>
+double FLOPS_POTI(int n){
+  return FLOPS_POTRF<T>(n) + FLOPS_POTRI<T>(n);
+}
 
 //==============================================================================================
 #define FMULS_SYMM(side_, m_, n_) ( ( (side_) == KBLAS_Left ) ? FMULS_GEMM((m_), (m_), (n_)) : FMULS_GEMM((m_), (n_), (n_)) )

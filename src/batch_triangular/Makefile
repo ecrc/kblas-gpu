@@ -13,7 +13,8 @@ KBLAS_BATCH_SRC+= 		 \
 			strtri_batch.cu  \
 			slauum_batch.cu	 \
 			spotrs_batch.cu	 \
-			spotri_batch.cu
+			spotri_batch.cu	 \
+			spoti_batch.cu
 KBLAS_BATCH_SRC+= 		 \
 			dhelper_funcs.cu \
 			dgemm_batch.cu   \
@@ -24,7 +25,8 @@ KBLAS_BATCH_SRC+= 		 \
 			dlauum_batch.cu  \
 			dtrtri_batch.cu	 \
 			dpotrs_batch.cu	 \
-			dpotri_batch.cu
+			dpotri_batch.cu	 \
+			dpoti_batch.cu
 KBLAS_BATCH_SRC+= 		 \
 			chelper_funcs.cu \
 			cgemm_batch.cu   \
@@ -35,7 +37,8 @@ KBLAS_BATCH_SRC+= 		 \
 			ctrtri_batch.cu  \
 			clauum_batch.cu	 \
 			cpotrs_batch.cu	 \
-			cpotri_batch.cu
+			cpotri_batch.cu	 \
+			cpoti_batch.cu
 KBLAS_BATCH_SRC+=      \
 			zhelper_funcs.cu \
 			zgemm_batch.cu   \
@@ -46,7 +49,8 @@ KBLAS_BATCH_SRC+=      \
 			ztrtri_batch.cu  \
 			zlauum_batch.cu	 \
 			zpotrs_batch.cu	 \
-			zpotri_batch.cu
+			zpotri_batch.cu	 \
+			zpoti_batch.cu
 
 ALL_OBJ+= $(patsubst %.cu,$(OBJ_DIR)/%.cu_o,$(KBLAS_BATCH_SRC))
 
@@ -82,5 +86,8 @@ $(OBJ_DIR)/%potrs_batch.cu_o: $(KBLAS_BATCH_DIR)/Xpotrs_batch.cu $(KBLAS_BATCH_D
 	$(NVCC) $(NVOPTS) -DPREC_$* $(NVOPTS_3) $(INC) -c $< -o $@
 
 $(OBJ_DIR)/%potri_batch.cu_o: $(KBLAS_BATCH_DIR)/Xpotri_batch.cu $(KBLAS_BATCH_DIR)/Xpotri_batch_drivers.cuh $(KBLAS_BATCH_DIR)/Xpotri_batch_kernels.cuh $(DEPS_BATCH)
+	$(NVCC) $(NVOPTS) -DPREC_$* $(NVOPTS_3) $(INC) -c $< -o $@
+
+$(OBJ_DIR)/%poti_batch.cu_o: $(KBLAS_BATCH_DIR)/Xpoti_batch.cu $(KBLAS_BATCH_DIR)/Xpoti_batch_drivers.cuh $(KBLAS_BATCH_DIR)/Xpoti_batch_kernels.cuh $(DEPS_BATCH)
 	$(NVCC) $(NVOPTS) -DPREC_$* $(NVOPTS_3) $(INC) -c $< -o $@
 

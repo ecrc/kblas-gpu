@@ -165,3 +165,12 @@ void kblas_potri_batch_wsquery(kblasHandle_t handle, const int n, int batchCount
 void kblas_potri_batch_strided_wsquery(kblasHandle_t handle, const int n, int batchCount){
   potri_batch_wsquery_core<true>(n, batchCount, &(handle->work_space.requested_ws_state));
 }
+
+//==============================================================================================
+void kblas_poti_batch_wsquery(kblasHandle_t handle, const int n, int batchCount){
+  poti_batch_wsquery_core<false>(n, batchCount, &(handle->work_space.requested_ws_state));
+}
+
+void kblas_poti_batch_strided_wsquery(kblasHandle_t handle, const int n, int batchCount){
+  poti_batch_wsquery_core<true>(n, batchCount, &(handle->work_space.requested_ws_state));
+}

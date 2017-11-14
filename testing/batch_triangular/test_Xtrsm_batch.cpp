@@ -181,9 +181,9 @@ int test_Xtrsm_batch(kblas_opts& opts, T alpha)
 
         for(int g = 0; g < ngpu; g++){
           if(strided){
-            kblas_trsm_batch_strided_wsquery(kblas_handle[g], batchCount_gpu, opts.side, M, N);
+            kblas_trsm_batch_strided_wsquery(kblas_handle[g], opts.side, M, N, batchCount_gpu);
           }else{
-            kblas_trsm_batch_wsquery(kblas_handle[g], batchCount_gpu, opts.side, M, N);
+            kblas_trsm_batch_wsquery(kblas_handle[g], opts.side, M, N, batchCount_gpu);
           }
           check_kblas_error( kblasAllocateWorkspace(kblas_handle[g]) );
           check_error( cudaGetLastError() );

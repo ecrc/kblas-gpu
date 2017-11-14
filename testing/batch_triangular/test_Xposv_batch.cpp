@@ -183,9 +183,9 @@ int test_Xposv_batch(kblas_opts& opts)
 
         for(int g = 0; g < ngpu; g++){
           if(strided){
-            kblas_posv_batch_strided_wsquery(kblas_handle[g], M, N, opts.side, batchCount_gpu);
+            kblas_posv_batch_strided_wsquery(kblas_handle[g], opts.side, M, N, batchCount_gpu);
           }else{
-            kblas_posv_batch_wsquery(kblas_handle[g], M, N, opts.side, batchCount_gpu);
+            kblas_posv_batch_wsquery(kblas_handle[g], opts.side, M, N, batchCount_gpu);
           }
           check_kblas_error( kblasAllocateWorkspace(kblas_handle[g]) );
           check_error( cudaGetLastError() );

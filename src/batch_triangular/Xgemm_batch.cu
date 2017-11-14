@@ -68,29 +68,23 @@ int kblas_gemm_batch( kblasHandle_t handle,
                           batchCount);
 }
 
-/**
- *  Uniform-size batch non-strided GEMM wrapper
- *
- *  Workspace needed: none
- *  @param A, B, C: host pointer to array of device pointers to device buffers
- */
 int kblas_gemm_batch( kblasHandle_t handle,
                       char transA, char transB,
                       const int m, const int n, const int k,
                       const TYPE alpha,
-                      const TYPE** A, int lda,
-                      const TYPE** B, int ldb,
+                      const TYPE** A_array, int lda,
+                      const TYPE** B_array, int ldb,
                       const TYPE beta,
-                            TYPE** C, int ldc,
+                            TYPE** C_array, int ldc,
                       int batchCount){
   return Xgemm_batch_core(handle,
                           transA, transB,
                           m, n, k,
                           alpha,
-                          A, lda,
-                          B, ldb,
+                          A_array, lda,
+                          B_array, ldb,
                           beta,
-                          C, ldc,
+                          C_array, ldc,
                           batchCount);
 }
 extern "C"

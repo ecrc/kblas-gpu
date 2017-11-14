@@ -182,7 +182,7 @@ int test_Xtrmm_batch(kblas_opts& opts, T alpha)
           // if(strided){
           //   kblasXtrsm_batch_strided_wsquery(kblas_handle[g], batchCount_gpu, opts.side, M, N);
           // }else{
-            kblas_trmm_batch_wsquery(kblas_handle[g], batchCount_gpu, opts.side, M, N);
+            kblas_trmm_batch_wsquery(kblas_handle[g], opts.side, M, N, batchCount_gpu);
           // }
           check_kblas_error( kblasAllocateWorkspace(kblas_handle[g]) );
           check_error( cudaGetLastError() );

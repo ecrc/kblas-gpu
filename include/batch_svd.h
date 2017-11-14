@@ -4,43 +4,285 @@
 #define SHARED_SVD_DIM_LIMIT 64
 #define RSVD_DEFAULT_SAMPLES 64
 
+//############################################################################
+//BATCH SVD routines
+//############################################################################
+
+/** @addtogroup C_API
+*  @{
+*/
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+/**
+ * @name Uniform-size batched QR routines
+ */
+//@{
+//------------------------------------------------------------------------------
 // workspace query routines for both strided and array of pointers interface
-void kblasDgesvj_batch_wsquery(kblasHandle_t handle, int m, int n, int ops);
-void kblasSgesvj_batch_wsquery(kblasHandle_t handle, int m, int n, int ops);
+/**
+ * @brief Workspace query routine for double precision batched Jacobi SVD
+ *
+ * Calling this routine updates the handle internal workspace state. A call to kblasAllocateWorkspace
+ * will then allocate the workspace if necessary.
+ * @param[in] handle KBLAS handle 
+ * @param[in] m Rows of the matrix A. (m >= 0, m <= 512)
+ * @param[in] n Columns of the matrix A (n >= 0, n <= 512)
+ * @param[in] num_ops The size of the batched operation. 
+ * @see kblasAllocateWorkspace
+ * @see kblasFreeeWorkspace
+ */
+void kblasDgesvj_batch_wsquery(kblasHandle_t handle, int m, int n, int num_ops);
 
-void kblasDgesvj_gram_batch_wsquery(kblasHandle_t handle, int m, int n, int ops);
-void kblasSgesvj_gram_batch_wsquery(kblasHandle_t handle, int m, int n, int ops);
+/**
+ * @brief Workspace query routine for single precision batched Jacobi SVD
+ *
+ * Calling this routine updates the handle internal workspace state. A call to kblasAllocateWorkspace
+ * will then allocate the workspace if necessary.
+ * @param[in] handle KBLAS handle 
+ * @param[in] m Rows of the matrix A. (m >= 0, m <= 512)
+ * @param[in] n Columns of the matrix A (n >= 0, n <= 512)
+ * @param[in] num_ops The size of the batched operation. 
+ * @see kblasAllocateWorkspace
+ * @see kblasFreeeWorkspace
+ */
+void kblasSgesvj_batch_wsquery(kblasHandle_t handle, int m, int n, int num_ops);
 
-void kblasDrsvd_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int ops);
-void kblasSrsvd_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int ops);
+/**
+ * @brief Workspace query routine for double precision batched Gram matrix variant Jacobi SVD 
+ *
+ * Calling this routine updates the handle internal workspace state. A call to kblasAllocateWorkspace
+ * will then allocate the workspace if necessary. This variant can be faster than the regular Jacobi
+ * if the matrix is known to be well-conditioned. It may not converge for ill-conditioned matrices.
+ * @param[in] handle KBLAS handle 
+ * @param[in] m Rows of the matrix A. (m >= 0, m <= 512)
+ * @param[in] n Columns of the matrix A (n >= 0, n <= 512)
+ * @param[in] num_ops The size of the batched operation. 
+ * @see kblasAllocateWorkspace
+ * @see kblasFreeeWorkspace
+ */
+void kblasDgesvj_gram_batch_wsquery(kblasHandle_t handle, int m, int n, int num_ops);
 
+/**
+ * @brief Workspace query routine for single precision batched Gram matrix variant Jacobi SVD 
+ *
+ * Calling this routine updates the handle internal workspace state. A call to kblasAllocateWorkspace
+ * will then allocate the workspace if necessary. This variant can be faster than the regular Jacobi
+ * if the matrix is known to be well-conditioned. It may not converge for ill-conditioned matrices.
+ * @param[in] handle KBLAS handle 
+ * @param[in] m Rows of the matrix A. (m >= 0, m <= 512)
+ * @param[in] n Columns of the matrix A (n >= 0, n <= 512)
+ * @param[in] num_ops The size of the batched operation. 
+ * @see kblasAllocateWorkspace
+ * @see kblasFreeeWorkspace
+ */
+void kblasSgesvj_gram_batch_wsquery(kblasHandle_t handle, int m, int n, int num_ops);
+
+/**
+ * @brief Workspace query routine for double precision batched Randomized SVD 
+ *
+ * Calling this routine updates the handle internal workspace state. A call to kblasAllocateWorkspace
+ * will then allocate the workspace if necessary. Use this routine if you want the top _rank_ singular values
+ * and vectors for a matrix that is known to be low rank or numerically low rank.
+ * @param[in] handle KBLAS handle 
+ * @param[in] m Rows of the matrix A. (m >= 0, m <= 512)
+ * @param[in] n Columns of the matrix A (n >= 0, n <= 512)
+ * @param[in] rank The number of requested singular values (rank < n). If rank == n then the regular SVD is used.
+ * @param[in] num_ops The size of the batched operation. 
+ * @see kblasAllocateWorkspace
+ * @see kblasFreeeWorkspace
+ */
+void kblasDrsvd_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int num_ops);
+
+/**
+ * @brief Workspace query routine for double precision batched Randomized SVD 
+ *
+ * Calling this routine updates the handle internal workspace state. A call to kblasAllocateWorkspace
+ * will then allocate the workspace if necessary. Use this routine if you want the top _rank_ singular values
+ * and vectors for a matrix that is known to be low rank or numerically low rank.
+ * @param[in] handle KBLAS handle 
+ * @param[in] m Rows of the matrix A. (m >= 0, m <= 512)
+ * @param[in] n Columns of the matrix A (n >= 0, n <= 512)
+ * @param[in] rank The number of requested singular values (rank < n). If rank == n then the regular SVD is used.
+ * @param[in] num_ops The size of the batched operation. 
+ * @see kblasAllocateWorkspace
+ * @see kblasFreeeWorkspace
+ */
+void kblasSrsvd_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int num_ops);
+
+//------------------------------------------------------------------------------
 // Strided interface
+/**
+ * @brief Strided uniform-size double precision batched Jacobi SVD 
+ * @param[in] handle KBLAS handle 
+ * @param[in] m Rows of the matrix A. (m >= 0, m <= 512)
+ * @param[in] n Columns of the matrix A (n >= 0, n <= 512)
+ * @param[in, out] A_strided Pointer to the batch of matrices A stored in strided format. On exit, contains the 
+ * right singular vectors of A. Left singular values are not currently supported. 
+ * @param[in] lda Leading dimension of A (lda >= m)
+ * @param[in] stride_a Stride of each matrix in A_strided. A[i] = A_strided + stride_a * i;  (stride_a >= lda * cols)
+ * @param[out] S_strided Pointer to the batch of arrays S stored in strided format. On exit, each array S contains 
+ * the singular values of A.
+ * @param[in] stride_s Stride of each array in S_strided. S[i] = S_strided + stride_s * i; (stride_s >= cols)
+ * @param[in] num_ops The size of the batched operation. 
+ */
 int kblasDgesvj_batch_strided(kblasHandle_t handle, int m, int n, double* A_strided, int lda, int stride_a, double* S_strided, int stride_s, int num_ops);
+
+/**
+ * @brief Strided uniform-size single precision batched Jacobi SVD 
+ * @param[in] handle KBLAS handle 
+ * @param[in] m Rows of the matrix A. (m >= 0, m <= 512)
+ * @param[in] n Columns of the matrix A (n >= 0, n <= 512)
+ * @param[in, out] A_strided Pointer to the batch of matrices A stored in strided format. On exit, contains the 
+ * right singular vectors of A. Left singular values are not currently supported. 
+ * @param[in] lda Leading dimension of A (lda >= m)
+ * @param[in] stride_a Stride of each matrix in A_strided. A[i] = A_strided + stride_a * i;  (stride_a >= lda * cols)
+ * @param[out] S_strided Pointer to the batch of arrays S stored in strided format. On exit, each array S contains 
+ * the singular values of A.
+ * @param[in] stride_s Stride of each array in S_strided. S[i] = S_strided + stride_s * i; (stride_s >= cols)
+ * @param[in] num_ops The size of the batched operation. 
+ */
 int kblasSgesvj_batch_strided(kblasHandle_t handle, int m, int n, float* A_strided, int lda, int stride_a, float* S_strided, int stride_s, int num_ops);
 
+/**
+ * @brief Strided uniform-size double precision batched Gram matrix variant Jacobi SVD 
+ * 
+ * This variant can be faster than the regular Jacobi if the matrix is known to be well-conditioned. 
+ * It may not converge for ill-conditioned matrices.
+ * @param[in] handle KBLAS handle 
+ * @param[in] m Rows of the matrix A. (m >= 0, m <= 512)
+ * @param[in] n Columns of the matrix A (n >= 0, n <= 512)
+ * @param[in, out] A_strided Pointer to the batch of matrices A stored in strided format. On exit, contains the 
+ * right singular vectors of A. Left singular values are not currently supported. 
+ * @param[in] lda Leading dimension of A (lda >= m)
+ * @param[in] stride_a Stride of each matrix in A_strided. A[i] = A_strided + stride_a * i;  (stride_a >= lda * cols)
+ * @param[out] S_strided Pointer to the batch of arrays S stored in strided format. On exit, each array S contains 
+ * the singular values of A.
+ * @param[in] stride_s Stride of each array in S_strided. S[i] = S_strided + stride_s * i; (stride_s >= cols)
+ * @param[in] num_ops The size of the batched operation. 
+ */
 int kblasDgesvj_gram_batch_strided(kblasHandle_t handle, int m, int n, double* A_strided, int lda, int stride_a, double* S_strided, int stride_s, int num_ops);
+
+/**
+ * @brief Strided uniform-size single precision batched Gram matrix variant Jacobi SVD 
+ * 
+ * This variant can be faster than the regular Jacobi if the matrix is known to be well-conditioned. 
+ * It may not converge for ill-conditioned matrices.
+ * @param[in] handle KBLAS handle 
+ * @param[in] m Rows of the matrix A. (m >= 0, m <= 512)
+ * @param[in] n Columns of the matrix A (n >= 0, n <= 512)
+ * @param[in, out] A_strided Pointer to the batch of matrices A stored in strided format. On exit, contains the 
+ * right singular vectors of A. Left singular values are not currently supported. 
+ * @param[in] lda Leading dimension of A (lda >= m)
+ * @param[in] stride_a Stride of each matrix in A_strided. A[i] = A_strided + stride_a * i;  (stride_a >= lda * cols)
+ * @param[out] S_strided Pointer to the batch of arrays S stored in strided format. On exit, each array S contains 
+ * the singular values of A.
+ * @param[in] stride_s Stride of each array in S_strided. S[i] = S_strided + stride_s * i; (stride_s >= cols)
+ * @param[in] num_ops The size of the batched operation. 
+ */
 int kblasSgesvj_gram_batch_strided(kblasHandle_t handle, int m, int n, float* A_strided, int lda, int stride_a, float* S_strided, int stride_s, int num_ops);
 
+/**
+ * @brief Strided uniform-size double precision batched Randomized SVD 
+ * 
+ * Use this routine if you want the top _rank_ singular values and vectors for a matrix 
+ * that is known to be low rank or numerically low rank.
+ * @param[in] handle KBLAS handle 
+ * @param[in] m Rows of the matrix A. (m >= 0, m <= 512)
+ * @param[in] n Columns of the matrix A (n >= 0, n <= 512)
+ * @param[in] rank The number of requested singular values (rank < n). If rank == n then the regular SVD is used.
+ * @param[in, out] A_strided Pointer to the batch of matrices A stored in strided format. On exit, the first _rank_ columns 
+ * contains the right singular vectors of A corresponding to the top _rank_ singular values.
+ * @param[in] lda Leading dimension of A (lda >= m)
+ * @param[in] stride_a Stride of each matrix in A_strided. A[i] = A_strided + stride_a * i;  (stride_a >= lda * cols)
+ * @param[out] S_strided Pointer to the batch of arrays S stored in strided format. On exit, each array S contains 
+ * the singular values of A.
+ * @param[in] stride_s Stride of each array in S_strided. S[i] = S_strided + stride_s * i; (stride_s >= cols)
+ * @param[in] num_ops The size of the batched operation. 
+ */
 int kblasDrsvd_batch_strided(kblasHandle_t handle, int m, int n, int rank, double* A_strided, int lda, int stride_a, double* S_strided, int stride_s, int num_ops);
+
+/**
+ * @brief Strided uniform-size single precision batched Randomized SVD 
+ * 
+ * Use this routine if you want the top _rank_ singular values and vectors for a matrix 
+ * that is known to be low rank or numerically low rank.
+ * @param[in] handle KBLAS handle 
+ * @param[in] m Rows of the matrix A. (m >= 0, m <= 512)
+ * @param[in] n Columns of the matrix A (n >= 0, n <= 512)
+ * @param[in] rank The number of requested singular values (rank < n). If rank == n then the regular SVD is used.
+ * @param[in, out] A_strided Pointer to the batch of matrices A stored in strided format. On exit, the first _rank_ columns 
+ * contains the right singular vectors of A corresponding to the top _rank_ singular values.
+ * @param[in] lda Leading dimension of A (lda >= m)
+ * @param[in] stride_a Stride of each matrix in A_strided. A[i] = A_strided + stride_a * i;  (stride_a >= lda * cols)
+ * @param[out] S_strided Pointer to the batch of arrays S stored in strided format. On exit, each array S contains 
+ * the singular values of A.
+ * @param[in] stride_s Stride of each array in S_strided. S[i] = S_strided + stride_s * i; (stride_s >= cols)
+ * @param[in] num_ops The size of the batched operation. 
+ */
 int kblasSrsvd_batch_strided(kblasHandle_t handle, int m, int n, int rank, float* A_strided, int lda, int stride_a, float* S_strided, int stride_s, int num_ops);
 
+//------------------------------------------------------------------------------
 // Array of pointers interface
+/**
+ * @brief Strided uniform-size double precision batched Jacobi SVD 
+ * 
+ * Array of pointers interface taking similar arguments to the strided interface; however, matrices and 
+ * arrays are stored in arrays of pointers instead of strided access, so A[i] = A_ptrs[i] and S[i] = S_ptrs[i]
+ * @see kblasDgesvj_batch_strided
+ */
 int kblasDgesvj_batch(kblasHandle_t handle, int m, int n, double** A_ptrs, int lda, double** S_ptrs, int num_ops);
+
+/**
+ * @brief Strided uniform-size single precision batched Jacobi SVD 
+ * 
+ * Array of pointers interface taking similar arguments to the strided interface; however, matrices and 
+ * arrays are stored in arrays of pointers instead of strided access, so A[i] = A_ptrs[i] and S[i] = S_ptrs[i]
+ * @see kblasSgesvj_batch_strided
+ */
 int kblasSgesvj_batch(kblasHandle_t handle, int m, int n, float** A_ptrs, int lda, float** S_ptrs, int num_ops);
 
+/**
+ * @brief Strided uniform-size double precision batched Gram matrix variant Jacobi SVD 
+ * 
+ * Array of pointers interface taking similar arguments to the strided interface; however, matrices and 
+ * arrays are stored in arrays of pointers instead of strided access, so A[i] = A_ptrs[i] and S[i] = S_ptrs[i]
+ * @see kblasDgesvj_gram_batch_strided
+ */
 int kblasDgesvj_gram_batch(kblasHandle_t handle, int m, int n, double** A_ptrs, int lda, double** S_ptrs, int num_ops);
+
+/**
+ * @brief Strided uniform-size double precision batched Gram matrix variant Jacobi SVD 
+ * 
+ * Array of pointers interface taking similar arguments to the strided interface; however, matrices and 
+ * arrays are stored in arrays of pointers instead of strided access, so A[i] = A_ptrs[i] and S[i] = S_ptrs[i]
+ * @see kblasSgesvj_gram_batch_strided
+ */
 int kblasSgesvj_gram_batch(kblasHandle_t handle, int m, int n, float** A_ptrs, int lda, float** S_ptrs, int num_ops);
 
+/**
+ * @brief Strided uniform-size double precision batched Randomized SVD 
+ * 
+ * Array of pointers interface taking similar arguments to the strided interface; however, matrices and 
+ * arrays are stored in arrays of pointers instead of strided access, so A[i] = A_ptrs[i] and S[i] = S_ptrs[i]
+ * @see kblasDrsvd_batch_strided
+ */
 int kblasDrsvd_batch(kblasHandle_t handle, int m, int n, int rank, double** A_ptrs, int lda, double** S_ptrs, int num_ops);
+
+/**
+ * @brief Strided uniform-size double precision batched Randomized SVD 
+ * 
+ * Array of pointers interface taking similar arguments to the strided interface; however, matrices and 
+ * arrays are stored in arrays of pointers instead of strided access, so A[i] = A_ptrs[i] and S[i] = S_ptrs[i]
+ * @see kblasSrsvd_batch_strided
+ */
 int kblasSrsvd_batch(kblasHandle_t handle, int m, int n, int rank, float** A_ptrs, int lda, float** S_ptrs, int num_ops);
 
+//@}
 #ifdef __cplusplus
 }
 #endif
+/** @} */
 
 #ifdef __cplusplus
 

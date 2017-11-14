@@ -650,48 +650,72 @@ int batch_svd_randomized(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, 
 ////////////////////////////////////////////////////////////////////
 extern "C" void kblasDgesvj_batch_wsquery(kblasHandle_t handle, int m, int n, int ops)
 {
+	KBlasWorkspaceState ws;
+	
 	if(m <= SHARED_SVD_DIM_LIMIT && n <= SHARED_SVD_DIM_LIMIT)
 		return;
 	else if(n <= SHARED_SVD_DIM_LIMIT)
-		batch_tall_svd_workspace<double>(m, n, ops, handle->work_space.requested_ws_state, 0);
+		batch_tall_svd_workspace<double>(m, n, ops, ws, 0);
 	else
-		batch_svd_osbj_workspace<double>(m, n, ops, handle->work_space.requested_ws_state, 0);
+		batch_svd_osbj_workspace<double>(m, n, ops, ws, 0);
+	
+	handle->work_space.requested_ws_state.pad(&ws);
 }
 
 extern "C" void kblasSgesvj_batch_wsquery(kblasHandle_t handle, int m, int n, int ops)
 {
+	KBlasWorkspaceState ws;
+	
 	if(m <= SHARED_SVD_DIM_LIMIT && n <= SHARED_SVD_DIM_LIMIT)
 		return;
 	else if(n <= SHARED_SVD_DIM_LIMIT)
-		batch_tall_svd_workspace<float>(m, n, ops, handle->work_space.requested_ws_state, 0);
+		batch_tall_svd_workspace<float>(m, n, ops, ws, 0);
 	else
-		batch_svd_osbj_workspace<float>(m, n, ops, handle->work_space.requested_ws_state, 0);
+		batch_svd_osbj_workspace<float>(m, n, ops, ws, 0);
+	
+	handle->work_space.requested_ws_state.pad(&ws);
 }
 
 extern "C" void kblasDgesvj_gram_batch_wsquery(kblasHandle_t handle, int m, int n, int ops)
 {
+	KBlasWorkspaceState ws;
+	
 	if(m <= SHARED_SVD_DIM_LIMIT && n <= SHARED_SVD_DIM_LIMIT)
 		return;
 	
-	batch_svd_osbj_workspace<double>(m, n, ops, handle->work_space.requested_ws_state, 0);
+	batch_svd_osbj_workspace<double>(m, n, ops, ws, 0);
+	
+	handle->work_space.requested_ws_state.pad(&ws);
 }
 
 extern "C" void kblasSgesvj_gram_batch_wsquery(kblasHandle_t handle, int m, int n, int ops)
 {
+	KBlasWorkspaceState ws;
+	
 	if(m <= SHARED_SVD_DIM_LIMIT && n <= SHARED_SVD_DIM_LIMIT)
 		return;
 	
-	batch_svd_osbj_workspace<double>(m, n, ops, handle->work_space.requested_ws_state, 0);
+	batch_svd_osbj_workspace<double>(m, n, ops, ws, 0);
+	
+	handle->work_space.requested_ws_state.pad(&ws);
 }
 
 extern "C" void kblasDrsvd_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int ops)
 {
-	batch_svd_randomized_workspace<double>(m, n, rank, ops, handle->work_space.requested_ws_state, 0);
+	KBlasWorkspaceState ws;
+	
+	batch_svd_randomized_workspace<double>(m, n, rank, ops, ws, 0);
+	
+	handle->work_space.requested_ws_state.pad(&ws);
 }
 
 extern "C" void kblasSrsvd_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int ops)
 {
-	batch_svd_randomized_workspace<float>(m, n, rank, ops, handle->work_space.requested_ws_state, 0);
+	KBlasWorkspaceState ws;
+	
+	batch_svd_randomized_workspace<float>(m, n, rank, ops, ws, 0);
+	
+	handle->work_space.requested_ws_state.pad(&ws);
 }
 
 ////////////////////////////////////////////////////////////////////

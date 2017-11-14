@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <cublas_v2.h>
+#include <algorithm>
 
 #include "kblas.h"
 #include "kblas_struct.h"
@@ -787,53 +788,81 @@ int batch_unpack_Q(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride, T_p
 ///////////////////////////////////////////////////////////////
 extern "C" int kblasDgeqrf_batch_strided(kblasHandle_t handle, int m, int n, double* A_strided, int lda, int stride_a, double* tau, int stride_tau, int num_ops)
 {
-	if(m > QR_Config<double>::HH_MAX_ROWS)
-		return KBLAS_UnknownError;
-	else
-		return batch_qr<double, double*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops, m);
+	if(m > QR_Config<double>::HH_MAX_ROWS || lda < m)
+		return KBLAS_Error_WrongInput;
+	else if(stride_a < lda * n || stride_tau < n)
+		return KBLAS_Error_WrongInput;
+	
+	return batch_qr<double, double*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops, m);
 }
 
 extern "C" int kblasSgeqrf_batch_strided(kblasHandle_t handle, int m, int n, float* A_strided, int lda, int stride_a, float* tau, int stride_tau, int num_ops)
 {
-	if(m > QR_Config<float>::HH_MAX_ROWS)
-		return KBLAS_UnknownError;
-	else
-		return batch_qr<float, float*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops, m);
+	if(m > QR_Config<float>::HH_MAX_ROWS || lda < m)
+		return KBLAS_Error_WrongInput;
+	else if(stride_a < lda * n || stride_tau < n)
+		return KBLAS_Error_WrongInput;
+	
+	return batch_qr<float, float*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops, m);
 }
 
 extern "C" int kblasDtsqrf_batch_strided(kblasHandle_t handle, int m, int n, double* A_strided, int lda, int stride_a, double* tau, int stride_tau, int num_ops)
 {
+	if(lda < m)
+		return KBLAS_Error_WrongInput;
+	else if(stride_a < lda * n || stride_tau < n)
+		return KBLAS_Error_WrongInput;
+	
 	return batch_qr<double, double*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops, ROWS_PER_BLOCK);
 }
 
 extern "C" int kblasStsqrf_batch_strided(kblasHandle_t handle, int m, int n, float* A_strided, int lda, int stride_a, float* tau, int stride_tau, int num_ops)
 {
+	if(lda < m)
+		return KBLAS_Error_WrongInput;
+	else if(stride_a < lda * n || stride_tau < n)
+		return KBLAS_Error_WrongInput;
+	
 	return batch_qr<float, float*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops, ROWS_PER_BLOCK);
 }
 
 extern "C" int kblasDorgqr_batch_strided(kblasHandle_t handle, int m, int n, double* A_strided, int lda, int stride_a, double* tau, int stride_tau, int num_ops)
 {
-	if(m > QR_Config<double>::HH_MAX_ROWS)
-		return KBLAS_UnknownError;
-	else
-		return batch_unpack_Q<double, double*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops);
+	if(m > QR_Config<double>::HH_MAX_ROWS || lda < m)
+		return KBLAS_Error_WrongInput;
+	else if(stride_a < lda * n || stride_tau < n)
+		return KBLAS_Error_WrongInput;
+	
+	return batch_unpack_Q<double, double*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops);
 }
 
 extern "C" int kblasSorgqr_batch_strided(kblasHandle_t handle, int m, int n, float* A_strided, int lda, int stride_a, float* tau, int stride_tau, int num_ops)
 {
-	if(m > QR_Config<float>::HH_MAX_ROWS)
-		return KBLAS_UnknownError;
-	else
-		return batch_unpack_Q<float, float*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops);
+	if(m > QR_Config<float>::HH_MAX_ROWS || lda < m)
+		return KBLAS_Error_WrongInput;
+	else if(stride_a < lda * n || stride_tau < n)
+		return KBLAS_Error_WrongInput;
+	
+	return batch_unpack_Q<float, float*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops);
 }
 
 extern "C" int kblasDcopy_upper_batch_strided(kblasHandle_t handle, int m, int n, double* A_strided, int lda, int stride_a, double* R_strided, int ldr, int stride_R, int num_ops)
 {
+	if(lda < m || ldr < std::min(m, n))
+		return KBLAS_Error_WrongInput;
+	else if(stride_a < lda * n || stride_R < ldr * n)
+		return KBLAS_Error_WrongInput;
+	
 	return batch_qr_copy_R<double, double*>(handle, A_strided, lda, stride_a, R_strided, ldr, stride_R, m, n, num_ops);
 }
 
 extern "C" int kblasScopy_upper_batch_strided(kblasHandle_t handle, int m, int n, float* A_strided, int lda, int stride_a, float* R_strided, int ldr, int stride_R, int num_ops)
 {
+	if(lda < m || ldr < std::min(m, n))
+		return KBLAS_Error_WrongInput;
+	else if(stride_a < lda * n || stride_R < ldr * n)
+		return KBLAS_Error_WrongInput;
+	
 	return batch_qr_copy_R<float, float*>(handle, A_strided, lda, stride_a, R_strided, ldr, stride_R, m, n, num_ops);
 }
 
@@ -842,52 +871,64 @@ extern "C" int kblasScopy_upper_batch_strided(kblasHandle_t handle, int m, int n
 ///////////////////////////////////////////////////////////////
 extern "C" int kblasDgeqrf_batch(kblasHandle_t handle, int m, int n, double** A_array, int lda, double** tau_array, int num_ops)
 {
-	if(m > QR_Config<double>::HH_MAX_ROWS)
-		return KBLAS_UnknownError;
-	else
-		return batch_qr<double, double**>(handle, A_array, lda, 0, tau_array, 0, m, n, num_ops, m);
+	if(m > QR_Config<double>::HH_MAX_ROWS || lda < m)
+		return KBLAS_Error_WrongInput;
+	
+	return batch_qr<double, double**>(handle, A_array, lda, 0, tau_array, 0, m, n, num_ops, m);
 }
 
 extern "C" int kblasSgeqrf_batch(kblasHandle_t handle, int m, int n, float** A_array, int lda, float** tau_array, int num_ops)
 {
-	if(m > QR_Config<float>::HH_MAX_ROWS)
-		return KBLAS_UnknownError;
-	else
-		return batch_qr<float, float**>(handle, A_array, lda, 0, tau_array, 0, m, n, num_ops, m);
+	if(m > QR_Config<float>::HH_MAX_ROWS || lda < m)
+		return KBLAS_Error_WrongInput;
+	
+	return batch_qr<float, float**>(handle, A_array, lda, 0, tau_array, 0, m, n, num_ops, m);
 }
 
 extern "C" int kblasDtsqrf_batch(kblasHandle_t handle, int m, int n, double** A_array, int lda, double** tau_array, int num_ops)
 {
+	if(lda < m)
+		return KBLAS_Error_WrongInput;
+	
 	return batch_qr<double, double**>(handle, A_array, lda, 0, tau_array, 0, m, n, num_ops, ROWS_PER_BLOCK);
 }
 
 extern "C" int kblasStsqrf_batch(kblasHandle_t handle, int m, int n, float** A_array, int lda, float** tau_array, int num_ops)
 {
+	if(lda < m)
+		return KBLAS_Error_WrongInput;
+	
 	return batch_qr<float, float**>(handle, A_array, lda, 0, tau_array, 0, m, n, num_ops, ROWS_PER_BLOCK);
 }
 
 extern "C" int kblasDorgqr_batch(kblasHandle_t handle, int m, int n, double** A_array, int lda, double** tau_array, int num_ops)
 {
-	if(m > QR_Config<double>::HH_MAX_ROWS)
-		return KBLAS_UnknownError;
-	else
-		return batch_unpack_Q<double, double**>(handle, A_array, lda, 0, tau_array, 0, m, n, num_ops);
+	if(m > QR_Config<double>::HH_MAX_ROWS || lda < m)
+		return KBLAS_Error_WrongInput;
+	
+	return batch_unpack_Q<double, double**>(handle, A_array, lda, 0, tau_array, 0, m, n, num_ops);
 }
 
 extern "C" int kblasSorgqr_batch(kblasHandle_t handle, int m, int n, float** A_array, int lda, float** tau_array, int num_ops)
 {
-	if(m > QR_Config<float>::HH_MAX_ROWS)
-		return KBLAS_UnknownError;
-	else
-		return batch_unpack_Q<float, float**>(handle, A_array, lda, 0, tau_array, 0, m, n, num_ops);
+	if(m > QR_Config<float>::HH_MAX_ROWS || lda < m)
+		return KBLAS_Error_WrongInput;
+	
+	return batch_unpack_Q<float, float**>(handle, A_array, lda, 0, tau_array, 0, m, n, num_ops);
 }
 
 extern "C" int kblasDcopy_upper_batch(kblasHandle_t handle, int m, int n, double** A_array, int lda, double** R_array, int ldr, int num_ops)
 {
+	if(lda < m || ldr < std::min(m, n))
+		return KBLAS_Error_WrongInput;
+	
 	return batch_qr_copy_R<double, double**>(handle, A_array, lda, 0, R_array, ldr, 0, m, n, num_ops);
 }
 
 extern "C" int kblasScopy_upper_batch(kblasHandle_t handle, int m, int n, float** A_array, int lda, float** R_array, int ldr, int num_ops)
 {
+	if(lda < m || ldr < std::min(m, n))
+		return KBLAS_Error_WrongInput;
+	
 	return batch_qr_copy_R<float, float**>(handle, A_array, lda, 0, R_array, ldr, 0, m, n, num_ops);
 }

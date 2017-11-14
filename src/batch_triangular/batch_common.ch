@@ -134,4 +134,23 @@ void trtri_batch_wsquery_core(const int n, int batchCount, kblasWorkspaceState_t
   }
 }
 
+//==============================================================================================
+template<bool STRIDED>
+inline
+void potrs_batch_wsquery_core(const int m, const int n, int batchCount, kblasWorkspaceState_t wss)
+{
+  int n1 = CLOSEST_REG_SIZE(n);
+
+  trsm_batch_wsquery_core<STRIDED>( batchCount,
+                                    KBLAS_Right, m, n1,
+                                    wss);
+  if(STRIDED){
+    gemm_batch_strided_wsquery_core(batchCount, wss);
+  }else{
+    gemm_batch_offset_wsquery_core( batchCount,
+                                    1, 1, 1, 1, 1, 1,
+                                    wss);
+  }
+}
+
 #endif //__KBLAS_BATCH_COMMON_H__

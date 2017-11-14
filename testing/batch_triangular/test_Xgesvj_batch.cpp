@@ -1,3 +1,21 @@
+/**
+ * @copyright (c) 2012- King Abdullah University of Science and
+ *                      Technology (KAUST). All rights reserved.
+ **/
+
+
+/**
+ * @file testing/batch_triangular/test_Xgesvj_batch.cpp
+
+ * KBLAS is a high performance CUDA library for subset of BLAS
+ *    and LAPACK routines optimized for NVIDIA GPUs.
+ * KBLAS is provided by KAUST.
+ *
+ * @version 2.0.0
+ * @author Wajih Halim Boukaram
+ * @date 2017-11-13
+ **/
+
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
@@ -36,7 +54,7 @@ typedef int*	IntArray;
 		int entries = batchCount_gpu * rows * cols; \
 		check_error( cudaMemcpy(d_A[g], host_A_original + entries * g, entries * sizeof(Real), cudaMemcpyHostToDevice) ); \
 	}	\
-	syncGPUs(&opts); 
+	syncGPUs(&opts);
 
 #define SYNC_TIMERS(timers, run_time) \
 	max_time = -1;	\
@@ -63,7 +81,7 @@ double batch_cpu_svd(Real* A, Real* S, int rows, int cols, int num_ops, int num_
 	double total_time = gettime();
 	int stride_A = rows * cols;
 	int stride_S = cols;
-	
+
 	#pragma omp parallel for num_threads(num_threads)
 	for(int i = 0; i < num_ops; i++)
 	{
@@ -75,7 +93,7 @@ double batch_cpu_svd(Real* A, Real* S, int rows, int cols, int num_ops, int num_
         if( info > 0 )
 			printf( "The algorithm computing SVD failed to converge for operation %d.\n", i);
 	}
-	
+
 	total_time = gettime() - total_time;
 	return total_time;
 }
@@ -115,7 +133,7 @@ int main(int argc, char** argv)
 	int rows, cols;
 	double max_time;
 	int work_size = 0;
-	
+
 	// Host arrays
 	RealArray host_A, host_S, host_A_original, host_S_exact, gpu_results;
 
@@ -124,30 +142,30 @@ int main(int argc, char** argv)
 	warmup = opts.warmup;
 	nruns = opts.nruns;
 	num_omp_threads = opts.omp_numthreads;
-	
+
 	// Device arrays
 	RealArray d_A[num_gpus], d_S[num_gpus];
 	IntArray  d_info[num_gpus];
 	RealArray cusolver_ws[num_gpus];
-	
+
 	// Handles and timers
 	cusolverDnHandle_t cusolver_handles[num_gpus][CUSOLVER_STREAMS];
 	kblasHandle_t kblas_handles[num_gpus];
 	GPU_Timer_t kblas_timers[num_gpus];
-	
+
 	double cpu_time[nruns], kblas_time[nruns], cusolver_time[nruns];
-	
+
 	int cuda_version;
 	check_error( cudaRuntimeGetVersion(&cuda_version) );
-	
+
 	for(int g = 0; g < num_gpus; g++)
 	{
 		cudaSetDevice(opts.devices[g]);
-		
+
 		#ifdef DOUBLE_PRECISION
 		cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
 		#endif
-		
+
 		cudaStream_t cuda_streams[CUSOLVER_STREAMS];
 		for(int i = 0 ; i < CUSOLVER_STREAMS; i++)
 		{
@@ -155,26 +173,26 @@ int main(int argc, char** argv)
 			check_cusolver_error( cusolverDnCreate(&cusolver_handles[g][i]) );
 			check_cusolver_error( cusolverDnSetStream(cusolver_handles[g][i], cuda_streams[i]) );
 		}
-		
+
 		// Init kblas handles and timers
 		kblasCreate(&kblas_handles[g]);
 		kblas_timers[g] = newGPU_Timer(kblasGetStream(kblas_handles[g]));
     }
-	
+
 	printf("%-15s%-10s%-10s%-15s%-15s%-15s%-15s%-15s%-15s\n", "batchCount", "N", "K", "kblasGESVJ(s)", "cpuGESVJ(s)", "CUSOLVER(s)", "kblasErr", "CPUerr", "cusovlerErr");
 	printf("============================================================================================================================\n");
-	for(int itest = 0; itest < opts.ntest; ++itest) 
+	for(int itest = 0; itest < opts.ntest; ++itest)
 	{
-		for(int iter = 0; iter < opts.niter; ++iter) 
+		for(int iter = 0; iter < opts.niter; ++iter)
 		{
-			for(int btest = 0; btest < opts.btest; ++btest) 
+			for(int btest = 0; btest < opts.btest; ++btest)
 			{
 				batchCount = opts.batchCount;
 				if(opts.btest > 1)
 					batchCount = opts.batch[btest];
-				
+
 				batchCount_gpu = batchCount / num_gpus;
-				
+
 				rows = opts.msize[itest];
 				cols = opts.nsize[itest];
 
@@ -186,10 +204,10 @@ int main(int argc, char** argv)
 				TESTING_MALLOC_CPU(host_A_original, Real, batchCount * rows * cols);
 				TESTING_MALLOC_CPU(host_S_exact, Real, batchCount * cols);
 				TESTING_MALLOC_CPU(gpu_results, Real, batchCount * cols);
-				
+
 				int rand_seed = itest + iter * opts.ntest + btest * opts.ntest * opts.niter;
 				generateXrandomMatrices(
-					host_A_original, rows * cols, host_S_exact, cols, rows, cols, 
+					host_A_original, rows * cols, host_S_exact, cols, rows, cols,
 					1e7, 0.4, rand_seed, batchCount, num_omp_threads
 				);
 
@@ -199,19 +217,19 @@ int main(int argc, char** argv)
 					cudaSetDevice(opts.devices[g]);
 					TESTING_MALLOC_DEV(d_A[g], Real, batchCount_gpu * rows * cols);
 					TESTING_MALLOC_DEV(d_S[g], Real, batchCount_gpu * cols);
-					
+
 					// KBlas workspace
 					kblas_gesvj_batch_wsquery<Real>(kblas_handles[g], rows, cols, batchCount_gpu);
 					kblasAllocateWorkspace(kblas_handles[g]);
-					
+
 					// Cusolver workspace
 					TESTING_MALLOC_DEV(d_info[g], int, CUSOLVER_STREAMS);
-					
+
 					work_size = 0;
 					check_cusolver_error(cusolverDnXgesvd_bufferSize(cusolver_handles[g][0], rows, cols, &work_size));
 					TESTING_MALLOC_DEV(cusolver_ws[g], Real, CUSOLVER_STREAMS * work_size)
 				}
-				
+
 				////////////////////////////////////////////////////////////////////////
 				// Time the runs
 				////////////////////////////////////////////////////////////////////////
@@ -222,7 +240,7 @@ int main(int argc, char** argv)
 					memcpy(host_A, host_A_original, sizeof(Real) * batchCount * rows * cols);
 					cpu_time[i] = batch_cpu_svd(host_A, host_S, rows, cols, batchCount, num_omp_threads);
 					cpu_err += testSValues(host_S, host_S_exact, cols, cols, batchCount);
-					
+
 					////////////////////////////////////////////////////////////////////////
 					// KBLAS
 					////////////////////////////////////////////////////////////////////////
@@ -233,18 +251,18 @@ int main(int argc, char** argv)
 					{
 						cudaSetDevice(opts.devices[g]);
 						gpuTimerTic(kblas_timers[g]);
-						
+
 						kblasXgesvj_batch(kblas_handles[g], rows, cols, d_A[g], rows, rows * cols, d_S[g], cols, batchCount_gpu);
-						
+
 						gpuTimerRecordEnd(kblas_timers[g]);
 					}
 					// The time all gpus finish at is the max of all the individual timers
 					SYNC_TIMERS(kblas_timers, kblas_time);
-					
+
 					// Copy the data down from all the GPUs and compare with the CPU results
 					COPY_DATA_DOWN();
 					kblas_err += testSValues(gpu_results, host_S_exact, cols, cols, batchCount);
-					
+
 					////////////////////////////////////////////////////////////////////////
 					// CUSPARSE
 					////////////////////////////////////////////////////////////////////////
@@ -252,18 +270,18 @@ int main(int argc, char** argv)
 					if(cuda_version >= 8000)
 					{
 						COPY_DATA_UP();
-						
+
 						cusolver_time[i] = gettime();
 						// Launch all kernels
 						for(int g = 0; g < num_gpus; g++)
 						{
 							cudaSetDevice(opts.devices[g]);
-							
+
 							int ops_done = 0;
 							while(ops_done < batchCount_gpu)
 							{
 								int ops_to_do = std::min(CUSOLVER_STREAMS, batchCount_gpu - ops_done);
-								
+
 								// #pragma omp parallel for num_threads(ops_to_do)
 								for(int i = 0; i < ops_to_do; i++)
 								{
@@ -273,7 +291,7 @@ int main(int argc, char** argv)
 
 									Real* work_m = cusolver_ws[g] + work_size * i;
 									int* dev_info_m = d_info[g] + i;
-									
+
 									check_cusolver_error(
 										cusolverDnXgesvd(
 											cusolver_handles[g][i], 'O', 'N', rows, cols,
@@ -288,34 +306,34 @@ int main(int argc, char** argv)
 						}
 						syncGPUs(&opts);
 						cusolver_time[i] = gettime() - cusolver_time[i];
-						
+
 						// Copy the data down from all the GPUs and compare with the CPU results
 						COPY_DATA_DOWN();
 						cusolver_err += testSValues(gpu_results, host_S_exact, cols, cols, batchCount);
 					}
 				}
-				
+
 				double avg_kblas_time, std_dev_kblas_time;
 				double avg_cusolver_time, std_dev_cusolver_time;
 				double avg_cpu_time, std_dev_cpu_time;
-				
+
 				avg_and_stdev(&cpu_time[0], nruns, &avg_cpu_time, &std_dev_cpu_time, warmup);
 				avg_and_stdev(&kblas_time[0], nruns, &avg_kblas_time, &std_dev_kblas_time, warmup);
 				avg_and_stdev(&cusolver_time[0], nruns, &avg_cusolver_time, &std_dev_cusolver_time, warmup);
-				
+
 				printf(
-					"%-15d%-10d%-10d%-15.5f%-15.5f%-15.5f%-15.3e%-15.3e%-15.3e\n", 
-					batchCount, rows, cols, avg_kblas_time, avg_cpu_time, avg_cusolver_time, 
+					"%-15d%-10d%-10d%-15.5f%-15.5f%-15.5f%-15.3e%-15.3e%-15.3e\n",
+					batchCount, rows, cols, avg_kblas_time, avg_cpu_time, avg_cusolver_time,
 					kblas_err / nruns, cpu_err / nruns, cusolver_err / nruns
 				);
-				
+
 				////////////////////////////////////////////////////////////////////////
 				// Free up the data
 				////////////////////////////////////////////////////////////////////////
-				TESTING_FREE_CPU(host_A); TESTING_FREE_CPU(host_S); 
+				TESTING_FREE_CPU(host_A); TESTING_FREE_CPU(host_S);
 				TESTING_FREE_CPU(host_A_original); TESTING_FREE_CPU(host_S_exact);
-				TESTING_FREE_CPU(gpu_results); 
-				
+				TESTING_FREE_CPU(gpu_results);
+
 				for(int g = 0; g < num_gpus; g++)
 				{
 					cudaSetDevice(opts.devices[g]);

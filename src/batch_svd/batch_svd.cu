@@ -1,3 +1,21 @@
+/**
+ * @copyright (c) 2012- King Abdullah University of Science and
+ *                      Technology (KAUST). All rights reserved.
+ **/
+
+
+/**
+ * @file src/batch_svd/batch_svd.cu
+
+ * KBLAS is a high performance CUDA library for subset of BLAS
+ *    and LAPACK routines optimized for NVIDIA GPUs.
+ * KBLAS is provided by KAUST.
+ *
+ * @version 2.0.0
+ * @author Wajih Halim Boukaram
+ * @date 2017-11-13
+ **/
+
 #include <curand.h>
 #include <cublas_v2.h>
 #include <vector>
@@ -27,7 +45,7 @@ void batch_svd_osbj_workspace(int rows, int cols, int num_ops, KBlasWorkspaceSta
 {
 	if(cols <= SHARED_SVD_DIM_LIMIT && rows <= SHARED_SVD_DIM_LIMIT)
 		return;
-	
+
 	int block_cols = iDivUp(cols, OSBJ_BS);
 
 	requested_ws.d_data_bytes += (
@@ -81,7 +99,7 @@ void batch_svd_randomized_workspace(int rows, int cols, int rank, int num_ops, K
 	) * sizeof(T) * num_ops;
 
 	requested_ws.d_ptrs_bytes += 5 * sizeof(T*) * num_ops;
-	
+
 	// Do we need to do osbj of the rank x rank matrix?
 	if(!top_level && rank > SHARED_SVD_DIM_LIMIT)
 		batch_svd_osbj_workspace<T>(rank, rank, num_ops, requested_ws, 0);
@@ -170,7 +188,7 @@ int batch_svd_small(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int r
 	}
 	batchSortSingularValues_small<T, T_ptr>(M, ldm, stride_m, S, stride_s, rows, cols, num_ops, handle);
 	check_error_ret( cudaGetLastError(), KBLAS_UnknownError );
-	
+
 	#ifdef HLIB_PROFILING_ENABLED
 	handle->recordEnd();
 	double time_elapsed = handle->toc();
@@ -202,7 +220,7 @@ int batchNormalizeColumns(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s,
 
     batchNormalizeColumnsKernel<T, T_ptr><<< dimGrid, dimBlock, 0, handle->stream >>>
 		(M, ldm, stride_m, S, stride_s, rows, cols, rows_per_thread, cols_per_thread, num_ops);
-		
+
 	check_error_ret( cudaGetLastError(), KBLAS_UnknownError );
 	return KBLAS_Success;
 }
@@ -231,11 +249,11 @@ int batch_tall_svd(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int ro
 	batch_tall_svd_workspace<T>(rows, cols, 1, local_ws_per_op, 1);
 
 	KBlasWorkspaceState available_ws = handle->work_space.getAvailable();
-	
+
 	int op_increment_data = available_ws.d_data_bytes / ws_per_op.d_data_bytes;
 	int op_increment_ptr  = available_ws.d_ptrs_bytes / ws_per_op.d_ptrs_bytes;
 	int op_increment      = std::min(std::min(num_ops, op_increment_data), op_increment_ptr);
-	
+
 	if(op_increment == 0)
 		return KBLAS_InsufficientWorkspace;
 
@@ -262,13 +280,13 @@ int batch_tall_svd(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int ro
 
 		// Generate pointers for the batch gemm routine
 		generateArrayOfPointers(M_batch, M_ptrs, stride_m, batch_size, handle->stream);
-	
+
 		// [Q, R] = qr(M)
 		kblas_geqrf_batch(handle, rows, cols, M_batch, ldm, stride_m, selectPointerData<T, T_ptr>(tau_strided, tau_ptrs), cols, batch_size);
 		kblas_copy_upper_batch(handle, rows, cols, M_batch, ldm, stride_m, selectPointerData<T, T_ptr>(R_strided, R_ptrs), cols, cols * cols, batch_size);
 		kblas_orgqr_batch(handle, rows, cols, M_batch, ldm, stride_m, selectPointerData<T, T_ptr>(tau_strided, tau_ptrs), cols, batch_size);
 		kblas_copyBlock_batch(handle, rows, cols, selectPointerData<T, T_ptr>(Q_strided, Q_ptrs), 0, 0, rows, rows * cols, M_batch, 0, 0, ldm, stride_m, batch_size);
-		
+
 		// [U, S, ~] = svd(R)
 		batch_svd_small<T, T_ptr>(selectPointerData<T, T_ptr>(R_strided, R_ptrs), cols, cols * cols, S_batch, stride_s, cols, cols, batch_size, handle);
 
@@ -280,10 +298,10 @@ int batch_tall_svd(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int ro
 			0, M_ptrs, ldm, batch_size
 		);
 	}
-	
+
 	handle->work_space.pop_d_ptrs(local_ws_per_op.d_ptrs_bytes * op_increment);
 	handle->work_space.pop_d_data(local_ws_per_op.d_data_bytes * op_increment);
-	
+
 	return KBLAS_Success;
 }
 
@@ -297,17 +315,17 @@ int batch_svd_osbj(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int ro
 
     T tolerance = OSBJ_BS * KBlasEpsilon<T>::eps * cols * cols;
 	int block_cols = iDivUp(cols, OSBJ_BS);
-	
+
 	KBlasWorkspaceState ws_per_op, local_ws_per_op;
 	batch_svd_osbj_workspace<T>(rows, cols, 1, ws_per_op, 0);
 	batch_svd_osbj_workspace<T>(rows, cols, 1, local_ws_per_op, 1);
 
 	KBlasWorkspaceState available_ws = handle->work_space.getAvailable();
-	
+
 	int op_increment_data = available_ws.d_data_bytes / ws_per_op.d_data_bytes;
 	int op_increment_ptr  = available_ws.d_ptrs_bytes / ws_per_op.d_ptrs_bytes;
 	int op_increment      = std::min(std::min(num_ops, op_increment_data), op_increment_ptr);
-	
+
 	if(op_increment == 0)
 		return KBLAS_InsufficientWorkspace;
 
@@ -341,7 +359,7 @@ int batch_svd_osbj(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int ro
     generateArrayOfPointers(Aij_strided, temp_j_ptrs, rows * 2 * OSBJ_BS, rows * OSBJ_BS, op_increment, handle->stream);
 
 	int result = KBLAS_Success;
-	
+
 	for(int op_start = 0; op_start < num_ops; op_start += op_increment)
 	{
 		int batch_size = std::min(op_increment, num_ops - op_start);
@@ -377,8 +395,8 @@ int batch_svd_osbj(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int ro
 						// Get the gram matrix for the blocks i and j
 						// G = [Gii Gij; Gji Gjj]
 						kblas_gemm_batch(
-							handle, KBLAS_Trans, KBLAS_NoTrans, Aij_cols, Aij_cols, rows, 1, 
-							(const T**)temp_i_ptrs, rows, (const T**)temp_i_ptrs, rows, 0, 
+							handle, KBLAS_Trans, KBLAS_NoTrans, Aij_cols, Aij_cols, rows, 1,
+							(const T**)temp_i_ptrs, rows, (const T**)temp_i_ptrs, rows, 0,
 							gram_ii_ptrs, 2 * OSBJ_BS, batch_size
 						);
 
@@ -406,24 +424,24 @@ int batch_svd_osbj(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int ro
 
 					// Rotate the block columns
 					kblas_gemm_batch(
-						handle, KBLAS_NoTrans, KBLAS_NoTrans, rows, i_cols, i_cols, 1, 
-						(const T**)temp_i_ptrs, rows, (const T**)gram_ii_ptrs, 2 * OSBJ_BS, 0, 
+						handle, KBLAS_NoTrans, KBLAS_NoTrans, rows, i_cols, i_cols, 1,
+						(const T**)temp_i_ptrs, rows, (const T**)gram_ii_ptrs, 2 * OSBJ_BS, 0,
 						block_col_ptrs[i], ldm, batch_size
 					);
 					kblas_gemm_batch(
-						handle, KBLAS_NoTrans, KBLAS_NoTrans, rows, i_cols, j_cols, 1, 
-						(const T**)temp_j_ptrs, rows, (const T**)gram_ji_ptrs, 2 * OSBJ_BS, 1, 
+						handle, KBLAS_NoTrans, KBLAS_NoTrans, rows, i_cols, j_cols, 1,
+						(const T**)temp_j_ptrs, rows, (const T**)gram_ji_ptrs, 2 * OSBJ_BS, 1,
 						block_col_ptrs[i], ldm, batch_size
 					);
 
 					kblas_gemm_batch(
-						handle, KBLAS_NoTrans, KBLAS_NoTrans, rows, j_cols, j_cols, 1, 
-						(const T**)temp_j_ptrs, rows, (const T**)gram_jj_ptrs, 2 * OSBJ_BS, 0, 
+						handle, KBLAS_NoTrans, KBLAS_NoTrans, rows, j_cols, j_cols, 1,
+						(const T**)temp_j_ptrs, rows, (const T**)gram_jj_ptrs, 2 * OSBJ_BS, 0,
 						block_col_ptrs[j], ldm, batch_size
 					);
 					kblas_gemm_batch(
-						handle, KBLAS_NoTrans, KBLAS_NoTrans, rows, j_cols, i_cols, 1, 
-						(const T**)temp_i_ptrs, rows, (const T**)gram_ij_ptrs, 2 * OSBJ_BS, 1, 
+						handle, KBLAS_NoTrans, KBLAS_NoTrans, rows, j_cols, i_cols, 1,
+						(const T**)temp_i_ptrs, rows, (const T**)gram_ij_ptrs, 2 * OSBJ_BS, 1,
 						block_col_ptrs[j], ldm, batch_size
 					);
 				}
@@ -436,14 +454,14 @@ int batch_svd_osbj(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int ro
 
 		// Normalize the columns of the matrix and compute the singular values
 		batchNormalizeColumns<T, T_ptr>(M_batch, ldm, stride_m, S_batch, stride_s, rows, cols, batch_size, handle);
-		
-		if(converged != 1) 
+
+		if(converged != 1)
 			result = KBLAS_SVD_NoConvergence;
 	}
 
 	handle->work_space.pop_d_ptrs(local_ws_per_op.d_ptrs_bytes * op_increment);
 	handle->work_space.pop_d_data(local_ws_per_op.d_data_bytes * op_increment);
-	
+
 	return result;
 }
 
@@ -481,11 +499,11 @@ int batch_svd_randomized(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, 
 	batch_svd_randomized_workspace<T>(rows, cols, rank, 1, local_ws_per_op, 1);
 
 	KBlasWorkspaceState available_ws = handle->work_space.getAvailable();
-	
+
 	int op_increment_data = available_ws.d_data_bytes / ws_per_op.d_data_bytes;
 	int op_increment_ptr  = available_ws.d_ptrs_bytes / ws_per_op.d_ptrs_bytes;
 	int op_increment      = std::min(std::min(num_ops, op_increment_data), op_increment_ptr);
-	
+
 	if(op_increment == 0)
 		return KBLAS_InsufficientWorkspace;
 
@@ -528,7 +546,7 @@ int batch_svd_randomized(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, 
 		// First form the sampled matrix Y = A * omega
 		kblas_gemm_batch(
 			handle, KBLAS_NoTrans, KBLAS_NoTrans, rows, rank, cols, alpha,
-			(const T**)M_ptrs, ldm, (const T**)Omega_ptrs, cols, beta, 
+			(const T**)M_ptrs, ldm, (const T**)Omega_ptrs, cols, beta,
 			Y_ptrs, rows, batch_size
 		);
 
@@ -539,7 +557,7 @@ int batch_svd_randomized(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, 
 		// Form B = A' * Q_Y
 		kblas_gemm_batch(
 			handle, KBLAS_Trans, KBLAS_NoTrans, cols, rank, rows, alpha,
-			(const T**)M_ptrs, ldm, (const T**)Y_ptrs, rows, beta, 
+			(const T**)M_ptrs, ldm, (const T**)Y_ptrs, rows, beta,
 			B_ptrs, cols, batch_size
 		);
 
@@ -570,14 +588,14 @@ int batch_svd_randomized(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, 
 		// truncated SVD as the product U_A = Q_Y * V_B
 		kblas_gemm_batch(
 			handle, KBLAS_NoTrans, KBLAS_NoTrans, rows, rank, rank, alpha,
-			(const T**)Y_ptrs, rows, (const T**)Omega_ptrs, rank, beta, 
+			(const T**)Y_ptrs, rows, (const T**)Omega_ptrs, rank, beta,
 			M_ptrs, ldm, batch_size
 		);
 	}
-	
+
 	handle->work_space.pop_d_ptrs(local_ws_per_op.d_ptrs_bytes * op_increment);
 	handle->work_space.pop_d_data(local_ws_per_op.d_data_bytes * op_increment);
-	
+
 	return KBLAS_Success;
 }
 
@@ -608,7 +626,7 @@ extern "C" void kblasDgesvj_gram_batch_wsquery(kblasHandle_t handle, int m, int 
 {
 	if(m <= SHARED_SVD_DIM_LIMIT && n <= SHARED_SVD_DIM_LIMIT)
 		return;
-	
+
 	batch_svd_osbj_workspace<double>(m, n, ops, handle->work_space.requested_ws_state, 0);
 }
 
@@ -616,7 +634,7 @@ extern "C" void kblasSgesvj_gram_batch_wsquery(kblasHandle_t handle, int m, int 
 {
 	if(m <= SHARED_SVD_DIM_LIMIT && n <= SHARED_SVD_DIM_LIMIT)
 		return;
-	
+
 	batch_svd_osbj_workspace<double>(m, n, ops, handle->work_space.requested_ws_state, 0);
 }
 
@@ -637,7 +655,7 @@ extern "C" int kblasDgesvj_batch_strided(kblasHandle_t handle, int m, int n, dou
 {
 	if(m < n)
 		return KBLAS_NotImplemented;
-	
+
 	if(m <= SHARED_SVD_DIM_LIMIT && n <= SHARED_SVD_DIM_LIMIT)
 		return batch_svd_small<double, double*>(A_strided, lda, stride_a, S_strided, stride_s, m, n, num_ops, handle);
 	else if(n <= SHARED_SVD_DIM_LIMIT)
@@ -650,7 +668,7 @@ extern "C" int kblasSgesvj_batch_strided(kblasHandle_t handle, int m, int n, flo
 {
 	if(m < n)
 		return KBLAS_NotImplemented;
-	
+
 	if(m <= SHARED_SVD_DIM_LIMIT && n <= SHARED_SVD_DIM_LIMIT)
 		return batch_svd_small<float, float*>(A_strided, lda, stride_a, S_strided, stride_s, m, n, num_ops, handle);
 	else if(n <= SHARED_SVD_DIM_LIMIT)
@@ -663,7 +681,7 @@ extern "C" int kblasDgesvj_gram_batch_strided(kblasHandle_t handle, int m, int n
 {
 	if(m < n)
 		return KBLAS_NotImplemented;
-	
+
 	return batch_svd_osbj_gram<double, double*>(A_strided, lda, stride_a, S_strided, stride_s, m, n, num_ops, handle);
 }
 
@@ -671,7 +689,7 @@ extern "C" int kblasSgesvj_gram_batch_strided(kblasHandle_t handle, int m, int n
 {
 	if(m < n)
 		return KBLAS_NotImplemented;
-	
+
 	return batch_svd_osbj_gram<float, float*>(A_strided, lda, stride_a, S_strided, stride_s, m, n, num_ops, handle);
 }
 
@@ -692,7 +710,7 @@ extern "C" int kblasDgesvj_batch(kblasHandle_t handle, int m, int n, double** A_
 {
 	if(m < n)
 		return KBLAS_NotImplemented;
-	
+
 	if(m <= SHARED_SVD_DIM_LIMIT && n <= SHARED_SVD_DIM_LIMIT)
 		return batch_svd_small<double, double**>(A_ptrs, lda, 0, S_ptrs, 0, m, n, num_ops, handle);
 	else if(n <= SHARED_SVD_DIM_LIMIT)
@@ -705,7 +723,7 @@ extern "C" int kblasSgesvj_batch(kblasHandle_t handle, int m, int n, float** A_p
 {
 	if(m < n)
 		return KBLAS_NotImplemented;
-	
+
 	if(m <= SHARED_SVD_DIM_LIMIT && n <= SHARED_SVD_DIM_LIMIT)
 		return batch_svd_small<float, float**>(A_ptrs, lda, 0, S_ptrs, 0, m, n, num_ops, handle);
 	else if(n <= SHARED_SVD_DIM_LIMIT)
@@ -718,7 +736,7 @@ extern "C" int kblasDgesvj_gram_batch(kblasHandle_t handle, int m, int n, double
 {
 	if(m < n)
 		return KBLAS_NotImplemented;
-	
+
 	return batch_svd_osbj_gram<double, double**>(A_ptrs, lda, 0, S_ptrs, 0, m, n, num_ops, handle);
 }
 
@@ -726,7 +744,7 @@ extern "C" int kblasSgesvj_gram_batch(kblasHandle_t handle, int m, int n, float*
 {
 	if(m < n)
 		return KBLAS_NotImplemented;
-	
+
 	return batch_svd_osbj_gram<float, float**>(A_ptrs, lda, 0, S_ptrs, 0, m, n, num_ops, handle);
 }
 

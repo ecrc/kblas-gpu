@@ -1,3 +1,21 @@
+/**
+ * @copyright (c) 2012- King Abdullah University of Science and
+ *                      Technology (KAUST). All rights reserved.
+ **/
+
+
+/**
+ * @file src/batch_svd/thrust_wrappers.cu
+
+ * KBLAS is a high performance CUDA library for subset of BLAS
+ *    and LAPACK routines optimized for NVIDIA GPUs.
+ * KBLAS is provided by KAUST.
+ *
+ * @version 2.0.0
+ * @author Wajih Halim Boukaram
+ * @date 2017-11-13
+ **/
+
 #include <thrust/execution_policy.h>
 #include <thrust/system/cuda/execution_policy.h>
 #include <thrust/host_vector.h>
@@ -21,7 +39,7 @@
 void exclusiveScan(int* array, int num_entries, int* result, int init, cudaStream_t stream)
 {
     thrust::exclusive_scan(
-		thrust::cuda::par.on(stream), 
+		thrust::cuda::par.on(stream),
 		array, array + num_entries, result, init
 	);
 }
@@ -29,7 +47,7 @@ void exclusiveScan(int* array, int num_entries, int* result, int init, cudaStrea
 void inclusiveScan(int* array, int num_entries, int* result, cudaStream_t stream)
 {
     thrust::inclusive_scan(
-		thrust::cuda::par.on(stream), 
+		thrust::cuda::par.on(stream),
 		array, array + num_entries, result
 	);
 }
@@ -39,7 +57,7 @@ T getMaxElementT(T* a, int elements, cudaStream_t stream)
 {
     thrust::device_ptr<T> dev_a(a);
     return *(thrust::max_element(
-		thrust::cuda::par.on(stream), 
+		thrust::cuda::par.on(stream),
 		dev_a, dev_a + elements
 	));
 }
@@ -64,7 +82,7 @@ T reduceSumT(T* a, int elements, cudaStream_t stream)
 {
     thrust::device_ptr<T> dev_a(a);
     return thrust::reduce(
-		thrust::cuda::par.on(stream), 
+		thrust::cuda::par.on(stream),
 		dev_a, dev_a + elements
 	);
 }
@@ -85,7 +103,7 @@ void fillArrayT(Real* array, int num_entries, Real val, cudaStream_t stream)
 	thrust::device_ptr<Real> dev_start(array);
     thrust::device_ptr<Real> dev_end(array + num_entries);
 	thrust::fill(
-		thrust::cuda::par.on(stream), 
+		thrust::cuda::par.on(stream),
 		dev_start, dev_end, val)
 	;
 }
@@ -104,19 +122,19 @@ void fillArray(double* array, int num_entries, double val, cudaStream_t stream)
 // Generating array of pointers from either a strided array or another array of pointers
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 template<class T, class T_ptr>
-struct UnaryAoAAssign : public thrust::unary_function<int, T*> 
+struct UnaryAoAAssign : public thrust::unary_function<int, T*>
 {
     T_ptr original_array;
     int stride, offset;
-    
-    UnaryAoAAssign(T_ptr original_array, int stride, int offset) 
+
+    UnaryAoAAssign(T_ptr original_array, int stride, int offset)
     {
         this->original_array = original_array;
         this->stride = stride;
         this->offset = offset;
     }
-    
-    __host__ __device__ 
+
+    __host__ __device__
     T* operator()(const unsigned int& thread_id) const
     {
         return getOperationPtr<T>(original_array, thread_id, stride) + offset;
@@ -127,9 +145,9 @@ template<class T, class T_ptr>
 void generateArrayOfPointersT(T_ptr original_array, T** array_of_arrays, int stride, int offset, int num_arrays, cudaStream_t stream)
 {
     thrust::device_ptr<T*> dev_data(array_of_arrays);
-    
-    thrust::transform(  
-		thrust::cuda::par.on(stream), 
+
+    thrust::transform(
+		thrust::cuda::par.on(stream),
         thrust::counting_iterator<int>(0),
         thrust::counting_iterator<int>(num_arrays),
         dev_data,

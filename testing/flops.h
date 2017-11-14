@@ -1,3 +1,35 @@
+ /**
+ * @copyright (c) 2012- King Abdullah University of Science and
+ *                      Technology (KAUST). All rights reserved.
+ *  File adapted from PLASMA/flops.h by Univ. of Tennessee,
+ **/
+
+/**
+ *
+ * @file testing/flops.h
+ *
+ *
+ * @version 1.0.0
+ * @author Mathieu Faverge
+ * @date 2010-12-20
+ *
+ * @version 2.0.0
+ * @author Ali Charara
+ * @date 2017-11-13
+ **/
+
+/*
+ * This file provide the flops formula for some of Level 3 BLAS and some
+ * Lapack routines.  Each macro uses the same size parameters as the
+ * function associated and provide one formula for additions and one
+ * for multiplications. Example to use these macros:
+ *
+ *    FLOPS_ZGEMM( m, n, k )
+ *
+ * All the formula are reported in the LAPACK Lawn 41:
+ *     http://www.netlib.org/lapack/lawns/lawn41.ps
+ */
+
 #ifndef _TESTING_FLOPS_
 #define _TESTING_FLOPS_
 

@@ -1,3 +1,21 @@
+/**
+ * @copyright (c) 2012- King Abdullah University of Science and
+ *                      Technology (KAUST). All rights reserved.
+ **/
+
+
+/**
+ * @file src/kblas_gpu_util.ch
+
+ * KBLAS is a high performance CUDA library for subset of BLAS
+ *    and LAPACK routines optimized for NVIDIA GPUs.
+ * KBLAS is provided by KAUST.
+ *
+ * @version 2.0.0
+ * @author Wajih Halim Boukaram
+ * @date 2017-11-13
+ **/
+
 #ifndef __KBLAS_GPU_UTIL_H__
 #define __KBLAS_GPU_UTIL_H__
 
@@ -33,27 +51,27 @@ template<> struct KBlasEpsilon<double> {static const double eps = 2.220446049250
 __device__ __host__
 inline int iDivUp( int a, int b ) { return (a % b != 0) ? (a / b + 1) : (a / b); }
 
-template<class T> 
-__inline__ __device__ 
-T blockAllReduceSum(T val, int warp_id, int warp_tid, T* temp_storage, int blocksize) 
+template<class T>
+__inline__ __device__
+T blockAllReduceSum(T val, int warp_id, int warp_tid, T* temp_storage, int blocksize)
 {
     const int warps = blocksize / WARP_SIZE;
-    
+
     // First do a reduction within each warp
-    #pragma unroll 
+    #pragma unroll
     for (int mask = WARP_SIZE / 2; mask > 0; mask /= 2)
         val += __shfl_xor(val, mask);
-    
+
     if(warps > 1)
     {
         if(warp_tid == 0) temp_storage[warp_id] = val;
         __syncthreads();
-        
+
         T final_sum = 0;
         #pragma unroll
         for(int i = 0; i < warps; i++)
             final_sum += temp_storage[i];
-        
+
         // Is this sync necessary? I think so since if we call the routine again
         // while one warp is already on a second reduction, the temp values will
         // be overwritten before another warp has a chance to tally the results
@@ -64,27 +82,27 @@ T blockAllReduceSum(T val, int warp_id, int warp_tid, T* temp_storage, int block
         return val;
 }
 
-template<class T, int BLOCKSIZE> 
-__inline__ __device__ 
-T blockAllReduceSum(T val, int warp_tid, int warp_id, volatile T* temp_storage) 
+template<class T, int BLOCKSIZE>
+__inline__ __device__
+T blockAllReduceSum(T val, int warp_tid, int warp_id, volatile T* temp_storage)
 {
     const int warps = BLOCKSIZE / WARP_SIZE;
-    
+
     // First do a reduction within each warp
-    #pragma unroll 
+    #pragma unroll
     for (int mask = WARP_SIZE / 2; mask > 0; mask /= 2)
         val += __shfl_xor(val, mask);
-    
+
     if(warps > 1)
     {
         if(warp_tid == 0) temp_storage[warp_id] = val;
         __syncthreads();
-        
+
         T final_sum = 0;
         #pragma unroll
         for(int i = 0; i < warps; i++)
             final_sum += temp_storage[i];
-        
+
         // Is this sync necessary? I think so since if we call the routine again
         // while one warp is already on a second reduction, the temp values will
         // be overwritten before another warp has a chance to tally the results
@@ -99,17 +117,17 @@ template<class T>
 __inline__ __device__
 T warpReduceSum(T val)
 {
-    #pragma unroll 
+    #pragma unroll
     for (int offset = WARP_SIZE / 2; offset > 0; offset /= 2)
         val += __shfl_down(val, offset);
     return val;
 }
 
-template<class T> 
-__inline__ __device__ 
-T warpAllReduceSum(T val) 
+template<class T>
+__inline__ __device__
+T warpAllReduceSum(T val)
 {
-    #pragma unroll 
+    #pragma unroll
     for (int mask = WARP_SIZE / 2; mask > 0; mask /= 2)
         val += __shfl_xor(val, mask);
     return val;

@@ -1,3 +1,21 @@
+/**
+ * @copyright (c) 2012- King Abdullah University of Science and
+ *                      Technology (KAUST). All rights reserved.
+ **/
+
+
+/**
+ * @file src/batch_svd/batch_qr.cu
+
+ * KBLAS is a high performance CUDA library for subset of BLAS
+ *    and LAPACK routines optimized for NVIDIA GPUs.
+ * KBLAS is provided by KAUST.
+ *
+ * @version 2.0.0
+ * @author Wajih Halim Boukaram
+ * @date 2017-11-13
+ **/
+
 #include <stdio.h>
 #include <cublas_v2.h>
 
@@ -676,7 +694,7 @@ int batch_qr_clear_R(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride, i
     dim3 dimGrid( num_blocks, 1 );
 
     batch_qr_clear_R_kernel<T, T_ptr> <<< dimGrid, dimBlock, 0, handle->stream >>> (m_batch, ldm, stride, rows, cols, num_ops);
-	
+
 	check_error_ret( cudaGetLastError(), KBLAS_UnknownError );
 	return KBLAS_Success;
 }
@@ -740,7 +758,7 @@ int batch_qr(kblasHandle_t handle, T_ptr m_batch, int ldm, int stride, T_ptr tau
 	PerformanceCounter::addOpCount(PerformanceCounter::QR, qr_gflops);
     PerformanceCounter::addOpTime(PerformanceCounter::QR, time_elapsed);
 	#endif
-	
+
 	return KBLAS_Success;
 }
 

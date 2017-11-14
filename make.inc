@@ -1,3 +1,21 @@
+#
+# @copyright (c) 2012- King Abdullah University of Science and
+#                      Technology (KAUST). All rights reserved.
+#
+
+
+#
+# @file make.inc
+#
+# KBLAS is a high performance CUDA library for subset of BLAS
+#    and LAPACK routines optimized for NVIDIA GPUs.
+# KBLAS is provided by KAUST.
+#
+# @version 2.0.0
+# @author Ali Charara
+# @author Ahmad Abdelfattah
+# @date 2017-11-13
+#
 
 #-----------------------------------------
 _SUPPORT_BLAS2_=TRUE
@@ -14,6 +32,7 @@ _USE_MAGMA_=TRUE
 #-----------------------------------------
 #specify cuda directory
 _CUDA_ROOT_=$(CUDA_ROOT)
+_CUDA_ARCH_ ?= 35
 
 # specify compilers
 CXX ?= g++
@@ -24,10 +43,10 @@ NVCC=$(_CUDA_ROOT_)/bin/nvcc
 LIB_KBLAS_NAME=kblas-gpu
 
 #-----------------------------------------
-NVOPTS =-O3 --compiler-options -fno-strict-aliasing #-E --ptx#
-COPTS = -std=c99 -fopenmp
+NVOPTS =-O3 --compiler-options -fno-strict-aliasing
+COPTS = -std=c99 -openmp
 
-NVOPTS_3 = -DSM=35 -arch sm_35 -Xcompiler -fopenmp #-lineinfo -Xptxas -v
+NVOPTS_3 = -DSM=$(_CUDA_ARCH_) -arch sm_$(_CUDA_ARCH_) -Xcompiler -fopenmp
 
 #-----------------------------------------
 ifdef _SUPPORT_SVD_

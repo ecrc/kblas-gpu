@@ -1,36 +1,20 @@
- /**
- -- (C) Copyright 2013 King Abdullah University of Science and Technology
-  Authors:
-  Ahmad Abdelfattah (ahmad.ahmad@kaust.edu.sa)
-  David Keyes (david.keyes@kaust.edu.sa)
-  Hatem Ltaief (hatem.ltaief@kaust.edu.sa)
+/**
+ * @copyright (c) 2012- King Abdullah University of Science and
+ *                      Technology (KAUST). All rights reserved.
+ **/
 
-  Redistribution  and  use  in  source and binary forms, with or without
-  modification,  are  permitted  provided  that the following conditions
-  are met:
 
-  * Redistributions  of  source  code  must  retain  the above copyright
-    notice,  this  list  of  conditions  and  the  following  disclaimer.
-  * Redistributions  in  binary  form must reproduce the above copyright
-    notice,  this list of conditions and the following disclaimer in the
-    documentation  and/or other materials provided with the distribution.
-  * Neither  the  name of the King Abdullah University of Science and
-    Technology nor the names of its contributors may be used to endorse 
-    or promote products derived from this software without specific prior 
-    written permission.
+/**
+ * @file src/blas_l2/chemv_mgpu.cu
 
-  THIS  SOFTWARE  IS  PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-  ``AS IS''  AND  ANY  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-  LIMITED  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-  A  PARTICULAR  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-  HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-  SPECIAL,  EXEMPLARY,  OR  CONSEQUENTIAL  DAMAGES  (INCLUDING,  BUT NOT
-  LIMITED  TO,  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-  DATA,  OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-  THEORY  OF  LIABILITY,  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  OF  THIS  SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-**/
+ * KBLAS is a high performance CUDA library for subset of BLAS
+ *    and LAPACK routines optimized for NVIDIA GPUs.
+ * KBLAS is provided by KAUST.
+ *
+ * @version 2.0.0
+ * @author Ahmad Abdelfattah
+ * @date 2017-11-13
+ **/
 
 #include "syhemv_mgpu_core.cuh"
 #include "syhemv_mgpu_offset_core.cuh"
@@ -54,22 +38,22 @@
 
 #endif
 
-int kblas_chemv_mgpu_driver( char uplo, int m, 
-							cuFloatComplex alpha, cuFloatComplex *dA, int lda, 
-							cuFloatComplex *dX, int incx, 
-							cuFloatComplex  beta, cuFloatComplex *dY, int incy, 
-							int ngpus, int gpu_gid, 
+int kblas_chemv_mgpu_driver( char uplo, int m,
+							cuFloatComplex alpha, cuFloatComplex *dA, int lda,
+							cuFloatComplex *dX, int incx,
+							cuFloatComplex  beta, cuFloatComplex *dY, int incy,
+							int ngpus, int gpu_gid,
 							cudaStream_t stream = 0)
 {
 	// handle the case when incx and/or incy is -ve
 	if(incx < 0) dX -= (m-1) * incx;
 	if(incy < 0) dY -= (m-1) * incy;
-	
+
 	if(uplo == 'U' || uplo == 'u')
 	{
 		/** configuration params **/
-		/** 
-		* If you change the configuration parameters, 
+		/**
+		* If you change the configuration parameters,
 		* you must revise the case statement of the upper case
 		* to make sure it covers all the possible cases
 		**/
@@ -77,16 +61,16 @@ int kblas_chemv_mgpu_driver( char uplo, int m,
 		const int thread_x = chemv_bs;
 		const int thread_y = chemv_upper_ty;
 		const int elements_per_thread = (chemv_bs/(2*thread_y)) ;
-		const int chemv_upper_by = 2*ngpus; 
+		const int chemv_upper_by = 2*ngpus;
 		/** end configuration params **/
 		int mod = m % chemv_bs;
 		int nstripes = m / chemv_bs + (mod != 0);
-		int blocks = nstripes/ngpus; 
+		int blocks = nstripes/ngpus;
 		if(gpu_gid < (nstripes%ngpus) ) blocks += 1;
 		dim3 dimBlock(thread_x, thread_y);
 		dim3 dimGrid(blocks,1);
-		dim3 dimGrid_(blocks, chemv_upper_by); 
-		
+		dim3 dimGrid_(blocks, chemv_upper_by);
+
 		//if (mod == 0) mod = chemv_bs;
 		if(mod == 0)
 		{
@@ -100,14 +84,14 @@ int kblas_chemv_mgpu_driver( char uplo, int m,
 			const int irregular_part = mod % elements_per_thread;
 			if(0)
 			{}
-			else	
+			else
 			{	// Templatized irregular_part
-				
+
 				/**
 				 * The upper case kernel for irregular dimensions has an extra template parameter.
 				 * This parameter must be among the values listed in the switch-case statement below.
 				 * The possible values are in the range 0 - (elements_per_thread-1)
-				 * Make sure these values are updated whenever you change the configuration parameters.  
+				 * Make sure these values are updated whenever you change the configuration parameters.
 				 **/
 				switch(irregular_part)
 				{
@@ -124,7 +108,7 @@ int kblas_chemv_mgpu_driver( char uplo, int m,
 					default: printf("CHEMV-UPPER ERROR: improper template parameter. Please read the inline documentation for this function. \n"); return -1;
 				}
 			}
-		}		
+		}
 	}
 	else if(uplo == 'L' || uplo == 'l')
 	{
@@ -135,10 +119,10 @@ int kblas_chemv_mgpu_driver( char uplo, int m,
 		const int elements_per_thread = (chemv_bs/(2*thread_y)) ;
 		const int chemv_lower_by = 2*ngpus; 	// design rule, feel free to change it
 		/** end configuration params **/
-		
+
 		int mod = m % chemv_bs;
 		int nstripes = m / chemv_bs + (mod != 0);
-		int blocks = nstripes/ngpus; 
+		int blocks = nstripes/ngpus;
 		if(gpu_gid < (nstripes%ngpus) ) blocks += 1;
 		dim3 dimBlock(thread_x, thread_y);
 		dim3 dimGrid(blocks,1);
@@ -155,23 +139,23 @@ int kblas_chemv_mgpu_driver( char uplo, int m,
 			syhemvl_mgpu_generic_nd<cuFloatComplex, chemv_bs, thread_x, thread_y, elements_per_thread><<<dimGrid_, dimBlock, 0, stream>>> ( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, gpu_gid, ngpus, nstripes);
 		}
 	}
-	else{printf("Upper/Lower mode %c is not supported \n", uplo); return -1;}	
+	else{printf("Upper/Lower mode %c is not supported \n", uplo); return -1;}
 	return 0;
 }
 
 /*************************************************************************************/
-int kblas_chemv_mgpu_driver_offset( char uplo, int m, 
-							cuFloatComplex alpha, cuFloatComplex *dA, int lda, 
-							cuFloatComplex *dX, int incx, 
-							cuFloatComplex  beta, cuFloatComplex *dY, int incy, 
+int kblas_chemv_mgpu_driver_offset( char uplo, int m,
+							cuFloatComplex alpha, cuFloatComplex *dA, int lda,
+							cuFloatComplex *dX, int incx,
+							cuFloatComplex  beta, cuFloatComplex *dY, int incy,
 							int ngpus, int gpu_gid,
-							int offset, 
+							int offset,
 							cudaStream_t stream = 0)
 {
 	// handle the case when incx and/or incy is -ve
 	if(incx < 0) dX -= (m-1) * incx;
 	if(incy < 0) dY -= (m-1) * incy;
-	
+
 	if(uplo == 'U' || uplo == 'u')
 	{
 		/** configuration params **/
@@ -181,30 +165,30 @@ int kblas_chemv_mgpu_driver_offset( char uplo, int m,
 		const int elements_per_thread = (chemv_bs/(2*thread_y)) ;
 		const int chemv_upper_by = 2*ngpus; 	// design rule, feel free to change it
 		/** end configuration params **/
-		
+
 		/** offset necessary calculation **/
 		int offset_ = offset % chemv_bs;
-		int total_blocks_skipped = offset / chemv_bs; 
-		int my_skipped_blocks = total_blocks_skipped/ngpus; 
+		int total_blocks_skipped = offset / chemv_bs;
+		int my_skipped_blocks = total_blocks_skipped/ngpus;
 		if(gpu_gid < (total_blocks_skipped%ngpus)) my_skipped_blocks += 1;
-		int ref_gpu = total_blocks_skipped%ngpus; 
+		int ref_gpu = total_blocks_skipped%ngpus;
 		int new_gpu_gid = (gpu_gid - ref_gpu + ngpus) % ngpus;
 		// Advance pointers accordingly
 		dA += my_skipped_blocks * chemv_bs * lda;
-		dA += total_blocks_skipped * chemv_bs; 
+		dA += total_blocks_skipped * chemv_bs;
 		dX += total_blocks_skipped * chemv_bs * incx;
 		dY += total_blocks_skipped * chemv_bs * incy;
 		m  -= total_blocks_skipped * chemv_bs;
 		/** end offset necessary calculation **/
-		
+
 		int mod = m % chemv_bs;
 		int nstripes = m / chemv_bs + (mod != 0);
-		int blocks = nstripes/ngpus; 
+		int blocks = nstripes/ngpus;
 		if(new_gpu_gid < (nstripes%ngpus) ) blocks += 1;
 		dim3 dimBlock(thread_x, thread_y);
 		dim3 dimGrid(blocks,1);
 		dim3 dimGrid_(blocks, chemv_upper_by);
-		
+
 		if(mod == 0)
 		{
 			syhemvu_mgpu_special_d_offset<cuFloatComplex, chemv_bs, thread_x, thread_y, elements_per_thread><<<dimGrid, dimBlock, 0, stream>>> ( m, alpha, dA, lda, dX, incx, beta, dY, incy, new_gpu_gid, ngpus, nstripes, offset_);
@@ -218,7 +202,7 @@ int kblas_chemv_mgpu_driver_offset( char uplo, int m,
 			 * The upper case kernel for irregular dimensions has an extra template parameter.
 			 * This parameter must be among the values listed in the switch-case statement below.
 			 * The possible values are in the range 0 - (elements_per_thread-1)
-			 * Make sure these values are updated whenever you change the configuration parameters.  
+			 * Make sure these values are updated whenever you change the configuration parameters.
 			 **/
 			switch(irregular_part)
 			{
@@ -235,7 +219,7 @@ int kblas_chemv_mgpu_driver_offset( char uplo, int m,
 				default: printf("CHEMV-UPPER ERROR: improper template parameter. Please read the inline documentation for this function. \n"); return -1;
 			}
 		}
-		
+
 	}
 	else if(uplo == 'L' || uplo == 'l')
 	{
@@ -246,30 +230,30 @@ int kblas_chemv_mgpu_driver_offset( char uplo, int m,
 		const int elements_per_thread = (chemv_bs/(2*thread_y)) ;
 		const int chemv_lower_by = 2*ngpus; 	// design rule, feel free to change it
 		/** end configuration params **/
-		
+
 		/** offset necessary calculation **/
 		int offset_ = offset % chemv_bs;
-		int total_blocks_skipped = offset / chemv_bs; 
-		int my_skipped_blocks = total_blocks_skipped/ngpus; 
+		int total_blocks_skipped = offset / chemv_bs;
+		int my_skipped_blocks = total_blocks_skipped/ngpus;
 		if(gpu_gid < (total_blocks_skipped%ngpus)) my_skipped_blocks += 1;
-		int ref_gpu = total_blocks_skipped%ngpus; 
+		int ref_gpu = total_blocks_skipped%ngpus;
 		int new_gpu_gid = (gpu_gid - ref_gpu + ngpus) % ngpus;
 		// Advance pointers accordingly
 		dA += my_skipped_blocks * chemv_bs * lda;
-		dA += total_blocks_skipped * chemv_bs; 
+		dA += total_blocks_skipped * chemv_bs;
 		dX += total_blocks_skipped * chemv_bs * incx;
 		dY += total_blocks_skipped * chemv_bs * incy;
 		m  -= total_blocks_skipped * chemv_bs;
 		/** end offset necessary calculation **/
-		
+
 		int mod = m % chemv_bs;
 		int nstripes = m / chemv_bs + (mod != 0);
-		int blocks = nstripes/ngpus; 
+		int blocks = nstripes/ngpus;
 		if(new_gpu_gid < (nstripes%ngpus) ) blocks += 1;
 		dim3 dimBlock(thread_x, thread_y);
 		dim3 dimGrid(blocks,1);
 		dim3 dimGrid_(blocks, chemv_lower_by);
-		
+
 		if(mod == 0)
 		{
 			syhemvl_mgpu_special_d_offset<cuFloatComplex, chemv_bs, thread_x, thread_y, elements_per_thread><<<dimGrid, dimBlock, 0, stream>>> ( m, alpha, dA, lda, dX, incx, beta, dY, incy, new_gpu_gid, ngpus, nstripes, offset_);
@@ -281,17 +265,17 @@ int kblas_chemv_mgpu_driver_offset( char uplo, int m,
 			syhemvl_mgpu_generic_nd_offset<cuFloatComplex, chemv_bs, thread_x, thread_y, elements_per_thread><<<dimGrid_, dimBlock, 0, stream>>> ( m, alpha, dA, lda, dX, incx, beta, dY, incy, mod, new_gpu_gid, ngpus, nstripes, offset_);
 		}
 	}
-	else{printf("Upper/Lower mode %c is not supported \n", uplo); return -1;}	
+	else{printf("Upper/Lower mode %c is not supported \n", uplo); return -1;}
 	return 0;
 }
 
 /*************************************************************************************/
 extern "C"
-int kblas_chemv_mgpu( char uplo, int m, 
-							cuFloatComplex alpha, cuFloatComplex **dA, int lda, 
-							cuFloatComplex **dX, int incx, 
-							cuFloatComplex  beta, cuFloatComplex **dY, int incy, 
-							int ngpus, 
+int kblas_chemv_mgpu( char uplo, int m,
+							cuFloatComplex alpha, cuFloatComplex **dA, int lda,
+							cuFloatComplex **dX, int incx,
+							cuFloatComplex  beta, cuFloatComplex **dY, int incy,
+							int ngpus,
 							int offset)
 {
     const int ngpus_local = ngpus;
@@ -311,7 +295,7 @@ int kblas_chemv_mgpu( char uplo, int m,
 			kblas_chemv_mgpu_driver_offset(uplo, m, alpha, dA[i], lda, dX[i], incx, beta, dY[i], incy, ngpus, gpu_gid[i], offset);
 		}
 	}
-	
+
 	// wait for gpus to finish
 	for(int i = 0; i < ngpus_local; i++)
 	{
@@ -322,12 +306,12 @@ int kblas_chemv_mgpu( char uplo, int m,
 }
 /*************************************************************************************/
 extern "C"
-int kblas_chemv_mgpu_async( char uplo, int m, 
-							cuFloatComplex alpha, cuFloatComplex **dA, int lda, 
-							cuFloatComplex **dX, int incx, 
-							cuFloatComplex  beta, cuFloatComplex **dY, int incy, 
-							int ngpus, 
-							int offset, 
+int kblas_chemv_mgpu_async( char uplo, int m,
+							cuFloatComplex alpha, cuFloatComplex **dA, int lda,
+							cuFloatComplex **dX, int incx,
+							cuFloatComplex  beta, cuFloatComplex **dY, int incy,
+							int ngpus,
+							int offset,
 							cudaStream_t stream[MAX_NGPUS][MAX_STREAMS])
 {
     const int ngpus_local = ngpus;

@@ -64,7 +64,6 @@ endif
 ifdef _SUPPORT_BATCH_TR_
 KBLAS_BATCH_DIR=batch_triangular
 include $(KBLAS_BATCH_DIR)/Makefile
-LIB+= -lcusolver -lcurand
 endif
 
 # C_OBJ= $(patsubst %.c,$(OBJ_DIR)/%.o,$(C_SRC))

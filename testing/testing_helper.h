@@ -1,3 +1,22 @@
+/**
+ * @copyright (c) 2012- King Abdullah University of Science and
+ *                      Technology (KAUST). All rights reserved.
+ **/
+
+
+/**
+ * @file testing/testing_helper.h
+
+ * KBLAS is a high performance CUDA library for subset of BLAS
+ *    and LAPACK routines optimized for NVIDIA GPUs.
+ * KBLAS is provided by KAUST.
+ *
+ * @version 2.0.0
+ * @author Wajih Halim Boukaram
+ * @author Ali Charara
+ * @date 2017-11-13
+ **/
+
 #ifndef __TESTING_HELPER_H__
 #define __TESTING_HELPER_H__
 
@@ -13,8 +32,8 @@
 #endif
 #ifdef USE_MKL
 #include <mkl.h>
-#else 
-// #include <cblas.h>		TODO: if MKL not set we need to use other libs 
+#else
+// #include <cblas.h>		TODO: if MKL not set we need to use other libs
 // #include <lapacke.h>
 #endif
 #ifdef USE_OPENMP
@@ -58,7 +77,7 @@ double gpuTimerToc(GPU_Timer_t timer);
 void avg_and_stdev(double* values, int num_vals, double* avg, double* std_dev, int warmup);
 
 ////////////////////////////////////////////////////////////
-// Generate array of pointers from a strided array 
+// Generate array of pointers from a strided array
 ////////////////////////////////////////////////////////////
 void generateDArrayOfPointers(double* original_array, double** array_of_arrays, int stride, int num_arrays, cudaStream_t stream);
 void generateSArrayOfPointers(float* original_array, float** array_of_arrays, int stride, int num_arrays, cudaStream_t stream);
@@ -74,8 +93,8 @@ void generateSArrayOfPointers(float* original_array, float** array_of_arrays, in
 #define TESTING_MALLOC_DEV( ptr, T, size) check_error( cudaMalloc( (void**)&ptr, (size)*sizeof(T) ) )
 #define TESTING_MALLOC_PIN( ptr, T, size) check_error( cudaHostAlloc ( (void**)&ptr, (size)*sizeof( T ), cudaHostAllocPortable  ))
 
-#define TESTING_FREE_CPU(ptr)	{ if( (ptr) ) free( (ptr) ); }  
-#define TESTING_FREE_DEV(ptr)	check_error( cudaFree( (ptr) ) );  
+#define TESTING_FREE_CPU(ptr)	{ if( (ptr) ) free( (ptr) ); }
+#define TESTING_FREE_DEV(ptr)	check_error( cudaFree( (ptr) ) );
 
 ////////////////////////////////////////////////////////////
 // Data generation
@@ -94,11 +113,11 @@ void zmatrix_make_hpd(int N, cuDoubleComplex* A, int lda);
 
 // set cond = 0 to use exp decay
 void generateDrandomMatrices(
-	double* M_strided, int stride_M, double* svals_strided, int stride_S, int rows, int cols, 
+	double* M_strided, int stride_M, double* svals_strided, int stride_S, int rows, int cols,
 	double cond, double exp_decay, int seed, int num_ops, int threads
 );
 void generateSrandomMatrices(
-	float* M_strided, int stride_M, float* svals_strided, int stride_S, int rows, int cols, 
+	float* M_strided, int stride_M, float* svals_strided, int stride_S, int rows, int cols,
 	float cond, float exp_decay, int seed, int num_ops, int threads
 );
 

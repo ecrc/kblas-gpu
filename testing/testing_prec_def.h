@@ -34,6 +34,7 @@
   #define LAPACK_POTRF spotrf
   #define LAPACK_LAUUM slauum
   #define LAPACK_TRTRI strtri
+  #define LAPACK_POTRI spotri
 
   #define Xrand_matrix srand_matrix
   #define Xget_max_error_matrix sget_max_error_matrix
@@ -52,6 +53,7 @@
   #define LAPACK_POTRF dpotrf
   #define LAPACK_LAUUM dlauum
   #define LAPACK_TRTRI dtrtri
+  #define LAPACK_POTRI dpotri
 
   #define Xrand_matrix drand_matrix
   #define Xget_max_error_matrix dget_max_error_matrix
@@ -70,6 +72,7 @@
   #define LAPACK_POTRF cpotrf
   #define LAPACK_LAUUM clauum
   #define LAPACK_TRTRI ctrtri
+  #define LAPACK_POTRI cpotri
 
   #define Xrand_matrix crand_matrix
   #define Xget_max_error_matrix cget_max_error_matrix
@@ -88,6 +91,7 @@
   #define LAPACK_POTRF zpotrf
   #define LAPACK_LAUUM zlauum
   #define LAPACK_TRTRI ztrtri
+  #define LAPACK_POTRI zpotri
 
   #define Xrand_matrix zrand_matrix
   #define Xget_max_error_matrix zget_max_error_matrix

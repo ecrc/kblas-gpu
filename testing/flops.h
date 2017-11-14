@@ -107,6 +107,12 @@ double FLOPS_TRTRI(int n){
 #define FLOPS_LAUUM FLOPS_POTRF
 
 //==============================================================================================
+template<class T>
+double FLOPS_POTRI(int n){
+  return FLOPS_TRTRI<T>(n) + FLOPS_LAUUM<T>(n);
+}
+
+//==============================================================================================
 #define FMULS_SYMM(side_, m_, n_) ( ( (side_) == KBLAS_Left ) ? FMULS_GEMM((m_), (m_), (n_)) : FMULS_GEMM((m_), (n_), (n_)) )
 #define FADDS_SYMM(side_, m_, n_) ( ( (side_) == KBLAS_Left ) ? FADDS_GEMM((m_), (m_), (n_)) : FADDS_GEMM((m_), (n_), (n_)) )
 

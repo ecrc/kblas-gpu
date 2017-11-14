@@ -53,6 +53,7 @@ TEST_BATCH_POTRF = 1
 TEST_BATCH_LAUUM = 1
 TEST_BATCH_TRTRI = 1
 TEST_BATCH_POTRS = 1
+TEST_BATCH_POTRI = 1
 
 #--------------------------------
 def task1(pVariants, pRanges, pExec, pOptions, pBatchCount, pDev, pOutfile):
@@ -287,6 +288,25 @@ if (TEST_BATCH_POTRS == 1):
                 'test_dpotrs_batch',
                 'test_cpotrs_batch',
                 'test_zpotrs_batch'
+                ]
+    ranges = [
+              '--range 2:70+1',
+              '--range 32:256:32'
+              ]
+    options = check
+    batchCount = defaultBatchCount;
+
+    parallelTaskLaunch(variants, programs, ranges, options, batchCount)
+
+############### BATCH_POTRI
+if (TEST_BATCH_POTRI == 1):
+    variants = ['-L',
+                # '-U',
+                ]
+    programs = ['test_spotri_batch',
+                'test_dpotri_batch',
+                'test_cpotri_batch',
+                'test_zpotri_batch'
                 ]
     ranges = [
               '--range 2:70+1',

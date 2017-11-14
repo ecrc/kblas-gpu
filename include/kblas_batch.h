@@ -36,7 +36,7 @@ void kblas_gemm_batch_strided_wsquery(kblasHandle_t handle, int batchCount);
      */
     //@{
     //------------------------------------------------------------------------------
-    /*
+    /**
      * @brief Non-Strided uniform-size single precision batched GEMM
      */
     int kblas_gemm_batch( kblasHandle_t handle,
@@ -1236,6 +1236,138 @@ extern "C" {
                                   const cuDoubleComplex* A, int lda, long strideA,
                                         cuDoubleComplex* B, int ldb, long strideB,
                                   int batchCount);
+#ifdef __cplusplus
+}
+#endif
+
+//============================================================================
+// batch POTRI
+void kblas_potri_batch_wsquery(kblasHandle_t handle, const int n, int batchCount);
+void kblas_potri_batch_strided_wsquery(kblasHandle_t handle, const int n, int batchCount);
+
+#ifdef __cplusplus
+    //------------------------------------------------------------------------------
+    // Non-Strided
+    int kblas_potri_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          float** A, int lda,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_potri_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          double** A, int lda,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_potri_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          cuFloatComplex** A, int lda,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_potri_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          cuDoubleComplex** A, int lda,
+                          int batchCount,
+                          int *info_array);
+
+    //------------------------------------------------------------------------------
+    // Strided
+    int kblas_potri_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          float* A, int lda, long strideA,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_potri_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          double* A, int lda, long strideA,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_potri_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          cuFloatComplex* A, int lda, long strideA,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_potri_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          cuDoubleComplex* A, int lda, long strideA,
+                          int batchCount,
+                          int *info_array);
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+    //------------------------------------------------------------------------------
+    // Non-Strided
+    int kblasSpotri_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          float** A, int lda,
+                          int batchCount,
+                          int *info_array);
+
+    int kblasDpotri_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          double** A, int lda,
+                          int batchCount,
+                          int *info_array);
+
+    int kblasCpotri_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          cuFloatComplex** A, int lda,
+                          int batchCount,
+                          int *info_array);
+
+    int kblasZpotri_batch(kblasHandle_t handle,
+                          char uplo,
+                          const int n,
+                          cuDoubleComplex** A, int lda,
+                          int batchCount,
+                          int *info_array);
+    //------------------------------------------------------------------------------
+    // Strided
+    int kblasSpotri_batch_strided(kblasHandle_t handle,
+                                  char uplo,
+                                  const int n,
+                                  float* A, int lda, long strideA,
+                                  int batchCount,
+                                  int *info_array);
+
+    int kblasDpotri_batch_strided(kblasHandle_t handle,
+                                  char uplo,
+                                  const int n,
+                                  double* A, int lda, long strideA,
+                                  int batchCount,
+                                  int *info_array);
+
+    int kblasCpotri_batch_strided(kblasHandle_t handle,
+                                  char uplo,
+                                  const int n,
+                                  cuFloatComplex* A, int lda, long strideA,
+                                  int batchCount,
+                                  int *info_array);
+
+    int kblasZpotri_batch_strided(kblasHandle_t handle,
+                                  char uplo,
+                                  const int n,
+                                  cuDoubleComplex* A, int lda, long strideA,
+                                  int batchCount,
+                                  int *info_array);
 #ifdef __cplusplus
 }
 #endif

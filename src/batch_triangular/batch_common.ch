@@ -138,4 +138,14 @@ void potrs_batch_wsquery_core(const int m, const int n, int batchCount, kblasWor
   }
 }
 
+//==============================================================================================
+template<bool STRIDED>
+inline
+void potri_batch_wsquery_core(const int n, int batchCount, kblasWorkspaceState_t wss)
+{
+  trtri_batch_wsquery_core<STRIDED>( n, batchCount, wss);
+
+  lauum_batch_wsquery_core<STRIDED>( n, batchCount, wss);
+}
+
 #endif //__KBLAS_BATCH_COMMON_H__

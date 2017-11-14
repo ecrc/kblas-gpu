@@ -251,7 +251,9 @@ int main(int argc, char** argv)
 						cudaSetDevice(opts.devices[g]);
 						gpuTimerTic(kblas_timers[g]);
 						// kblasXgeqrf_batched(kblas_handles[g], rows, cols, d_m[g], rows, rows * cols, d_tau[g], cols, batchCount_gpu);
-						kblasXtsqrf_batched(kblas_handles[g], rows, cols, d_m[g], rows, rows * cols, d_tau[g], cols, batchCount_gpu);
+						check_kblas_error( kblasXtsqrf_batched(
+							kblas_handles[g], rows, cols, d_m[g], rows, rows * cols, d_tau[g], cols, batchCount_gpu
+						) );
 						gpuTimerRecordEnd(kblas_timers[g]);
 					}
 					// The time all gpus finish at is the max of all the individual timers

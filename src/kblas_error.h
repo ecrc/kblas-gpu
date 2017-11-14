@@ -48,4 +48,7 @@ int _kblas_error( int err, const char* func, const char* file, int line );
 #define check_error( err_ ) \
 {if(!_kblas_error( (err_), __func__, __FILE__, __LINE__ )) ;}
 
+#define check_error_forward( err_ ) \
+{ int ret_val = (err_); if(!_kblas_error( ret_val, __func__, __FILE__, __LINE__ )) return ret_val;}
+
 #endif //__KBLAS_ERR_CHECK_H__

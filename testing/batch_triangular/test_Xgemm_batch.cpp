@@ -244,6 +244,7 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
                                                    d_B, lddb, Bn*lddb,
                                             beta,  d_C, lddc, Cn*lddc,
                                             batchCount) );
+		gpuTimerRecordEnd(kblas_timer);
         time = gpuTimerToc(kblas_timer);
         magma_time += time;
       }

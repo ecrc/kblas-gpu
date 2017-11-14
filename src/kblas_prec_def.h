@@ -49,6 +49,15 @@
   #define kblasXpotrs_batch kblasSpotrs_batch
   #define kblasXpotrs_batch_strided kblasSpotrs_batch_strided
 
+  #define kblasXpotri_batch kblasSpotri_batch
+  #define kblasXpotri_batch_strided kblasSpotri_batch_strided
+
+  #define kblasXpoti_batch kblasSpoti_batch
+  #define kblasXpoti_batch_strided kblasSpoti_batch_strided
+
+  #define kblasXposv_batch kblasSposv_batch
+  #define kblasXposv_batch_strided kblasSposv_batch_strided
+
   #define cublasXgemm cublasSgemm
   #define cublasXgemmBatched cublasSgemmBatched
   #define cublasXgemmStridedBatched cublasSgemmStridedBatched
@@ -83,6 +92,15 @@
 
   #define kblasXpotrs_batch kblasDpotrs_batch
   #define kblasXpotrs_batch_strided kblasDpotrs_batch_strided
+
+  #define kblasXpotri_batch kblasDpotri_batch
+  #define kblasXpotri_batch_strided kblasDpotri_batch_strided
+
+  #define kblasXpoti_batch kblasDpoti_batch
+  #define kblasXpoti_batch_strided kblasDpoti_batch_strided
+
+  #define kblasXposv_batch kblasDposv_batch
+  #define kblasXposv_batch_strided kblasDposv_batch_strided
 
   #define cublasXgemm cublasDgemm
   #define cublasXgemmBatched cublasDgemmBatched
@@ -119,6 +137,15 @@
   #define kblasXpotrs_batch kblasCpotrs_batch
   #define kblasXpotrs_batch_strided kblasCpotrs_batch_strided
 
+  #define kblasXpotri_batch kblasCpotri_batch
+  #define kblasXpotri_batch_strided kblasCpotri_batch_strided
+
+  #define kblasXpoti_batch kblasCpoti_batch
+  #define kblasXpoti_batch_strided kblasCpoti_batch_strided
+
+  #define kblasXposv_batch kblasCposv_batch
+  #define kblasXposv_batch_strided kblasCposv_batch_strided
+
   #define cublasXgemm cublasCgemm
   #define cublasXgemmBatched cublasCgemmBatched
   #define cublasXgemmStridedBatched cublasCgemmStridedBatched
@@ -153,6 +180,15 @@
 
   #define kblasXpotrs_batch kblasZpotrs_batch
   #define kblasXpotrs_batch_strided kblasZpotrs_batch_strided
+
+  #define kblasXpotri_batch kblasZpotri_batch
+  #define kblasXpotri_batch_strided kblasZpotri_batch_strided
+
+  #define kblasXpoti_batch kblasZpoti_batch
+  #define kblasXpoti_batch_strided kblasZpoti_batch_strided
+
+  #define kblasXposv_batch kblasZposv_batch
+  #define kblasXposv_batch_strided kblasZposv_batch_strided
 
   #define cublasXgemm cublasZgemm
   #define cublasXgemmBatched cublasZgemmBatched

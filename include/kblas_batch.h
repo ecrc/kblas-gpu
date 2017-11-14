@@ -1504,4 +1504,153 @@ extern "C" {
 }
 #endif
 
+//============================================================================
+// batch POTRS
+void kblas_posv_batch_wsquery(kblasHandle_t handle, const int m, const int n, char side, int batchCount);
+void kblas_posv_batch_strided_wsquery(kblasHandle_t handle, const int m, const int n, char side, int batchCount);
+
+#ifdef __cplusplus
+    //------------------------------------------------------------------------------
+    // Non-Strided
+    int kblas_posv_batch(kblasHandle_t handle,
+                          char side, char uplo,
+                          const int m, const int n,
+                          float** A, int lda,
+                          float** B, int ldb,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_posv_batch(kblasHandle_t handle,
+                          char side, char uplo,
+                          const int m, const int n,
+                          double** A, int lda,
+                          double** B, int ldb,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_posv_batch(kblasHandle_t handle,
+                          char side, char uplo,
+                          const int m, const int n,
+                          cuFloatComplex** A, int lda,
+                          cuFloatComplex** B, int ldb,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_posv_batch(kblasHandle_t handle,
+                          char side, char uplo,
+                          const int m, const int n,
+                          cuDoubleComplex** A, int lda,
+                          cuDoubleComplex** B, int ldb,
+                          int batchCount,
+                          int *info_array);
+
+    //------------------------------------------------------------------------------
+    // Strided
+    int kblas_posv_batch(kblasHandle_t handle,
+                          char side, char uplo,
+                          const int m, const int n,
+                          float* A, int lda, long strideA,
+                          float* B, int ldb, long strideB,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_posv_batch(kblasHandle_t handle,
+                          char side, char uplo,
+                          const int m, const int n,
+                          double* A, int lda, long strideA,
+                          double* B, int ldb, long strideB,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_posv_batch(kblasHandle_t handle,
+                          char side, char uplo,
+                          const int m, const int n,
+                          cuFloatComplex* A, int lda, long strideA,
+                          cuFloatComplex* B, int ldb, long strideB,
+                          int batchCount,
+                          int *info_array);
+
+    int kblas_posv_batch(kblasHandle_t handle,
+                          char side, char uplo,
+                          const int m, const int n,
+                          cuDoubleComplex* A, int lda, long strideA,
+                          cuDoubleComplex* B, int ldb, long strideB,
+                          int batchCount,
+                          int *info_array);
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+    //------------------------------------------------------------------------------
+    // Non-Strided
+    int kblasSposv_batch(kblasHandle_t handle,
+                          char side, char uplo,
+                          const int m, const int n,
+                          float** A, int lda,
+                          float** B, int ldb,
+                          int batchCount,
+                          int *info_array);
+
+    int kblasDposv_batch(kblasHandle_t handle,
+                          char side, char uplo,
+                          const int m, const int n,
+                          double** A, int lda,
+                          double** B, int ldb,
+                          int batchCount,
+                          int *info_array);
+
+    int kblasCposv_batch(kblasHandle_t handle,
+                          char side, char uplo,
+                          const int m, const int n,
+                          cuFloatComplex** A, int lda,
+                          cuFloatComplex** B, int ldb,
+                          int batchCount,
+                          int *info_array);
+
+    int kblasZposv_batch(kblasHandle_t handle,
+                          char side, char uplo,
+                          const int m, const int n,
+                          cuDoubleComplex** A, int lda,
+                          cuDoubleComplex** B, int ldb,
+                          int batchCount,
+                          int *info_array);
+
+    //------------------------------------------------------------------------------
+    // Strided
+    int kblasSposv_batch_strided(kblasHandle_t handle,
+                                  char side, char uplo,
+                                  const int m, const int n,
+                                  float* A, int lda, long strideA,
+                                  float* B, int ldb, long strideB,
+                                  int batchCount,
+                                  int *info_array);
+
+    int kblasDposv_batch_strided(kblasHandle_t handle,
+                                  char side, char uplo,
+                                  const int m, const int n,
+                                  double* A, int lda, long strideA,
+                                  double* B, int ldb, long strideB,
+                                  int batchCount,
+                                  int *info_array);
+
+    int kblasCposv_batch_strided(kblasHandle_t handle,
+                                  char side, char uplo,
+                                  const int m, const int n,
+                                  cuFloatComplex* A, int lda, long strideA,
+                                  cuFloatComplex* B, int ldb, long strideB,
+                                  int batchCount,
+                                  int *info_array);
+
+    int kblasZposv_batch_strided(kblasHandle_t handle,
+                                  char side, char uplo,
+                                  const int m, const int n,
+                                  cuDoubleComplex* A, int lda, long strideA,
+                                  cuDoubleComplex* B, int ldb, long strideB,
+                                  int batchCount,
+                                  int *info_array);
+#ifdef __cplusplus
+}
+#endif
+
 #endif // _KBLAS_BATCH_H_

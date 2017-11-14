@@ -5,7 +5,7 @@
 
 
 /**
- * @file src/batch_triangular/Xpotrs_batch_kernels.cuh
+ * @file src/batch_triangular/Xposv_batch_kernels.cuh
 
  * KBLAS is a high performance CUDA library for subset of BLAS
  *    and LAPACK routines optimized for NVIDIA GPUs.
@@ -16,8 +16,8 @@
  * @date 2017-11-13
  **/
 
-#ifndef __XPOTRS_BATCH_KERNELS_H__
-#define __XPOTRS_BATCH_KERNELS_H__
+#ifndef __XPOSV_BATCH_KERNELS_H__
+#define __XPOSV_BATCH_KERNELS_H__
 
 
 //==============================================================================================
@@ -35,9 +35,9 @@
 //==============================================================================================
 template<typename T, int TX>
 __device__ inline void
-dev_potrs_U_RL_registers_Nfix_Mvar(const int m, const int n,
-                                   const T* __restrict__ A, int lda,
-                                                      T* B, int ldb)
+dev_posv_U_RL_registers_Nfix_Mvar(const int m, const int n,
+                                  T* A, int lda,
+                                  T* B, int ldb)
 {
   T rA[TX], rB[TX], s;
   int ind0, b;
@@ -50,8 +50,34 @@ dev_potrs_U_RL_registers_Nfix_Mvar(const int m, const int n,
     //if(tx >= i)
     rA[ i ] = __ldg(&(A[ tx + i * lda ]));
   }
-  for(b = 0; b < mb; b++)
+
+  //perform factorization on registers
+  #pragma unroll
+  for(int j = 0; j < TX; j++)
   {
+    s = sqrt( shfl(rA[j], j, TX) );
+    if(tx == j)
+      rA[j] = s;
+    if(tx > j)
+      rA[j] /= s;
+
+    #pragma unroll
+    for(int i = 0; i < TX; i++){
+      s = -shfl(rA[j], i, TX);
+      if(j < i && i <= tx)
+        rA[i] = FMA( rA[j], s, rA[i]);
+    }
+  }
+
+  //copy data back to global mem
+  #pragma unroll
+  for(int i = 0; i < TX; i++)
+  {
+    if(tx >= i)
+      A[ tx + i * lda ] = rA[ i ];
+  }
+
+  for(b = 0; b < mb; b++){
     ind0 = tx + TX * b;
     //copy needed data from global to registers
     #pragma unroll
@@ -97,7 +123,6 @@ dev_potrs_U_RL_registers_Nfix_Mvar(const int m, const int n,
     }
   }
   if(m % TX != 0){
-
     ind0 = tx + TX * b;
     //copy needed data from global to registers
     if(ind0 < m){
@@ -146,28 +171,28 @@ dev_potrs_U_RL_registers_Nfix_Mvar(const int m, const int n,
 //--------------------------------------------------------------------------------------------
 template<typename T, typename T_PTR, bool STRIDED, int TX>
 __global__ void  //__launch_bounds__(256)
-kernel_potrs_U_RL_registers_Nfix_Mvar(const int m, const int n, int batchCount,
-                                      const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
-                                                         T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB)
+kernel_posv_U_RL_registers_Nfix_Mvar(const int m, const int n, int batchCount,
+                                     T_PTR A_array, int A_row_off, int A_col_off, int lda, long strideA,
+                                     T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB)
 {
   if( TX != n ) return;//necessary condition
 
   //are we within bounds
   if(blockIdx.x * blockDim.y + ty >= batchCount) return;
 
-  const T *A;
-        T *B;
+  T *A;
+  T *B;
   if(STRIDED == true){
-    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
-    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB;
+    A = (T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
+    B = (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB;
   }else{
-    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty];
-    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty];
+    A = ((T**)A_array)[blockIdx.x * blockDim.y + ty];
+    B = ((T**)B_array)[blockIdx.x * blockDim.y + ty];
   }
   A += A_row_off + A_col_off * lda;
   B += B_row_off + B_col_off * ldb;
 
-  dev_potrs_U_RL_registers_Nfix_Mvar<T, TX>(m, n,
+  dev_posv_U_RL_registers_Nfix_Mvar<T, TX>(m, n,
                                             A, lda,
                                             B, ldb);
 }
@@ -175,9 +200,9 @@ kernel_potrs_U_RL_registers_Nfix_Mvar(const int m, const int n, int batchCount,
 //==============================================================================================
 template<typename T, int TX>
 __device__ inline void
-dev_potrs_U_RL_registers_NMvar(const int m, const int n,
-                               const T* __restrict__ A, int lda,
-                                                  T* B, int ldb)
+dev_posv_U_RL_registers_NMvar(const int m, const int n,
+                              T* A, int lda,
+                              T* B, int ldb)
 {
   T rA[TX], rB[TX], s, zero = make_zero<T>();
   int ind0, b;
@@ -189,20 +214,48 @@ dev_potrs_U_RL_registers_NMvar(const int m, const int n,
     for(int i = 0; i < TX; i++){
       if(i < n)
         rA[ i ] = __ldg(&(A[ tx + i * lda ]));
-      // else
-      //   rA[ i ] = zero;
+      //else
+      //  rA[ i ] = zero;
     }
   }
-  for(b = 0; b < mb; b++)
+  //perform factorization on registers
+  #pragma unroll
+  for(int j = 0; j < TX; j++)
   {
+    s = sqrt( shfl(rA[j], j, TX) );
+    if(j < n){
+      // if(tx == j)
+      //   rA[j] = s;
+      // if(tx > j)
+        rA[j] /= s;
+    }
+    #pragma unroll
+    for(int i = 0; i < TX; i++){
+      if(j < i && i < n){
+        s = -shfl(rA[j], i, TX);
+        if(i <= tx)
+          rA[i] = FMA( rA[j], s, rA[i]);
+      }
+    }
+  }
+
+  //copy data back to global mem
+  #pragma unroll
+  for(int i = 0; i < TX; i++)
+  {
+    if(tx >= i && i < n && tx < n)
+      A[ tx + i * lda ] = rA[ i ];
+  }
+
+  for(b = 0; b < mb; b++){
     ind0 = tx + TX * b;
     //copy needed data from global to registers
     #pragma unroll
     for(int i = 0; i < TX; i++){
       if(i < n)
         rB[ i ] = __ldg(&(B[ ind0 + i * ldb ]));
-      // else
-      //   rB[ i ] = zero;
+      //else
+      //  rB[ i ] = zero;
     }
 
     #pragma unroll
@@ -218,7 +271,6 @@ dev_potrs_U_RL_registers_NMvar(const int m, const int n,
         if(j < i)
           rB[i] = FMA( rB[j], s, rB[i]);
       }
-
     }
 
     #pragma unroll
@@ -244,7 +296,6 @@ dev_potrs_U_RL_registers_NMvar(const int m, const int n,
     }
   }
   if(m % TX != 0){
-
     ind0 = tx + TX * b;
     //copy needed data from global to registers
     if(ind0 < m){
@@ -296,34 +347,34 @@ dev_potrs_U_RL_registers_NMvar(const int m, const int n,
 //--------------------------------------------------------------------------------------------
 template<typename T, typename T_PTR, bool STRIDED, int TX>
 __global__ void  //__launch_bounds__(256)
-kernel_potrs_U_RL_registers_NMvar(const int m, const int n, int batchCount,
-                                  const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
-                                                     T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB)
+kernel_posv_U_RL_registers_NMvar(const int m, const int n, int batchCount,
+                                 T_PTR A_array, int A_row_off, int A_col_off, int lda, long strideA,
+                                 T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB)
 {
   if( TX < n ) return;//necessary condition
 
   //are we within bounds
   if(blockIdx.x * blockDim.y + ty >= batchCount) return;
 
-  const T *A;
-        T *B;
+  T *A;
+  T *B;
   if(STRIDED == true){
-    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
-    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB;
+    A = (T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
+    B = (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB;
   }else{
-    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty];
-    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty];
+    A = ((T**)A_array)[blockIdx.x * blockDim.y + ty];
+    B = ((T**)B_array)[blockIdx.x * blockDim.y + ty];
   }
   A += A_row_off + A_col_off * lda;
   B += B_row_off + B_col_off * ldb;
 
-  dev_potrs_U_RL_registers_NMvar<T, TX>(m, n,
+  dev_posv_U_RL_registers_NMvar<T, TX>(m, n,
                                         A, lda,
                                         B, ldb);
 }
 //==============================================================================================
 #else
-  #error "Pre-Kepler architechture is not supported in KBLAS batch POTRS"
+  #error "Pre-Kepler architechture is not supported in KBLAS batch POSV"
 #endif
 
-#endif //__XPOTRS_BATCH_KERNELS_H__
+#endif //__XPOSV_BATCH_KERNELS_H__

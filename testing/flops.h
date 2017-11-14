@@ -111,10 +111,17 @@ template<class T>
 double FLOPS_POTRI(int n){
   return FLOPS_TRTRI<T>(n) + FLOPS_LAUUM<T>(n);
 }
+
 //==============================================================================================
 template<class T>
 double FLOPS_POTI(int n){
   return FLOPS_POTRF<T>(n) + FLOPS_POTRI<T>(n);
+}
+
+//==============================================================================================
+template<class T>
+double FLOPS_POSV(char side, int m, int n){
+  return FLOPS_POTRF<T>(n) + FLOPS_POTRS<T>(side, m, n);
 }
 
 //==============================================================================================
@@ -136,24 +143,5 @@ double FLOPS_SYRK(int k_, int n_){
   return (is_complex(T) ? 6. : 1.) * FMULS_SYRK((double)(k_), (double)(n_))
        + (is_complex(T) ? 2. : 1.) * FADDS_SYRK((double)(k_), (double)(n_));
 }
-
-//==============================================================================================
-template<class T>
-double FLOPS_SYRK_PLR(int n, int k, int ra, bool simple){
-  return (!simple ? (FLOPS_SYRK<T>(ra, k) + FLOPS_SYMM<T>(KBLAS_Right, n, ra) + FLOPS_GEMM<T>(n, n, ra)) : FLOPS_SYRK<T>(n, ra));
-}
-
-//==============================================================================================
-//TODO assuming SchurA, handle SchurD, nonsymmetric should use LU flop count
-template<class T>
-double FLOPS_SCHUR(T t, char symm, int n, int p){
-  if(symm == KBLAS_NonSymm)
-    return FLOPS_POTRF(t, p) + 2. * FLOPS_TRSM(t, KBLAS_Right, n-p, p) + FLOPS_GEMM<T>(n-p, n-p, p);
-  else
-    return FLOPS_POTRF(t, p) + FLOPS_TRSM(t, KBLAS_Right, n-p, p) + FLOPS_SYRK<T>(p, n-p);
-}
-/*#define FLOPS_SCHUR_NonSYMM return FLOPS_POTRF(t, p) + 2. * FLOPS_TRSM(t, KBLAS_Right, n-p, p);//TODO + FLOPS_GEMM<T>(n-p, n-p, p);
-#define FLOPS_SCHUR_SYMM return FLOPS_POTRF(t, p) + FLOPS_TRSM(t, KBLAS_Right, n-p, p) + FLOPS_SYRK(t, p, n-p);
-*/
 
 #endif //_TESTING_FLOPS_

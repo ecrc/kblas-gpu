@@ -12,7 +12,8 @@ C_SRC_BATCH+=         \
 	test_slauum_batch.c \
 	test_spotrs_batch.c \
 	test_spotri_batch.c \
-	test_spoti_batch.c
+	test_spoti_batch.c  \
+	test_sposv_batch.c
 C_SRC_BATCH+=         \
 	test_dgemm_batch.c  \
 	test_dsyrk_batch.c  \
@@ -23,7 +24,8 @@ C_SRC_BATCH+=         \
 	test_dtrtri_batch.c \
 	test_dpotrs_batch.c \
 	test_dpotri_batch.c \
-	test_dpoti_batch.c
+	test_dpoti_batch.c  \
+	test_dposv_batch.c
 C_SRC_BATCH+=         \
 	test_cgemm_batch.c  \
 	test_csyrk_batch.c  \
@@ -34,7 +36,8 @@ C_SRC_BATCH+=         \
 	test_clauum_batch.c \
 	test_cpotrs_batch.c \
 	test_cpotri_batch.c \
-	test_cpoti_batch.c
+	test_cpoti_batch.c  \
+	test_cposv_batch.c
 C_SRC_BATCH+=         \
 	test_zgemm_batch.c  \
 	test_zsyrk_batch.c  \
@@ -45,7 +48,8 @@ C_SRC_BATCH+=         \
 	test_zlauum_batch.c \
 	test_zpotrs_batch.c \
 	test_zpotri_batch.c \
-	test_zpoti_batch.c
+	test_zpoti_batch.c  \
+	test_zposv_batch.c
 
 ifdef _SUPPORT_SVD_
 C_SRC_BATCH+= test_dgesvj_batch.c test_sgesvj_batch.c
@@ -89,6 +93,9 @@ $(OBJ_DIR)/test_%potri_batch.o: $(KBLAS_BATCH_DIR)/test_Xpotri_batch.cpp $(BATCH
 	$(CXX) $(COPTS) -DPREC_$* $(INCLUDES) -c $< -o $@
 
 $(OBJ_DIR)/test_%poti_batch.o: $(KBLAS_BATCH_DIR)/test_Xpoti_batch.cpp $(BATCH_INC_DEP)
+	$(CXX) $(COPTS) -DPREC_$* $(INCLUDES) -c $< -o $@
+
+$(OBJ_DIR)/test_%posv_batch.o: $(KBLAS_BATCH_DIR)/test_Xposv_batch.cpp $(BATCH_INC_DEP)
 	$(CXX) $(COPTS) -DPREC_$* $(INCLUDES) -c $< -o $@
 
 $(BIN_DIR)/test_%_batch: $(OBJ_DIR)/test_%_batch.o

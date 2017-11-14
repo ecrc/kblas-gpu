@@ -77,7 +77,7 @@ int Xpoti_batch_core(kblasHandle_t handle,
   {
     int status;
 
-    //TRTRI_BATCH
+    //POTRF_BATCH
     if(STRIDED){
       check_error_ret (status = Xpotrf_batch_offset(handle,
                                                     uplo,

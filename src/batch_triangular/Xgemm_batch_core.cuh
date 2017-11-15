@@ -291,6 +291,7 @@ int Xgemm_batch_core( kblasHandle_t handle,
   return KBLAS_Success;
 }
 
+#if 0
 //TODO redundant function, use the above one with offsets instead
 //workspace needed: none
 // A, B, C: host pointer to array of device pointers to device buffers
@@ -389,9 +390,10 @@ int Xgemm_batch_core( kblasHandle_t handle,
 
   return KBLAS_Success;
 }
+#endif
 
-//###############################################################################################
-#if ( __CUDACC_VER_MAJOR__ < 8 )
+//==============================================================================================
+// Strided version
 
 //workspace needed: device pointers
 // A, B, C: host pointers to device buffers
@@ -412,79 +414,93 @@ int Xgemm_batch_core( kblasHandle_t handle,
   KBlasWorkspaceState ws_needed;
   gemm_batch_strided_wsquery_core(batchCount, (kblasWorkspaceState_t)&ws_needed);
 
-  // int work_ptrs_bytes = (batchCount > 1) * batchCount * 3 * sizeof(T*);
-  bool suffWorkspace = (ws_needed.d_ptrs_bytes <= handle->work_space.allocated_ws_state.d_ptrs_bytes);
-
-  if(!suffWorkspace){
+  if( !ws_needed.isSufficient( &(handle->work_space.allocated_ws_state) ) ){
     return KBLAS_InsufficientWorkspace;
   }
-  kblasWorkspace_t ws_current = &(handle->work_space);
 
   if(batchCount == 1){
     check_error_ret( cublasXgemm( handle->cublas_handle,
-                              (transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
-                              (transB == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
-                              m, n, k,
-                              &alpha, (const T*) A, lda,
-                                      (const T*) B, ldb,
-                              &beta,             C, ldc), KBLAS_cuBLAS_Error);
+                                  (transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
+                                  (transB == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
+                                  m, n, k,
+                                  &alpha, (const T*) A, lda,
+                                          (const T*) B, ldb,
+                                  &beta,             C, ldc), KBLAS_cuBLAS_Error);
     return KBLAS_Success;
   }
 
+  #if ( __CUDACC_VER_MAJOR__ < 8 )
 
-  T **A_array, **B_array, **C_array;
-  A_array = (T**)(ws_current->d_ptrs);
-  B_array = A_array + batchCount;
-  C_array = B_array + batchCount;
+    kblasWorkspace_t ws_current = &(handle->work_space);
 
-  //if(use_cublas_gemm || use_magma_gemm)
-  {
-    check_error_ret( Xset_pointer_3(A_array, A, lda, strideA,
-                                    B_array, B, ldb, strideB,
-                                    C_array, C, ldc, strideC,
-                                    batchCount, handle->stream), KBLAS_UnknownError);
-  }
- //  int use_cublas = (m <= 64) || (n <= 64) || (k < 64);
-  if(!handle->use_magma){
-    check_error_ret( cublasXgemmBatched(handle->cublas_handle,
-                                        (transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
-                                        (transB == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
-                                        m, n, k,
-                                        &alpha, (const T**)A_array, lda,
-                                                (const T**)B_array, ldb,
-                                        &beta,             C_array, ldc,
-                                        batchCount), KBLAS_cuBLAS_Error);
-  }
-  #ifdef USE_MAGMA
-  else
-  if(handle->use_magma){
-    check_error_ret(handle->magma_queue != NULL, KBLAS_Error_NotInitialized);
+    T **A_array, **B_array, **C_array;
+    A_array = (T**)(ws_current->d_ptrs);
+    B_array = A_array + batchCount;
+    C_array = B_array + batchCount;
 
-    //take care of batch size limitation with magma
-    int batch_increment = 65535;
-    int batch_start = 0;
-
-    while(batch_start != batchCount)
+    //if(use_cublas_gemm || use_magma_gemm)
     {
-      int batch_size = kmin(batch_increment, batchCount - batch_start);
-
-      magmablas_Xgemm_batched((magma_trans_t)(MagmaNoTrans + (transA == KBLAS_Trans)),
-                              (magma_trans_t)(MagmaNoTrans + (transB == KBLAS_Trans)),
-                              m, n, k,
-                              alpha, A_array, lda,
-                                     B_array, ldb,
-                              beta,  C_array, ldc,
-                              batchCount, handle->magma_queue);
-
-      A_array += batch_size;
-      B_array += batch_size;
-      C_array += batch_size;
-
-      batch_start += batch_size;
-      check_error_ret( cudaGetLastError(), KBLAS_MAGMA_Error);
+      check_error_ret( Xset_pointer_3(A_array, A, lda, strideA,
+                                      B_array, B, ldb, strideB,
+                                      C_array, C, ldc, strideC,
+                                      batchCount, handle->stream), KBLAS_UnknownError);
     }
-  }
-  #endif
+   //  int use_cublas = (m <= 64) || (n <= 64) || (k < 64);
+    if(!handle->use_magma){
+      check_error_ret( cublasXgemmBatched(handle->cublas_handle,
+                                          (transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
+                                          (transB == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
+                                          m, n, k,
+                                          &alpha, (const T**)A_array, lda,
+                                                  (const T**)B_array, ldb,
+                                          &beta,             C_array, ldc,
+                                          batchCount), KBLAS_cuBLAS_Error);
+    }
+    #ifdef USE_MAGMA
+    else
+    if(handle->use_magma){
+      check_error_ret(handle->magma_queue != NULL, KBLAS_Error_NotInitialized);
+
+      //take care of batch size limitation with magma
+      int batch_increment = 65535;
+      int batch_start = 0;
+
+      while(batch_start != batchCount)
+      {
+        int batch_size = kmin(batch_increment, batchCount - batch_start);
+
+        magmablas_Xgemm_batched((magma_trans_t)(MagmaNoTrans + (transA == KBLAS_Trans)),
+                                (magma_trans_t)(MagmaNoTrans + (transB == KBLAS_Trans)),
+                                m, n, k,
+                                alpha, A_array, lda,
+                                       B_array, ldb,
+                                beta,  C_array, ldc,
+                                batchCount, handle->magma_queue);
+
+        A_array += batch_size;
+        B_array += batch_size;
+        C_array += batch_size;
+
+        batch_start += batch_size;
+        check_error_ret( cudaGetLastError(), KBLAS_MAGMA_Error);
+      }
+    }
+    #endif //USE_MAGMA
+
+  #else //( __CUDACC_VER_MAJOR__ < 8 )
+
+    if(!handle->use_magma){
+      check_error_ret( cublasXgemmStridedBatched( handle->cublas_handle,
+                                                  (transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
+                                                  (transB == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
+                                                  m, n, k,
+                                                  &alpha, (const T*)A, lda, strideA,
+                                                          (const T*)B, ldb, strideB,
+                                                  &beta,            C, ldc, strideC,
+                                                  batchCount), KBLAS_cuBLAS_Error);
+    }
+
+  #endif //( __CUDACC_VER_MAJOR__ < 8 )
   #if 1
   else{
     //TODO unreachable code in some cases
@@ -534,8 +550,12 @@ int Xgemm_batch_core( kblasHandle_t handle,
   return KBLAS_Success;
 }
 
+
 //###############################################################################################
-#else//__CUDACC_VER_MAJOR__ < 8
+#if 0
+( __CUDACC_VER_MAJOR__ < 8 )
+//###############################################################################################
+// #else//__CUDACC_VER_MAJOR__ < 8
 
 //workspace needed: none
 // A, B, C: host pointers to device buffers
@@ -553,10 +573,7 @@ int Xgemm_batch_core( kblasHandle_t handle,
   KBlasWorkspaceState ws_needed;
   gemm_batch_strided_wsquery_core(batchCount, (kblasWorkspaceState_t)&ws_needed);
 
-  // int work_ptrs_bytes = (batchCount > 1) * batchCount * 3 * sizeof(T*);
-  bool suffWorkspace = (ws_needed.d_ptrs_bytes <= handle->work_space.allocated_ws_state.d_ptrs_bytes);
-
-  if(!suffWorkspace){
+  if( !ws_needed.isSufficient( &(handle->work_space.allocated_ws_state) ) ){
     return KBLAS_InsufficientWorkspace;
   }
 

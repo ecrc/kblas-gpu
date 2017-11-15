@@ -42,10 +42,10 @@
 //Non-Strided form
 
 /**
- * Uniform-size batch non-strided GEMM wrapper
+ * @brief Uniform-size batch non-strided GEMM with offset wrapper routine
  *
  * Workspace needed: device pointers
- * Use gemm_batch_offset_wsquery_core()
+ *
  * A, B, C: host pointer to array of device pointers to device buffers
  */
 int kblas_gemm_batch( kblasHandle_t handle,
@@ -81,10 +81,10 @@ int kblas_gemm_batch( kblasHandle_t handle,
                           transA, transB,
                           m, n, k,
                           alpha,
-                          A_array, lda,
-                          B_array, ldb,
+                          A_array, 0, 0, lda,
+                          B_array, 0, 0, ldb,
                           beta,
-                          C_array, ldc,
+                          C_array, 0, 0, ldc,
                           batchCount);
 }
 extern "C"
@@ -101,10 +101,10 @@ int kblasXgemm_batch( kblasHandle_t handle,
                           transA, transB,
                           m, n, k,
                           alpha,
-                          A, lda,
-                          B, ldb,
+                          A, 0, 0, lda,
+                          B, 0, 0, ldb,
                           beta,
-                          C, ldc,
+                          C, 0, 0, ldc,
                           batchCount);
 }
 

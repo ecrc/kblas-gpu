@@ -26,6 +26,7 @@
 //TODO tuning variable
 #define A_COLS_PTY 8
 
+// invoke gemm kernel on off diagonal blocks (strided case)
 // workspace needed: device pointers
 // A, B: host pointer to device buffers
 template<class T>
@@ -38,7 +39,7 @@ int Xsyrk_gemm_rec_flat_strided(kblasHandle_t handle,
                                       T* B, int ldb, long strideB,
                                 int batchCount)
 {
-  //these gemm calls can run in parallel, through merged batch call
+  //these gemm calls can run in parallel, through streams
 
   if(m <= 16){
     return KBLAS_Success;
@@ -118,6 +119,7 @@ int Xsyrk_gemm_rec_flat_strided(kblasHandle_t handle,
 }
 
 //-------------------------------------------------------------------
+// batch strided SYRK core routine
 // workspace needed: device pointers
 // A, B: host pointer to device buffers
 template<class T>
@@ -134,33 +136,28 @@ int Xsyrk_batch_strided_core( kblasHandle_t handle,
   }
   int status;
 
+  //invoke gemm for off diagonal blocks
   if(m > 16){
+
+    // do we have enough workspace allocated
     KBlasWorkspaceState ws_needed;
     syrk_batch_wsquery_core( m, batchCount, (kblasWorkspaceState_t)&ws_needed);
 
-    bool suffWorkspace = (ws_needed.d_ptrs_bytes <= handle->work_space.allocated_ws_state.d_ptrs_bytes);
-
-    if(!suffWorkspace){
+    if( !ws_needed.isSufficient( &(handle->work_space.allocated_ws_state) ) ){
       return KBLAS_InsufficientWorkspace;
     }
 
-    // if(0){// &&(m % 16 != 0)){
-    //   check_error_ret(status = Xsyrk_gemm_rec_strided( handle,
-    //                                                    uplo, trans,
-    //                                                    m, n,
-    //                                                    alpha, A, lda, strideA,
-    //                                                    beta,  B, ldb, strideB,
-    //                                                    batchCount), status);
-    //   printf(" rec ");
-    // }
-    // else
-      check_error_ret(status = Xsyrk_gemm_rec_flat_strided(handle,
-                                                           uplo, trans,
-                                                           m, n,
-                                                           alpha, A, lda, strideA,
-                                                           beta,  B, ldb, strideB,
-                                                           batchCount), status);
+    check_error_ret(status = Xsyrk_gemm_rec_flat_strided(handle,
+                                                         uplo, trans,
+                                                         m, n,
+                                                         alpha, A, lda, strideA,
+                                                         beta,  B, ldb, strideB,
+                                                         batchCount), status);
   }
+
+
+  // handle diagonal blocks with custom CUDA kernels
+  // process all diagonal tiles in one CUDA kernel launch with 2D grid
 
   int2 dims[7] = {
     { 8, 4},//1 warps
@@ -174,65 +171,64 @@ int Xsyrk_batch_strided_core( kblasHandle_t handle,
   int func_idx = 0;
   int dim_idx = 0;
 
-  //if( m % 8 == 0 && m <= 16)
-  if(1)
-  {
+  typedef void (*syrk_kernels_type)( const int m, const int n, int batchCount,
+                                     const T alpha, const T* __restrict__ A_array, int lda, long strideA,
+                                     const T beta, T* B_array, int ldb, long strideB);
 
-    typedef void (*syrk_kernels_type)( const int m, const int n, int batchCount,
-                                       const T alpha, const T* __restrict__ A_array, int lda, long strideA,
-                                       const T beta, T* B_array, int ldb, long strideB);
+  syrk_kernels_type syrk_kernels[] = {
+    kernel_syrk_US_LN_registers_Mfix_Nmul   <T, 8, A_COLS_PTY>,
+    kernel_syrk_US_LN_registers_Mfix_Nvar   <T, 8, A_COLS_PTY>,
+    kernel_syrk_US_LN_registers_MNvar       <T, 8, A_COLS_PTY>,
+    kernel_syrk_US_LN_registers_MNvar       <T, 8, A_COLS_PTY>,
+    kernel_syrk_US_LN_registers_Mblock2_Nmul<T, 8, A_COLS_PTY>,
+    kernel_syrk_US_LN_registers_Mblock2_Nvar<T, 8, A_COLS_PTY>,
+    kernel_syrk_US_LN_registers_NMblock2var <T, 8, A_COLS_PTY>,
+    kernel_syrk_US_LN_registers_NMblock2var <T, 8, A_COLS_PTY>,
+    kernel_syrk_US_LT_reg_shared_Mfix_Nmul   <T, 8, A_COLS_PTY>,
+    kernel_syrk_US_LT_reg_shared_Mfix_Nvar   <T, 8, A_COLS_PTY>,
+    kernel_syrk_US_LT_reg_shared_MNvar       <T, 8, A_COLS_PTY>,
+    kernel_syrk_US_LT_reg_shared_MNvar       <T, 8, A_COLS_PTY>,
+    kernel_syrk_US_LT_reg_shared_Mblock2_Nmul<T, 8, A_COLS_PTY>,
+    kernel_syrk_US_LT_reg_shared_Mblock2_Nvar<T, 8, A_COLS_PTY>,
+    kernel_syrk_US_LT_reg_shared_NMblock2var <T, 8, A_COLS_PTY>,
+    kernel_syrk_US_LT_reg_shared_NMblock2var <T, 8, A_COLS_PTY>,
+    kernel_syrk_US_LN_registers_Mfix_Nvar_DB <T, 8, 4>,
+    //kernel_syrk_LN_registers_Mblock2_Nvar<T, 8, 4>,
+    kernel_syrk_US_LN_registers_Mblock2_Nvar_DB<T, 8, 4>
+  };
 
-    syrk_kernels_type syrk_kernels[] = {
-      kernel_syrk_US_LN_registers_Mfix_Nmul   <T, 8, A_COLS_PTY>,
-      kernel_syrk_US_LN_registers_Mfix_Nvar   <T, 8, A_COLS_PTY>,
-      kernel_syrk_US_LN_registers_MNvar       <T, 8, A_COLS_PTY>,
-      kernel_syrk_US_LN_registers_MNvar       <T, 8, A_COLS_PTY>,
-      kernel_syrk_US_LN_registers_Mblock2_Nmul<T, 8, A_COLS_PTY>,
-      kernel_syrk_US_LN_registers_Mblock2_Nvar<T, 8, A_COLS_PTY>,
-      kernel_syrk_US_LN_registers_NMblock2var <T, 8, A_COLS_PTY>,
-      kernel_syrk_US_LN_registers_NMblock2var <T, 8, A_COLS_PTY>,
-      kernel_syrk_US_LT_reg_shared_Mfix_Nmul   <T, 8, A_COLS_PTY>,
-      kernel_syrk_US_LT_reg_shared_Mfix_Nvar   <T, 8, A_COLS_PTY>,
-      kernel_syrk_US_LT_reg_shared_MNvar       <T, 8, A_COLS_PTY>,
-      kernel_syrk_US_LT_reg_shared_MNvar       <T, 8, A_COLS_PTY>,
-      kernel_syrk_US_LT_reg_shared_Mblock2_Nmul<T, 8, A_COLS_PTY>,
-      kernel_syrk_US_LT_reg_shared_Mblock2_Nvar<T, 8, A_COLS_PTY>,
-      kernel_syrk_US_LT_reg_shared_NMblock2var <T, 8, A_COLS_PTY>,
-      kernel_syrk_US_LT_reg_shared_NMblock2var <T, 8, A_COLS_PTY>,
-      kernel_syrk_US_LN_registers_Mfix_Nvar_DB <T, 8, 4>,
-      //kernel_syrk_LN_registers_Mblock2_Nvar<T, 8, 4>,
-      kernel_syrk_US_LN_registers_Mblock2_Nvar_DB<T, 8, 4>
-    };
-    int mvar = (m < 8 || (8 < m && m < 16) || m > 16) && (m % 16 != 0), nvar = 1;//(n % 8) != 0;//(m != 8) && (m != 16);
-    func_idx = 8 * (trans == KBLAS_Trans) + 4 * (m > 8) + nvar + 2*mvar;//(n % A_COLS_PTY != 0);
-    dim_idx = (m <= 8);
-    // printf("func_idx(%d), dim_idx(%d)\n", func_idx, dim_idx);fflush( stdout );
-    dim3 blockDim( dims[dim_idx].x, dims[dim_idx].y );
-    dim3 gridDim( batchCount / blockDim.y + (batchCount % blockDim.y != 0), (m / 16) + (m % 16 != 0));
-    // printf("blockDim(%d,%d), gridDim(%d,%d)\n", blockDim.x, blockDim.y, gridDim.x, gridDim.y);fflush( stdout );
-    long sh_mem = blockDim.x*(blockDim.x)*blockDim.y*sizeof(T);
-    long syrk_kernels_sharedMem[] = {
-      0, 0, 0, 0, 0, 0, 0, 0,
-      sh_mem, sh_mem, sh_mem, sh_mem, sh_mem, sh_mem, sh_mem, sh_mem,
-      4*(blockDim.x+1)*blockDim.y*sizeof(T),
-      8*(blockDim.x+1)*blockDim.y*sizeof(T)
-    };
+  // determine which kernel to launch
+  int mvar = (m < 8 || (8 < m && m < 16) || m > 16) && (m % 16 != 0), nvar = 1;//(n % 8) != 0;//(m != 8) && (m != 16);
+  func_idx = 8 * (trans == KBLAS_Trans) + 4 * (m > 8) + nvar + 2*mvar;//(n % A_COLS_PTY != 0);
+  dim_idx = (m <= 8);
+  // printf("func_idx(%d), dim_idx(%d)\n", func_idx, dim_idx);fflush( stdout );
 
-    syrk_kernels[func_idx]<<< gridDim, blockDim, syrk_kernels_sharedMem[func_idx], handle->stream>>>
-                          (m, n, batchCount, alpha, A, lda, strideA, beta, B, ldb, strideB);
+  dim3 blockDim( dims[dim_idx].x, dims[dim_idx].y );
+  dim3 gridDim( batchCount / blockDim.y + (batchCount % blockDim.y != 0), (m / 16) + (m % 16 != 0));
+  // printf("blockDim(%d,%d), gridDim(%d,%d)\n", blockDim.x, blockDim.y, gridDim.x, gridDim.y);fflush( stdout );
 
-    check_error_ret( cudaGetLastError(), KBLAS_UnknownError);
-  }else
-  {
-    return KBLAS_NotImplemented;
-  }
+  // set dynamic shared memory requirement for each kernel
+  long sh_mem = blockDim.x*(blockDim.x)*blockDim.y*sizeof(T);
+  long syrk_kernels_sharedMem[] = {
+    0, 0, 0, 0, 0, 0, 0, 0,
+    sh_mem, sh_mem, sh_mem, sh_mem, sh_mem, sh_mem, sh_mem, sh_mem,
+    4*(blockDim.x+1)*blockDim.y*sizeof(T),
+    8*(blockDim.x+1)*blockDim.y*sizeof(T)
+  };
+
+  //invoke the syrk kernel on diagonal blocks
+  syrk_kernels[func_idx]<<< gridDim, blockDim, syrk_kernels_sharedMem[func_idx], handle->stream>>>
+                        (m, n, batchCount, alpha, A, lda, strideA, beta, B, ldb, strideB);
+
+  check_error_ret( cudaGetLastError(), KBLAS_UnknownError);
+
   return KBLAS_Success;
 }
 
 //==============================================================================================
-
+// invoke gemm kernel on off diagonal blocks
 // workspace needed: device pointers
-// d_A, d_B: host pointer to array of device pointers to device buffers
+// A, B: host pointer to array of device pointers to device buffers
 template<class T>
 int Xsyrk_gemm_rec_flat(kblasHandle_t handle,
                         char uplo, char trans,
@@ -249,6 +245,7 @@ int Xsyrk_gemm_rec_flat(kblasHandle_t handle,
     return KBLAS_Success;
   }
 
+  // determine the depth of the recursion
   int depth = 0, s = 16;
   while(s < m){
     s = s << 1;
@@ -258,6 +255,7 @@ int Xsyrk_gemm_rec_flat(kblasHandle_t handle,
   char transA = trans,
        transB = (transA == KBLAS_NoTrans ? KBLAS_Trans : KBLAS_NoTrans);
 
+  // use pre-allocated workspace buffers to host pointers to off-diagonal blocks
   kblasWorkspace_t ws_current = &(handle->work_space);
 
   T **A_work,
@@ -274,6 +272,7 @@ int Xsyrk_gemm_rec_flat(kblasHandle_t handle,
       nn = row,
       kk = n;
 
+  // combine calls to batch gemm at the same recursion level into one batch call
   while(d < depth){
     int cur_batchCount = 0;
     int b = 0;
@@ -322,6 +321,7 @@ int Xsyrk_gemm_rec_flat(kblasHandle_t handle,
 }
 
 //-------------------------------------------------------------------
+// batch SYRK core routine
 // workspace needed: device pointers
 // A, B: host pointer to array of device pointers to device buffers
 template<class T>
@@ -339,34 +339,27 @@ int Xsyrk_batch_core( kblasHandle_t handle,
   }
   int status;
 
+  //invoke gemm for off diagonal blocks
   if(m > 16){
 
+    // do we have enough workspace allocated
     KBlasWorkspaceState ws_needed;
     syrk_batch_wsquery_core( m, batchCount, (kblasWorkspaceState_t)&ws_needed);
 
-    bool suffWorkspace = (ws_needed.d_ptrs_bytes <= handle->work_space.allocated_ws_state.d_ptrs_bytes);
-
-    if(!suffWorkspace){
+    if( !ws_needed.isSufficient( &(handle->work_space.allocated_ws_state) ) ){
       return KBLAS_InsufficientWorkspace;
     }
 
-    // if(0 && !REG_SIZE(m)){
-    //   check_error_ret(status = Xsyrk_gemm_rec( handle,
-    //                                            uplo, trans,
-    //                                            m, n,
-    //                                            alpha, A, lda,
-    //                                            beta,  B, ldb,
-    //                                            batchCount), status);
-    // }
-    // else
-      check_error_ret( status = Xsyrk_gemm_rec_flat( handle,
-                                                     uplo, trans,
-                                                     m, n,
-                                                     alpha, A, A_row_off, A_col_off, lda,
-                                                     beta,  B, B_row_off, B_col_off, ldb,
-                                                     batchCount), status);
+    check_error_ret( status = Xsyrk_gemm_rec_flat( handle,
+                                                   uplo, trans,
+                                                   m, n,
+                                                   alpha, A, A_row_off, A_col_off, lda,
+                                                   beta,  B, B_row_off, B_col_off, ldb,
+                                                   batchCount), status);
   }
 
+  // handle diagonal blocks with custom CUDA kernels
+  // process all diagonal tiles in one CUDA kernel launch with 2D grid
 
   int2 dims[7] = {
     { 8, 4},//1 warps
@@ -380,62 +373,60 @@ int Xsyrk_batch_core( kblasHandle_t handle,
   int func_idx = 0;
   int dim_idx = 0;
 
-  //if( m % 8 == 0 && m <= 16)
-  if(1)
-  {
 
-    typedef void (*syrk_kernels_type)( const int m, const int n, int batchCount,
-                                       const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
-                                       const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb);
+  typedef void (*syrk_kernels_type)( const int m, const int n, int batchCount,
+                                     const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
+                                     const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb);
 
-    syrk_kernels_type syrk_kernels[] = {
-      kernel_syrk_UN_LN_registers_Mfix_Nmul   <T, 8, A_COLS_PTY>,
-      kernel_syrk_UN_LN_registers_Mfix_Nvar   <T, 8, A_COLS_PTY>,
-      kernel_syrk_UN_LN_registers_MNvar       <T, 8, A_COLS_PTY>,
-      kernel_syrk_UN_LN_registers_MNvar       <T, 8, A_COLS_PTY>,
-      kernel_syrk_UN_LN_registers_Mblock2_Nmul<T, 8, A_COLS_PTY>,
-      kernel_syrk_UN_LN_registers_Mblock2_Nvar<T, 8, A_COLS_PTY>,
-      kernel_syrk_UN_LN_registers_NMblock2var <T, 8, A_COLS_PTY>,
-      kernel_syrk_UN_LN_registers_NMblock2var <T, 8, A_COLS_PTY>,
-      kernel_syrk_UN_LT_reg_shared_Mfix_Nmul   <T, 8, A_COLS_PTY>,
-      kernel_syrk_UN_LT_reg_shared_Mfix_Nvar   <T, 8, A_COLS_PTY>,
-      kernel_syrk_UN_LT_reg_shared_MNvar       <T, 8, A_COLS_PTY>,
-      kernel_syrk_UN_LT_reg_shared_MNvar       <T, 8, A_COLS_PTY>,
-      kernel_syrk_UN_LT_reg_shared_Mblock2_Nmul<T, 8, A_COLS_PTY>,
-      kernel_syrk_UN_LT_reg_shared_Mblock2_Nvar<T, 8, A_COLS_PTY>,
-      kernel_syrk_UN_LT_reg_shared_NMblock2var <T, 8, A_COLS_PTY>,
-      kernel_syrk_UN_LT_reg_shared_NMblock2var <T, 8, A_COLS_PTY>,
-      kernel_syrk_UN_LN_registers_Mfix_Nvar_DB <T, 8, 4>,
-      //kernel_syrk_LN_registers_Mblock2_Nvar<T, 8, 4>,
-      kernel_syrk_UN_LN_registers_Mblock2_Nvar_DB<T, 8, 4>
-    };
-    int mvar = (m < 8 || (8 < m && m < 16) || m > 16) && (m % 16 != 0), nvar = 1;//(n % 8) != 0;//(m != 8) && (m != 16);
-    func_idx = 8 * (trans == KBLAS_Trans) + 4 * (m > 8) + nvar + 2*mvar;//(n % A_COLS_PTY != 0);
-    dim_idx = (m <= 8);
-    // printf("func_idx(%d), dim_idx(%d)\n", func_idx, dim_idx);fflush( stdout );
+  syrk_kernels_type syrk_kernels[] = {
+    kernel_syrk_UN_LN_registers_Mfix_Nmul   <T, 8, A_COLS_PTY>,
+    kernel_syrk_UN_LN_registers_Mfix_Nvar   <T, 8, A_COLS_PTY>,
+    kernel_syrk_UN_LN_registers_MNvar       <T, 8, A_COLS_PTY>,
+    kernel_syrk_UN_LN_registers_MNvar       <T, 8, A_COLS_PTY>,
+    kernel_syrk_UN_LN_registers_Mblock2_Nmul<T, 8, A_COLS_PTY>,
+    kernel_syrk_UN_LN_registers_Mblock2_Nvar<T, 8, A_COLS_PTY>,
+    kernel_syrk_UN_LN_registers_NMblock2var <T, 8, A_COLS_PTY>,
+    kernel_syrk_UN_LN_registers_NMblock2var <T, 8, A_COLS_PTY>,
+    kernel_syrk_UN_LT_reg_shared_Mfix_Nmul   <T, 8, A_COLS_PTY>,
+    kernel_syrk_UN_LT_reg_shared_Mfix_Nvar   <T, 8, A_COLS_PTY>,
+    kernel_syrk_UN_LT_reg_shared_MNvar       <T, 8, A_COLS_PTY>,
+    kernel_syrk_UN_LT_reg_shared_MNvar       <T, 8, A_COLS_PTY>,
+    kernel_syrk_UN_LT_reg_shared_Mblock2_Nmul<T, 8, A_COLS_PTY>,
+    kernel_syrk_UN_LT_reg_shared_Mblock2_Nvar<T, 8, A_COLS_PTY>,
+    kernel_syrk_UN_LT_reg_shared_NMblock2var <T, 8, A_COLS_PTY>,
+    kernel_syrk_UN_LT_reg_shared_NMblock2var <T, 8, A_COLS_PTY>,
+    kernel_syrk_UN_LN_registers_Mfix_Nvar_DB <T, 8, 4>,
+    //kernel_syrk_LN_registers_Mblock2_Nvar<T, 8, 4>,
+    kernel_syrk_UN_LN_registers_Mblock2_Nvar_DB<T, 8, 4>
+  };
 
-    dim3 blockDim( dims[dim_idx].x, dims[dim_idx].y );
-    dim3 gridDim( batchCount / blockDim.y + (batchCount % blockDim.y != 0), (m / 16) + (m % 16 != 0));
+  // determine which kernel to launch
+  int mvar = (m < 8 || (8 < m && m < 16) || m > 16) && (m % 16 != 0), nvar = 1;//(n % 8) != 0;//(m != 8) && (m != 16);
+  func_idx = 8 * (trans == KBLAS_Trans) + 4 * (m > 8) + nvar + 2*mvar;//(n % A_COLS_PTY != 0);
+  dim_idx = (m <= 8);
+  // printf("func_idx(%d), dim_idx(%d)\n", func_idx, dim_idx);fflush( stdout );
 
-    // printf("blockDim(%d,%d), gridDim(%d,%d)\n", blockDim.x, blockDim.y, gridDim.x, gridDim.y);fflush( stdout );
-    long sh_mem = blockDim.x*(blockDim.x)*blockDim.y*sizeof(T);
-    long syrk_kernels_sharedMem[] = {
-      0, 0, 0, 0, 0, 0, 0, 0,
-      sh_mem, sh_mem, sh_mem, sh_mem, sh_mem, sh_mem, sh_mem, sh_mem,
-      4*(blockDim.x+1)*blockDim.y*sizeof(T),
-      8*(blockDim.x+1)*blockDim.y*sizeof(T)
-    };
+  dim3 blockDim( dims[dim_idx].x, dims[dim_idx].y );
+  dim3 gridDim( batchCount / blockDim.y + (batchCount % blockDim.y != 0), (m / 16) + (m % 16 != 0));
+  // printf("blockDim(%d,%d), gridDim(%d,%d)\n", blockDim.x, blockDim.y, gridDim.x, gridDim.y);fflush( stdout );
 
-    syrk_kernels[func_idx]<<< gridDim, blockDim, syrk_kernels_sharedMem[func_idx], handle->stream>>>
-                         (m, n, batchCount,
-                          alpha, A, A_row_off, A_col_off, lda,
-                          beta,  B, B_row_off, B_col_off, ldb);
+  // set dynamic shared memory requirement for each kernel
+  long sh_mem = blockDim.x*(blockDim.x)*blockDim.y*sizeof(T);
+  long syrk_kernels_sharedMem[] = {
+    0, 0, 0, 0, 0, 0, 0, 0,
+    sh_mem, sh_mem, sh_mem, sh_mem, sh_mem, sh_mem, sh_mem, sh_mem,
+    4*(blockDim.x+1)*blockDim.y*sizeof(T),
+    8*(blockDim.x+1)*blockDim.y*sizeof(T)
+  };
 
-    check_error_ret( cudaGetLastError(), KBLAS_UnknownError);
-  }else
-  {
-    return KBLAS_NotImplemented;
-  }
+  //invoke the syrk kernel on diagonal blocks
+  syrk_kernels[func_idx]<<< gridDim, blockDim, syrk_kernels_sharedMem[func_idx], handle->stream>>>
+                       (m, n, batchCount,
+                        alpha, A, A_row_off, A_col_off, lda,
+                        beta,  B, B_row_off, B_col_off, ldb);
+
+  check_error_ret( cudaGetLastError(), KBLAS_UnknownError);
+
   return KBLAS_Success;
 }
 

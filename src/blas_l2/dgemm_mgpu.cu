@@ -1,3 +1,21 @@
+/**
+ * @copyright (c) 2012- King Abdullah University of Science and
+ *                      Technology (KAUST). All rights reserved.
+ **/
+
+
+/**
+ * @file src/blas_l2/dgemm_mgpu.cu
+
+ * KBLAS is a high performance CUDA library for subset of BLAS
+ *    and LAPACK routines optimized for NVIDIA GPUs.
+ * KBLAS is provided by KAUST.
+ *
+ * @version 2.0.0
+ * @author Ahmad Abdelfattah
+ * @date 2017-11-13
+ **/
+
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <cublas.h>
@@ -29,7 +47,7 @@ void kblas_dgemm_mgpu(char transa, char transb, long m, long n, long k,
   }
   // set to 1 to print info
   long pflag = 0;
-      
+
   // compute #waves of full stripes
   long stripes = (m + tile_size-1)/tile_size; //(m / tile_size) + (m%tile_size != 0);
   long full_waves = stripes / ngpus;
@@ -44,7 +62,7 @@ void kblas_dgemm_mgpu(char transa, char transb, long m, long n, long k,
   height += 2 * tile_size;		// 2 output tiles
   height = ( (height+31)/32 ) * 32;	// for coalesced memory access
   long mem_space = height * width;
-      
+
   // gpu pointers/worspace
   double* gpu_ws[MAX_NGPUS];
   double* a[MAX_NGPUS];
@@ -110,7 +128,7 @@ void kblas_dgemm_mgpu(char transa, char transb, long m, long n, long k,
       c[i][1] = c[i][0]  + tile_size * tile_size;
     }
   }
-  
+
   // create streams and events
   {
     if(pflag)printf("stream create\n");
@@ -158,7 +176,7 @@ void kblas_dgemm_mgpu(char transa, char transb, long m, long n, long k,
   }else{
     step_b = tile_size * ldb;
   }
-  
+
   // selector to switch between 2 gpu buffers
   long bselect[MAX_NGPUS] = {0};
   long cselect[MAX_NGPUS] = {0};
@@ -170,7 +188,7 @@ void kblas_dgemm_mgpu(char transa, char transb, long m, long n, long k,
   long cb[MAX_NGPUS] = {0};
   long rc[MAX_NGPUS] = {0};
   long cc[MAX_NGPUS] = {0};
-  
+
   //main loop
   {
     if(pflag)printf("main loop\n");
@@ -199,7 +217,7 @@ void kblas_dgemm_mgpu(char transa, char transb, long m, long n, long k,
           A_[id] = (double*)A + (i * ngpus + id) * tile_size * lda;
         }
       }
-        
+
       // compute #rows of current tiles in A and C
       for(long id = 0; id < ngpus_active; id++){
         rc[id] = min(m - (i*ngpus+id)*tile_size , tile_size);
@@ -212,7 +230,7 @@ void kblas_dgemm_mgpu(char transa, char transb, long m, long n, long k,
           ca[id] = min(m - (i*ngpus+id)*tile_size , tile_size);
         }
       }
-        
+
       // j - loop over (n) -
       for(long j = 0; j < n_ ; j++)
       {
@@ -231,7 +249,7 @@ void kblas_dgemm_mgpu(char transa, char transb, long m, long n, long k,
             rb[id] = min(n - j*tile_size , tile_size);
           }
         }
-            
+
         // Advance B_
         if(transb == 'n' || transb == 'N'){
           for(long id = 0; id < ngpus_active; id++) {

@@ -1,43 +1,20 @@
-/*
-    -- KBLAS (version 1.0) --
-       Ahmad Abdelfattah, Center of Extreme Computing
-	   Hatem Ltaief, Supercomputing Laboratory
-	   David Keyes, Center of Extreme Computing
-	   King Abdullah University of Science and Technology (KAUST)
-       June 2013
-	   KBLAS is a subset of BLAS routines highly optimized for NVIDIA GPUs 
-*/
 /**
-	-- Center of Extreme Computing and Supercomputing Laboratory
-	-- Division of Applied Mathematics and Computational Science
-	-- King Abdullah University of Science and Technology
-	-- (C) Copyright 2013
+ * @copyright (c) 2012- King Abdullah University of Science and
+ *                      Technology (KAUST). All rights reserved.
+ **/
 
-	Redistribution  and  use  in  source and binary forms, with or without
-	modification,  are  permitted  provided  that the following conditions
-	are met:
 
-	*	Redistributions  of  source  code  must  retain  the above copyright
-		notice,  this  list  of  conditions  and  the  following  disclaimer.
-	* 	Redistributions  in  binary  form must reproduce the above copyright
-		notice,  this list of conditions and the following disclaimer in the
-		documentation  and/or other materials provided with the distribution.
-	* 	Neither  the  name of the University of Tennessee, Knoxville nor the
-		names of its contributors may be used to endorse or promote products
-		derived from this software without specific prior written permission.
+/**
+ * @file src/blas_l2/cgemv_mgpu.cu
 
-	THIS  SOFTWARE  IS  PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-	''AS IS''  AND  ANY  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-	LIMITED  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-	A  PARTICULAR  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-	HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-	SPECIAL,  EXEMPLARY,  OR  CONSEQUENTIAL  DAMAGES  (INCLUDING,  BUT NOT
-	LIMITED  TO,  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-	DATA,  OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-	THEORY  OF  LIABILITY,  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-	(INCLUDING  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-	OF  THIS  SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-**/
+ * KBLAS is a high performance CUDA library for subset of BLAS
+ *    and LAPACK routines optimized for NVIDIA GPUs.
+ * KBLAS is provided by KAUST.
+ *
+ * @version 2.0.0
+ * @author Ahmad Abdelfattah
+ * @date 2017-11-13
+ **/
 
 #include <stdio.h>
 #include <cuda.h>
@@ -73,36 +50,36 @@
 extern "C"
 int kblas_cscal_async(int n, cuFloatComplex alpha, cuFloatComplex *x, int incx, cudaStream_t stream);
 
-extern "C"    
+extern "C"
 int kblas_cgemv_mgpu_driver( char trans, int rows, int cols,
-						cuFloatComplex alpha, cuFloatComplex *dA, int lda, 
-						cuFloatComplex *dX, int incx, 
+						cuFloatComplex alpha, cuFloatComplex *dA, int lda,
+						cuFloatComplex *dX, int incx,
 						cuFloatComplex  beta, cuFloatComplex *dY, int incy, int gpu_gid, int ngpus,
 						cudaStream_t stream = 0)
 {
     const cuFloatComplex c_zero = make_cuFloatComplex(0, 0);
-    
+
 	if(trans == 'n' || trans == 'N')
 	{
 		//******** config parameters
 		const int thread_x = cgemvn_mgpu_bs;
-		const int thread_y = cgemvn_mgpu_ty; 
+		const int thread_y = cgemvn_mgpu_ty;
 		const int elements_per_thread = thread_x/(2*thread_y);
 		int grid_y_n = 1 * ngpus;
 		//**************************
-		
+
 		// scaling with beta
 		//if(gpu_gid == 0)cublasDscal(rows, beta, dY, incy);
 		if(gpu_gid == 0)kblas_cscal_async(rows, beta, dY, incy, stream);
 		else kblas_cscal_async(rows, c_zero, dY, incy, stream);
-		
+
 		int cols_ = cgemvn_mgpu_bs * ( (cols/cgemvn_mgpu_bs)/ngpus );
 		if(gpu_gid < (cols/cgemvn_mgpu_bs)%ngpus) cols_ += cgemvn_mgpu_bs;
 		if(gpu_gid == (cols/cgemvn_mgpu_bs)%ngpus) cols_ += cols%cgemvn_mgpu_bs;
-		
+
 		int mod_r = rows % cgemvn_mgpu_bs;
-		int mod_c = cols_ % cgemvn_mgpu_bs;	
-		
+		int mod_c = cols_ % cgemvn_mgpu_bs;
+
 		if(mod_r == 0)
 		{
 			if(mod_c == 0)
@@ -118,8 +95,8 @@ int kblas_cgemv_mgpu_driver( char trans, int rows, int cols,
 			{
 				// generic case for columns only
 				const int irregular_cols = mod_c % elements_per_thread;
-				
-				int blocks = rows/cgemvn_mgpu_bs; 
+
+				int blocks = rows/cgemvn_mgpu_bs;
 				blocks += 1;	// dummy thread block
 				dim3 dimBlock(thread_x, thread_y);
 				dim3 dimGrid(blocks, grid_y_n);
@@ -130,8 +107,8 @@ int kblas_cgemv_mgpu_driver( char trans, int rows, int cols,
 					 * The kernel for irregular dimensions has an extra template parameter.
 				 	 * This parameter must be among the values listed in the switch-case statement below.
 				 	 * The possible values are in the range 0 - (elements_per_thread-1)
-				 	 * Make sure these values are updated whenever you change the configuration parameters.  
-					**/	
+				 	 * Make sure these values are updated whenever you change the configuration parameters.
+					**/
 					case  0: gemvn_mgpu_generic<cuFloatComplex, cgemvn_mgpu_bs, cgemvn_mgpu_bs, cgemvn_mgpu_ty, elements_per_thread,  0><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, gpu_gid, ngpus); break;
 					case  1: gemvn_mgpu_generic<cuFloatComplex, cgemvn_mgpu_bs, cgemvn_mgpu_bs, cgemvn_mgpu_ty, elements_per_thread,  1><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, gpu_gid, ngpus); break;
 					case  2: gemvn_mgpu_generic<cuFloatComplex, cgemvn_mgpu_bs, cgemvn_mgpu_bs, cgemvn_mgpu_ty, elements_per_thread,  2><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, gpu_gid, ngpus); break;
@@ -149,7 +126,7 @@ int kblas_cgemv_mgpu_driver( char trans, int rows, int cols,
 					case 14: gemvn_mgpu_generic<cuFloatComplex, cgemvn_mgpu_bs, cgemvn_mgpu_bs, cgemvn_mgpu_ty, elements_per_thread, 14><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, gpu_gid, ngpus); break;
 					case 15: gemvn_mgpu_generic<cuFloatComplex, cgemvn_mgpu_bs, cgemvn_mgpu_bs, cgemvn_mgpu_ty, elements_per_thread, 15><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, gpu_gid, ngpus); break;
 					default: printf("CGEMV-N error: improper template parameter. Please read the inline documentation for this function. \n"); return -1;
-					
+
 				}
 			}
 		}
@@ -168,10 +145,10 @@ int kblas_cgemv_mgpu_driver( char trans, int rows, int cols,
 			{
 				// generic case for rows and cols
 				const int irregular_cols = mod_c % elements_per_thread;
-				
+
 				int blocks = (rows/cgemvn_mgpu_bs) + (mod_r != 0);
-				
-				//printf("gpu_gid = %d, cols_ = %d \n", gpu_gid, cols_); 
+
+				//printf("gpu_gid = %d, cols_ = %d \n", gpu_gid, cols_);
 				dim3 dimBlock(thread_x, thread_y);
 				dim3 dimGrid(blocks, grid_y_n);
 				if(blocks == 0) return 0;
@@ -181,8 +158,8 @@ int kblas_cgemv_mgpu_driver( char trans, int rows, int cols,
 					 * The kernel for irregular dimensions has an extra template parameter.
 				 	 * This parameter must be among the values listed in the switch-case statement below.
 				 	 * The possible values are in the range 0 - (elements_per_thread-1)
-				 	 * Make sure these values are updated whenever you change the configuration parameters.  
-					**/	
+				 	 * Make sure these values are updated whenever you change the configuration parameters.
+					**/
 					case  0: gemvn_mgpu_generic<cuFloatComplex, cgemvn_mgpu_bs, cgemvn_mgpu_bs, cgemvn_mgpu_ty, elements_per_thread,  0><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, gpu_gid, ngpus); break;
 					case  1: gemvn_mgpu_generic<cuFloatComplex, cgemvn_mgpu_bs, cgemvn_mgpu_bs, cgemvn_mgpu_ty, elements_per_thread,  1><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, gpu_gid, ngpus); break;
 					case  2: gemvn_mgpu_generic<cuFloatComplex, cgemvn_mgpu_bs, cgemvn_mgpu_bs, cgemvn_mgpu_ty, elements_per_thread,  2><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, gpu_gid, ngpus); break;
@@ -200,7 +177,7 @@ int kblas_cgemv_mgpu_driver( char trans, int rows, int cols,
 					case 14: gemvn_mgpu_generic<cuFloatComplex, cgemvn_mgpu_bs, cgemvn_mgpu_bs, cgemvn_mgpu_ty, elements_per_thread, 14><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, gpu_gid, ngpus); break;
 					case 15: gemvn_mgpu_generic<cuFloatComplex, cgemvn_mgpu_bs, cgemvn_mgpu_bs, cgemvn_mgpu_ty, elements_per_thread, 15><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, gpu_gid, ngpus); break;
 					default: printf("CGEMV-N error: improper template parameter. Please read the inline documentation for this function. \n"); return -1;
-					
+
 				}
 			}
 		}
@@ -216,7 +193,7 @@ int kblas_cgemv_mgpu_driver( char trans, int rows, int cols,
 		const int elements_per_thread = thread_x/(2*thread_y);
 		int grid_y_t = 1 * ngpus;
 		//******************************
-		
+
 		// scaling with beta
 		//if(gpu_gid == 0)cublasDscal(cols, beta, dY, incy);
 		if(gpu_gid == 0)kblas_cscal_async(cols, beta, dY, incy, stream);
@@ -225,10 +202,10 @@ int kblas_cgemv_mgpu_driver( char trans, int rows, int cols,
 		int cols_ = cgemvt_mgpu_bs * ( (cols/cgemvt_mgpu_bs)/ngpus );
 		if(gpu_gid < (cols/cgemvt_mgpu_bs)%ngpus) cols_ += cgemvt_mgpu_bs;
 		if(gpu_gid == (cols/cgemvt_mgpu_bs)%ngpus) cols_ += cols%cgemvt_mgpu_bs;
-		
+
 		int mod_r = rows % cgemvt_mgpu_bs;
 		int mod_c = cols_ % cgemvt_mgpu_bs;
-		
+
 		if(mod_c == 0)
 		{
 			if(mod_r == 0)
@@ -238,7 +215,7 @@ int kblas_cgemv_mgpu_driver( char trans, int rows, int cols,
 				dim3 dimBlock(thread_x, thread_y);
 				dim3 dimGrid(blocks, grid_y_t);
 				if(blocks == 0) return 0;
-				gemvt_mgpu_special<cuFloatComplex, cgemvt_mgpu_bs, thread_x, thread_y, elements_per_thread><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, gpu_gid, ngpus, conj); 
+				gemvt_mgpu_special<cuFloatComplex, cgemvt_mgpu_bs, thread_x, thread_y, elements_per_thread><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, gpu_gid, ngpus, conj);
 			}
 			else
 			{
@@ -254,20 +231,20 @@ int kblas_cgemv_mgpu_driver( char trans, int rows, int cols,
 		else	// mod_c != 0
 		{
 			const int irregular_cols = mod_c % elements_per_thread;
-			
+
 			int blocks = cols_/cgemvt_mgpu_bs + (mod_c != 0);
 			dim3 dimBlock(thread_x, thread_y);
 			dim3 dimGrid(blocks, grid_y_t);
 			if(blocks == 0) return 0;
-			
+
 			switch(irregular_cols)
 			{
 				/**
 				  * The kernel for irregular dimensions has an extra template parameter.
 				  * This parameter must be among the values listed in the switch-case statement below.
 				  * The possible values are in the range 0 - (elements_per_thread-1)
-				  * Make sure these values are updated whenever you change the configuration parameters.  
-				**/	
+				  * Make sure these values are updated whenever you change the configuration parameters.
+				**/
 				case  0: gemvt_mgpu_generic<cuFloatComplex, cgemvt_mgpu_bs, thread_x, thread_y, elements_per_thread,  0><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, gpu_gid, ngpus, conj); break;
 				case  1: gemvt_mgpu_generic<cuFloatComplex, cgemvt_mgpu_bs, thread_x, thread_y, elements_per_thread,  1><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, gpu_gid, ngpus, conj); break;
 				case  2: gemvt_mgpu_generic<cuFloatComplex, cgemvt_mgpu_bs, thread_x, thread_y, elements_per_thread,  2><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, gpu_gid, ngpus, conj); break;
@@ -288,19 +265,19 @@ int kblas_cgemv_mgpu_driver( char trans, int rows, int cols,
 			}
 		}
 	}
-	else 
+	else
 	{
 		printf("CGEMV error: Unrecognized transpose mode %c \n", trans);
 		return -1;
 	}
-	
+
 	return 0;
 }
 /*************************************************************************************/
-extern "C"    
+extern "C"
 int kblas_cgemv_mgpu_driver_offset( char trans, int rows, int cols,
-						cuFloatComplex alpha, cuFloatComplex *dA, int lda, 
-						cuFloatComplex *dX, int incx, 
+						cuFloatComplex alpha, cuFloatComplex *dA, int lda,
+						cuFloatComplex *dX, int incx,
 						cuFloatComplex  beta, cuFloatComplex *dY, int incy, int gpu_gid, int ngpus,
 						int offset_r, int offset_c,
 						cudaStream_t stream = 0)
@@ -308,46 +285,46 @@ int kblas_cgemv_mgpu_driver_offset( char trans, int rows, int cols,
     const cuFloatComplex c_zero = make_cuFloatComplex(0, 0);
 	if(trans == 'n' || trans == 'N')
 	{
-		
+
 		//**** Config parameters
 		const int thread_x = cgemvn_mgpu_bs;
-		const int thread_y = cgemvn_mgpu_ty; 
+		const int thread_y = cgemvn_mgpu_ty;
 		const int elements_per_thread = thread_x/(2*thread_y);
 		const int grid_y_n = 2 * ngpus;
 		//*************************
-		
+
 		/** offset necessary calculation **/
 		int offset_r_ = offset_r % cgemvn_mgpu_bs;
 		int offset_c_ = offset_c % cgemvn_mgpu_bs;
-		int total_blocks_skipped_r = offset_r / cgemvn_mgpu_bs; 
-		int total_blocks_skipped_c = offset_c / cgemvn_mgpu_bs; 
-		int my_skipped_blocks_r = total_blocks_skipped_r; 
-		int my_skipped_blocks_c = total_blocks_skipped_c/ngpus; 
+		int total_blocks_skipped_r = offset_r / cgemvn_mgpu_bs;
+		int total_blocks_skipped_c = offset_c / cgemvn_mgpu_bs;
+		int my_skipped_blocks_r = total_blocks_skipped_r;
+		int my_skipped_blocks_c = total_blocks_skipped_c/ngpus;
 		if(gpu_gid < (total_blocks_skipped_c%ngpus)) my_skipped_blocks_c += 1;
-		int ref_gpu = total_blocks_skipped_c%ngpus; 
+		int ref_gpu = total_blocks_skipped_c%ngpus;
 		int new_gpu_gid = (gpu_gid - ref_gpu + ngpus) % ngpus;
 		// Advance pointers accordingly
 		dA += my_skipped_blocks_c * cgemvn_mgpu_bs * lda;
-		dA += my_skipped_blocks_r * cgemvn_mgpu_bs; 
+		dA += my_skipped_blocks_r * cgemvn_mgpu_bs;
 		dX += total_blocks_skipped_c * cgemvn_mgpu_bs * incx;
 		dY += total_blocks_skipped_r * cgemvn_mgpu_bs * incy;
 		rows -= total_blocks_skipped_r * cgemvn_mgpu_bs;
 		cols -= total_blocks_skipped_c * cgemvn_mgpu_bs;
 		/** end offset necessary calculation **/
-		
+
 		int nstripes = (cols/cgemvn_mgpu_bs) + ((cols%cgemvn_mgpu_bs) != 0);
-		
+
 		// scaling with beta
 		if(gpu_gid == 0)kblas_cscal_async(rows-offset_r_, beta, dY+(offset_r_*incy), incy, stream);
 		else kblas_cscal_async(rows-offset_r_, c_zero, dY+(offset_r_*incy), incy, stream);
-		
+
 		int cols_ = cgemvn_mgpu_bs * ( (cols/cgemvn_mgpu_bs)/ngpus );
 		if(new_gpu_gid < (cols/cgemvn_mgpu_bs)%ngpus) cols_ += cgemvn_mgpu_bs;
 		if(new_gpu_gid == (cols/cgemvn_mgpu_bs)%ngpus) cols_ += cols%cgemvn_mgpu_bs;
-		
+
 		int mod_r = rows % cgemvn_mgpu_bs;
 		int mod_c = cols_ % cgemvn_mgpu_bs;
-		
+
 		if(mod_r == 0 && mod_c == 0)
 		{
 			// special case
@@ -363,22 +340,22 @@ int kblas_cgemv_mgpu_driver_offset( char trans, int rows, int cols,
 		{
 			// generic case for columns only
 			const int irregular_cols = mod_c % elements_per_thread;
-			
+
 			int blocks = (rows/cgemvn_mgpu_bs) + (mod_r != 0);
 			if(mod_r == 0)blocks += 1;	// dummy thread block, will return immediately if mod_r == 0
-			
+
 			dim3 dimBlock(thread_x, thread_y);
 			dim3 dimGrid(blocks, grid_y_n);
 			if(blocks == 0) return 0;
-			
+
 			switch(irregular_cols)
 			{
 				/**
 				 * The kernel for irregular dimensions has an extra template parameter.
 				 * This parameter must be among the values listed in the switch-case statement below.
 				 * The possible values are in the range 0 - (elements_per_thread-1)
-				 * Make sure these values are updated whenever you change the configuration parameters.  
-				**/	
+				 * Make sure these values are updated whenever you change the configuration parameters.
+				**/
 				case  0: gemvn_mgpu_generic_offset<cuFloatComplex, cgemvn_mgpu_bs, cgemvn_mgpu_bs, cgemvn_mgpu_ty, elements_per_thread,  0><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, new_gpu_gid, ngpus, nstripes, offset_r_, offset_c_); break;
 				case  1: gemvn_mgpu_generic_offset<cuFloatComplex, cgemvn_mgpu_bs, cgemvn_mgpu_bs, cgemvn_mgpu_ty, elements_per_thread,  1><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, new_gpu_gid, ngpus, nstripes, offset_r_, offset_c_); break;
 				case  2: gemvn_mgpu_generic_offset<cuFloatComplex, cgemvn_mgpu_bs, cgemvn_mgpu_bs, cgemvn_mgpu_ty, elements_per_thread,  2><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, new_gpu_gid, ngpus, nstripes, offset_r_, offset_c_); break;
@@ -395,7 +372,7 @@ int kblas_cgemv_mgpu_driver_offset( char trans, int rows, int cols,
 				case 13: gemvn_mgpu_generic_offset<cuFloatComplex, cgemvn_mgpu_bs, cgemvn_mgpu_bs, cgemvn_mgpu_ty, elements_per_thread, 13><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, new_gpu_gid, ngpus, nstripes, offset_r_, offset_c_); break;
 				case 14: gemvn_mgpu_generic_offset<cuFloatComplex, cgemvn_mgpu_bs, cgemvn_mgpu_bs, cgemvn_mgpu_ty, elements_per_thread, 14><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, new_gpu_gid, ngpus, nstripes, offset_r_, offset_c_); break;
 				case 15: gemvn_mgpu_generic_offset<cuFloatComplex, cgemvn_mgpu_bs, cgemvn_mgpu_bs, cgemvn_mgpu_ty, elements_per_thread, 15><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, new_gpu_gid, ngpus, nstripes, offset_r_, offset_c_); break;
-				default: printf("CGEMV-N error: improper template parameter. Please read the inline documentation for this function. \n"); return -1;	
+				default: printf("CGEMV-N error: improper template parameter. Please read the inline documentation for this function. \n"); return -1;
 			}
 		}
 	}	// end of non-transpose case
@@ -406,54 +383,54 @@ int kblas_cgemv_mgpu_driver_offset( char trans, int rows, int cols,
 		else conj = 0;
 		//**** Config parameters
 		const int thread_x = cgemvt_mgpu_bs;
-		const int thread_y = cgemvt_mgpu_ty; 
+		const int thread_y = cgemvt_mgpu_ty;
 		const int elements_per_thread = thread_x/(2*thread_y);
 		const int grid_y_t = 2 * ngpus;
 		//*************************
-		
+
 		/** offset necessary calculation **/
 		int offset_r_ = offset_r % cgemvt_mgpu_bs;
 		int offset_c_ = offset_c % cgemvt_mgpu_bs;
-		int total_blocks_skipped_r = offset_r / cgemvt_mgpu_bs; 
-		int total_blocks_skipped_c = offset_c / cgemvt_mgpu_bs; 
-		int my_skipped_blocks_r = total_blocks_skipped_r; 
-		int my_skipped_blocks_c = total_blocks_skipped_c/ngpus; 
+		int total_blocks_skipped_r = offset_r / cgemvt_mgpu_bs;
+		int total_blocks_skipped_c = offset_c / cgemvt_mgpu_bs;
+		int my_skipped_blocks_r = total_blocks_skipped_r;
+		int my_skipped_blocks_c = total_blocks_skipped_c/ngpus;
 		if(gpu_gid < (total_blocks_skipped_c%ngpus)) my_skipped_blocks_c += 1;
-		int ref_gpu = total_blocks_skipped_c%ngpus; 
+		int ref_gpu = total_blocks_skipped_c%ngpus;
 		int new_gpu_gid = (gpu_gid - ref_gpu + ngpus) % ngpus;
-		
+
 		//if(new_gpu_gid != 3){return 0;}
 		// Advance pointers accordingly
 		dA += my_skipped_blocks_c * cgemvt_mgpu_bs * lda;
-		dA += my_skipped_blocks_r * cgemvt_mgpu_bs; 
+		dA += my_skipped_blocks_r * cgemvt_mgpu_bs;
 		dX += total_blocks_skipped_r * cgemvt_mgpu_bs * incx;
 		dY += total_blocks_skipped_c * cgemvt_mgpu_bs * incy;
 		rows -= total_blocks_skipped_r * cgemvt_mgpu_bs;
 		cols -= total_blocks_skipped_c * cgemvt_mgpu_bs;
 		/** end offset necessary calculation **/
-		
+
 		int nstripes = (cols/cgemvt_mgpu_bs) + ((cols%cgemvt_mgpu_bs) != 0);
-		
+
 		// scaling with beta
 		//if(gpu_gid == 0)cublasDscal(cols-offset_, beta, dY+(offset_*incy), incy);
 		if(gpu_gid == 0)kblas_cscal_async(cols-offset_c_, beta, dY+(offset_c_*incy), incy, stream);
 		else kblas_cscal_async(cols-offset_r_, c_zero, dY+(offset_r_*incy), incy, stream);
-		
+
 		int cols_ = cgemvt_mgpu_bs * ( (cols/cgemvt_mgpu_bs)/ngpus );
 		if(new_gpu_gid < (cols/cgemvt_mgpu_bs)%ngpus) cols_ += cgemvt_mgpu_bs;
 		if(new_gpu_gid == (cols/cgemvt_mgpu_bs)%ngpus) cols_ += cols%cgemvt_mgpu_bs;
-		
+
 		int mod_r = rows % cgemvt_mgpu_bs;
 		int mod_c = cols_ % cgemvt_mgpu_bs;
-		
+
 		if(mod_r == 0 && mod_c == 0)
-		{	
+		{
 			int blocks = cols_/cgemvt_mgpu_bs;
 			dim3 dimBlock(thread_x, thread_y);
 			dim3 dimGrid(blocks, grid_y_t);
 			if(blocks == 0) return 0;
-			gemvt_mgpu_special_offset<cuFloatComplex, cgemvt_mgpu_bs, thread_x, thread_y, elements_per_thread><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, new_gpu_gid, ngpus, nstripes, offset_r_, offset_c_, conj); 
-			
+			gemvt_mgpu_special_offset<cuFloatComplex, cgemvt_mgpu_bs, thread_x, thread_y, elements_per_thread><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, new_gpu_gid, ngpus, nstripes, offset_r_, offset_c_, conj);
+
 		}
 		else
 		{
@@ -464,15 +441,15 @@ int kblas_cgemv_mgpu_driver_offset( char trans, int rows, int cols,
 			dim3 dimBlock(thread_x, thread_y);
 			dim3 dimGrid(blocks, grid_y_t);
 			if(blocks == 0) return 0;
-			
+
 			switch(irregular_cols)
 			{
 				/**
 				  * The kernel for irregular dimensions has an extra template parameter.
 				  * This parameter must be among the values listed in the switch-case statement below.
 				  * The possible values are in the range 0 - (elements_per_thread-1)
-				  * Make sure these values are updated whenever you change the configuration parameters.  
-				**/	
+				  * Make sure these values are updated whenever you change the configuration parameters.
+				**/
 				case  0: gemvt_mgpu_generic_offset<cuFloatComplex, cgemvt_mgpu_bs, thread_x, thread_y, elements_per_thread,  0><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, new_gpu_gid, ngpus, nstripes, offset_r_, offset_c_, conj); break;
 				case  1: gemvt_mgpu_generic_offset<cuFloatComplex, cgemvt_mgpu_bs, thread_x, thread_y, elements_per_thread,  1><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, new_gpu_gid, ngpus, nstripes, offset_r_, offset_c_, conj); break;
 				case  2: gemvt_mgpu_generic_offset<cuFloatComplex, cgemvt_mgpu_bs, thread_x, thread_y, elements_per_thread,  2><<<dimGrid, dimBlock, 0, stream>>>(rows, cols_, alpha, dA, lda, dX, incx, beta, dY, incy, mod_r, mod_c, new_gpu_gid, ngpus, nstripes, offset_r_, offset_c_, conj); break;
@@ -493,21 +470,21 @@ int kblas_cgemv_mgpu_driver_offset( char trans, int rows, int cols,
 			}
 		}
 	}
-	else 
+	else
 	{
 		printf("CGEMV error: Unrecognized transpose mode %c \n", trans);
 		return -1;
 	}
-	
+
 	return 0;
 }
 /***********************************************************************************/
 extern "C"
 int kblas_cgemv_mgpu( char trans, int rows, int cols,
-						cuFloatComplex alpha, cuFloatComplex **dA, int lda, 
-						cuFloatComplex **dX, int incx, 
-						cuFloatComplex  beta, cuFloatComplex **dY, int incy, 
-						int ngpus, 
+						cuFloatComplex alpha, cuFloatComplex **dA, int lda,
+						cuFloatComplex **dX, int incx,
+						cuFloatComplex  beta, cuFloatComplex **dY, int incy,
+						int ngpus,
 						int offset_r, int offset_c)
 {
     const int ngpus_local = ngpus;
@@ -527,7 +504,7 @@ int kblas_cgemv_mgpu( char trans, int rows, int cols,
 			kblas_cgemv_mgpu_driver_offset(trans, rows, cols, alpha, dA[i], lda, dX[i], incx, beta, dY[i], incy, gpu_gid[i], ngpus, offset_r, offset_c);
 		}
 	}
-	
+
 	// wait for gpus to finish
 	for(int i = 0; i < ngpus_local; i++)
 	{
@@ -540,11 +517,11 @@ int kblas_cgemv_mgpu( char trans, int rows, int cols,
 /*************************************************************************************/
 extern "C"
 int kblas_cgemv_mgpu_async( char trans, int rows, int cols,
-							cuFloatComplex alpha, cuFloatComplex **dA, int lda, 
-							cuFloatComplex **dX, int incx, 
-							cuFloatComplex  beta, cuFloatComplex **dY, int incy, 
+							cuFloatComplex alpha, cuFloatComplex **dA, int lda,
+							cuFloatComplex **dX, int incx,
+							cuFloatComplex  beta, cuFloatComplex **dY, int incy,
 							int ngpus,
-							int offset_r, int offset_c, 
+							int offset_r, int offset_c,
 							cudaStream_t stream[MAX_NGPUS][MAX_STREAMS])
 {
     const int ngpus_local = ngpus;
@@ -564,7 +541,7 @@ int kblas_cgemv_mgpu_async( char trans, int rows, int cols,
 			kblas_cgemv_mgpu_driver_offset(trans, rows, cols, alpha, dA[i], lda, dX[i], incx, beta, dY[i], incy, gpu_gid[i], ngpus, offset_r, offset_c);
 		}
 	}
-	
+
 	return 0;
 }
 /*************************************************************************************/

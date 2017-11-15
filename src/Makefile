@@ -5,21 +5,40 @@ KBLAS_ROOT= ..
 INC=-I${KBLAS_ROOT}/include
 INC+= -I.
 INC+= -I${_CUDA_ROOT_}/include
+ifdef _USE_MAGMA_
+INC+= -I$(_MAGMA_ROOT_)/include
+endif
 
 OBJ_DIR=./obj
 ALL_OBJ=
 
-KBLAS_SRC2_DIR=blas_l2
-KBLAS_SRC3_DIR=blas_l3
+DEPS_COM= ../make.inc kblas_common.h
 
+ifdef _SUPPORT_BLAS2_
+KBLAS_SRC2_DIR=./blas_l2
 include $(KBLAS_SRC2_DIR)/Makefile
+endif
+
+ifdef _SUPPORT_BLAS3_
+KBLAS_SRC3_DIR=./blas_l3
 include $(KBLAS_SRC3_DIR)/Makefile
+endif
 
-KBLAS3_COM_SRC= Xtr_common.cu
-ALL_OBJ+= $(patsubst %.cu,$(OBJ_DIR)/%.cu_o,$(KBLAS3_COM_SRC))
+ifdef _SUPPORT_BATCH_TR_
+KBLAS_BATCH_DIR=./batch_triangular
+include $(KBLAS_BATCH_DIR)/Makefile
+endif
 
-$(OBJ_DIR)/%tr_common.cu_o: %tr_common.cu %tr_common.ch
-	$(NVCC) $(NVOPTS) $(NVOPTS_3) $(INC) -c $< -o $@
+ifdef _SUPPORT_SVD_
+KBLAS_BATCH_SVD_DIR=./batch_svd
+include $(KBLAS_BATCH_SVD_DIR)/Makefile
+endif
+
+KBLAS3_COM_SRC= kblas_common.cpp
+ALL_OBJ+= $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(KBLAS3_COM_SRC))
+
+$(OBJ_DIR)/%blas_common.o: %blas_common.cpp $(DEPS_COM)
+	$(CXX) $(COPTS) $(INC) -c $< -o $@
 
 
 KBLAS_DIR=$(KBLAS_ROOT)/lib

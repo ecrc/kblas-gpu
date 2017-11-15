@@ -1,44 +1,100 @@
- /**
-  - -* (C) Copyright 2013 King Abdullah University of Science and Technology
-  Authors:
-  Ali Charara (ali.charara@kaust.edu.sa)
-  David Keyes (david.keyes@kaust.edu.sa)
-  Hatem Ltaief (hatem.ltaief@kaust.edu.sa)
-  
-  Redistribution  and  use  in  source and binary forms, with or without
-  modification,  are  permitted  provided  that the following conditions
-  are met:
-  
-  * Redistributions  of  source  code  must  retain  the above copyright
-  * notice,  this  list  of  conditions  and  the  following  disclaimer.
-  * Redistributions  in  binary  form must reproduce the above copyright
-  * notice,  this list of conditions and the following disclaimer in the
-  * documentation  and/or other materials provided with the distribution.
-  * Neither  the  name of the King Abdullah University of Science and
-  * Technology nor the names of its contributors may be used to endorse
-  * or promote products derived from this software without specific prior
-  * written permission.
-  * 
-  THIS  SOFTWARE  IS  PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-  ``AS IS''  AND  ANY  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-  LIMITED  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-  A  PARTICULAR  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-  HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-  SPECIAL,  EXEMPLARY,  OR  CONSEQUENTIAL  DAMAGES  (INCLUDING,  BUT NOT
-  LIMITED  TO,  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-  DATA,  OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-  THEORY  OF  LIABILITY,  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  OF  THIS  SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-  **/
+/**
+ * @copyright (c) 2012- King Abdullah University of Science and
+ *                      Technology (KAUST). All rights reserved.
+ **/
+
+
+/**
+ * @file src/kblas_common.cpp
+
+ * KBLAS is a high performance CUDA library for subset of BLAS
+ *    and LAPACK routines optimized for NVIDIA GPUs.
+ * KBLAS is provided by KAUST.
+ *
+ * @version 2.0.0
+ * @author Ali Charara
+ * @author Wajih Halim Boukaram
+ * @date 2017-11-13
+ **/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <set>
 #include <cublas_v2.h>
 #include "kblas.h"
 #include "operators.h"
-#include "Xtr_common.ch"
+#include "kblas_common.h"
+#include "kblas_struct.h"
 
+//==============================================================================================
+/**
+ * Creates a KBLAS handle and initialize internal structures including: cuda stream, cublas handle, magma handle, device id, workspace buffers.
+ */
+int kblasCreate(kblasHandle_t *handle){
+
+  int dev_id;
+  check_error(cudaGetDevice(&dev_id));
+  *handle = new KBlasHandle(0, 0, dev_id);
+
+
+  #ifdef KBLAS_ENABLE_BACKDOORS
+    (*handle)->back_door = kblas_back_door;
+  #endif
+
+  return KBLAS_Success;
+}
+
+/**
+ * Destroys a KBLAS handle and frees internal structures including: cuda stream, cublas handle, magma handle, workspace buffers.
+ */
+int kblasDestroy(kblasHandle_t *handle){
+
+  free((*handle));
+
+  return KBLAS_Success;
+}
+
+/**
+ * Allocates workspace buffer for various data types (host pointer array, host data, device pointer array, device data) to be used by KBLAS routines that need it.
+ * To determine which workspace data type is needed and how much, use the corresponding *_wsquery() routine. You may call several *ws_query() routines to allocate the maximum buffers needed by the various KBLAS routines, then call this function to allocate the workspace buffers.
+ */
+int kblasAllocateWorkspace(kblasHandle_t handle) {
+	return handle->work_space.allocate();
+}
+
+/**
+ * Free workspace buffers hosted in the handle structure, and reset internal workspace sizes.
+ */
+int kblasFreeWorkspace(kblasHandle_t handle) {
+	return handle->work_space.deallocate();
+}
+
+void kblasTimerTic(kblasHandle_t handle){
+	handle->tic();
+}
+
+void kblasTimerRecordEnd(kblasHandle_t handle){
+	handle->recordEnd();
+}
+
+double kblasTimerToc(kblasHandle_t handle) {
+	return handle->toc();
+}
+
+cudaStream_t kblasGetStream(kblasHandle_t handle) {
+	return handle->stream;
+}
+
+void kblasSetStream(kblasHandle_t handle, cudaStream_t stream) {
+	handle->stream = stream;
+  if(handle->cublas_handle)
+    check_error( cublasSetStream(handle->cublas_handle, stream) );
+  // TODO need to set magma_queue stream also
+}
+
+cublasHandle_t kblasGetCublasHandle(kblasHandle_t handle) {
+	return handle->cublas_handle;
+}
 //==============================================================================================
 extern "C"{
 const char* cublasGetErrorString( cublasStatus_t error )
@@ -46,25 +102,25 @@ const char* cublasGetErrorString( cublasStatus_t error )
   switch( error ) {
     case CUBLAS_STATUS_SUCCESS:
       return "success";
-      
+
     case CUBLAS_STATUS_NOT_INITIALIZED:
       return "not initialized";
-      
+
     case CUBLAS_STATUS_ALLOC_FAILED:
       return "out of memory";
-      
+
     case CUBLAS_STATUS_INVALID_VALUE:
       return "invalid value";
-      
+
     case CUBLAS_STATUS_ARCH_MISMATCH:
       return "architecture mismatch";
-      
+
     case CUBLAS_STATUS_MAPPING_ERROR:
       return "memory mapping error";
-      
+
     case CUBLAS_STATUS_EXECUTION_FAILED:
       return "execution failed";
-      
+
     case CUBLAS_STATUS_INTERNAL_ERROR:
       return "internal error";
 
@@ -78,6 +134,35 @@ const char* cublasGetErrorString( cublasStatus_t error )
       return "unknown CUBLAS error code";
   }
 }
+}//extern C
+const char* kblasGetErrorString( int error )
+{
+  switch( error ) {
+    case KBLAS_UnknownError:
+      return "KBLAS: unknown error";
+    case KBLAS_NotSupported:
+      return "Operation not supported";
+    case KBLAS_NotImplemented:
+      return "Operation not implemented yet";
+    case KBLAS_cuBLAS_Error:
+      return "cuBLAS error";
+    case KBLAS_WrongConfig:
+      return "Wrong compilation flags configuration";
+    case KBLAS_CUDA_Error:
+      return "CUDA error";
+    case KBLAS_InsufficientWorkspace:
+      return "Insufficient workspace supplied to function";
+    case KBLAS_Error_Allocation:
+      return "Error allocating memory";
+    case KBLAS_Error_Deallocation:
+      return "Error de-allocating memory";
+    case KBLAS_Error_NotInitialized:
+      return "KBLAS handle not initialized";
+    case KBLAS_Error_WrongInput:
+      return "One of input parameter's value is wrong";
+    default:
+      return "unknown KBLAS error code";
+  }
 }
 
 // ----------------------------------------
@@ -95,7 +180,6 @@ int _kblas_error( cudaError_t err, const char* func, const char* file, int line 
 }
 
 // --------------------
-//inline
 int _kblas_error( cublasStatus_t err, const char* func, const char* file, int line )
 {
   if ( err != CUBLAS_STATUS_SUCCESS ) {
@@ -106,8 +190,23 @@ int _kblas_error( cublasStatus_t err, const char* func, const char* file, int li
   return 1;
 }
 
-//#define check_error( err ) \
-//{if(!_kblas_error( (err), __func__, __FILE__, __LINE__ )) return 0;}
+// --------------------
+int _kblas_error( int err, const char* func, const char* file, int line )
+{
+  if ( err != KBLAS_Success ) {
+    fprintf( stderr, "KBLAS error: %s (%d) in %s at %s:%d\n",
+             kblasGetErrorString( err ), err, func, file, line );
+    return 0;
+  }
+  return 1;
+}
+
+//==============================================================================================
+
+//TODO remove these flags and use instead the back_door flags
+//TODO have a smarter way to choose, auto tuning for example
+// bool use_magma_gemm = 0;
+// bool use_cublas_gemm = 1;
 
 //==============================================================================================
 bool REG_SIZE(int n){
@@ -122,12 +221,16 @@ int CLOSEST_REG_SIZE(int n){
     }
     return res >> 1;
   }else{
-    return 0;    
+    return 0;
   }
 }
 
 //==============================================================================================
-
+#ifdef KBLAS_ENABLE_BACKDOORS
+int kblas_back_door[KBLAS_BACKDOORS] = {-1};
+#endif
+//==============================================================================================
+#if 1
 cublasStatus_t cublasXgemm( cublasHandle_t handle,
                             cublasOperation_t transa, cublasOperation_t transb,
                             int m, int n, int k,
@@ -135,13 +238,13 @@ cublasStatus_t cublasXgemm( cublasHandle_t handle,
                                                 const float *B, int ldb,
                             const float *beta,        float *C, int ldc){
   cublasStatus_t status;
-  check_error( status = cublasSgemm(handle,
+  check_error_ret( status = cublasSgemm(handle,
                                     transa, transb,
                                     m, n, k,
                                     alpha, A, lda,
                                            B, ldb,
                                     beta,  C, ldc), status);
-  check_error( cudaGetLastError(), CUBLAS_STATUS_EXECUTION_FAILED );
+  check_error_ret( cudaGetLastError(), CUBLAS_STATUS_EXECUTION_FAILED );
   return CUBLAS_STATUS_SUCCESS;
 }
 
@@ -152,13 +255,13 @@ cublasStatus_t cublasXgemm( cublasHandle_t handle,
                                                  const double *B, int ldb,
                             const double *beta,        double *C, int ldc){
   cublasStatus_t status;
-  check_error( status = cublasDgemm(handle,
+  check_error_ret( status = cublasDgemm(handle,
                                     transa, transb,
                                     m, n, k,
                                     alpha, A, lda,
                                            B, ldb,
                                     beta,  C, ldc), status);
-  check_error( cudaGetLastError(), CUBLAS_STATUS_EXECUTION_FAILED );
+  check_error_ret( cudaGetLastError(), CUBLAS_STATUS_EXECUTION_FAILED );
   return CUBLAS_STATUS_SUCCESS;
 }
 cublasStatus_t cublasXgemm(cublasHandle_t handle,
@@ -168,13 +271,13 @@ cublasStatus_t cublasXgemm(cublasHandle_t handle,
                                                    const cuComplex *B, int ldb,
                            const cuComplex *beta,        cuComplex *C, int ldc){
   cublasStatus_t status;
-  check_error( status = cublasCgemm(handle,
+  check_error_ret( status = cublasCgemm(handle,
                                     transa, transb,
                                     m, n, k,
                                     alpha, A, lda,
                                            B, ldb,
                                     beta,  C, ldc), status);
-  check_error( cudaGetLastError(), CUBLAS_STATUS_EXECUTION_FAILED );
+  check_error_ret( cudaGetLastError(), CUBLAS_STATUS_EXECUTION_FAILED );
   return CUBLAS_STATUS_SUCCESS;
 }
 cublasStatus_t cublasXgemm(cublasHandle_t handle,
@@ -184,15 +287,15 @@ cublasStatus_t cublasXgemm(cublasHandle_t handle,
                                                          const cuDoubleComplex *B, int ldb,
                            const cuDoubleComplex *beta,        cuDoubleComplex *C, int ldc){
   cublasStatus_t status;
-  check_error( status = cublasZgemm(handle,
+  check_error_ret( status = cublasZgemm(handle,
                                     transa, transb,
                                     m, n, k,
                                     alpha, A, lda,
                                            B, ldb,
                                     beta,  C, ldc), status);
-  check_error( cudaGetLastError(), CUBLAS_STATUS_EXECUTION_FAILED );
+  check_error_ret( cudaGetLastError(), CUBLAS_STATUS_EXECUTION_FAILED );
   return CUBLAS_STATUS_SUCCESS;
 }
-
+#endif
 
 

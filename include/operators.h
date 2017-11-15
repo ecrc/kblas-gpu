@@ -1,36 +1,21 @@
- /**
- -- (C) Copyright 2013 King Abdullah University of Science and Technology
-  Authors:
-  Ahmad Abdelfattah (ahmad.ahmad@kaust.edu.sa)
-  David Keyes (david.keyes@kaust.edu.sa)
-  Hatem Ltaief (hatem.ltaief@kaust.edu.sa)
+/**
+ * @copyright (c) 2012- King Abdullah University of Science and
+ *                      Technology (KAUST). All rights reserved.
+ **/
 
-  Redistribution  and  use  in  source and binary forms, with or without
-  modification,  are  permitted  provided  that the following conditions
-  are met:
 
-  * Redistributions  of  source  code  must  retain  the above copyright
-    notice,  this  list  of  conditions  and  the  following  disclaimer.
-  * Redistributions  in  binary  form must reproduce the above copyright
-    notice,  this list of conditions and the following disclaimer in the
-    documentation  and/or other materials provided with the distribution.
-  * Neither  the  name of the King Abdullah University of Science and
-    Technology nor the names of its contributors may be used to endorse 
-    or promote products derived from this software without specific prior 
-    written permission.
+/**
+ * @file include/operators.h
 
-  THIS  SOFTWARE  IS  PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-  ``AS IS''  AND  ANY  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-  LIMITED  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-  A  PARTICULAR  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-  HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-  SPECIAL,  EXEMPLARY,  OR  CONSEQUENTIAL  DAMAGES  (INCLUDING,  BUT NOT
-  LIMITED  TO,  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-  DATA,  OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-  THEORY  OF  LIABILITY,  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  OF  THIS  SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-**/
+ * KBLAS is a high performance CUDA library for subset of BLAS
+ *    and LAPACK routines optimized for NVIDIA GPUs.
+ * KBLAS is provided by KAUST.
+ *
+ * @version 2.0.0
+ * @author Ali Charara
+ * @author Ahmad Abdelfattah
+ * @date 2017-11-13
+ **/
 
 #ifndef _OPERATORS_
 #define _OPERATORS_
@@ -156,19 +141,19 @@ __device__ static __inline__ void atomicAdd(cuDoubleComplex* address, cuDoubleCo
  *              cuDoubleComplex
  */
 
-__host__ __device__ static __inline__ cuDoubleComplex 
+__host__ __device__ static __inline__ cuDoubleComplex
 operator-(const cuDoubleComplex &a)
 {
     return make_cuDoubleComplex(-a.x, -a.y);
 }
 
-__host__ __device__ static __inline__ cuDoubleComplex 
+__host__ __device__ static __inline__ cuDoubleComplex
 operator+(const cuDoubleComplex a, const cuDoubleComplex b)
 {
     return make_cuDoubleComplex(a.x + b.x, a.y + b.y);
 }
 
-__host__ __device__ static __inline__ cuDoubleComplex 
+__host__ __device__ static __inline__ cuDoubleComplex
 operator+(const cuDoubleComplex a, int b)
 {
     return make_cuDoubleComplex(a.x + b, a.y);
@@ -180,7 +165,7 @@ operator+=(cuDoubleComplex &a, const cuDoubleComplex b)
     a.x += b.x; a.y += b.y;
 }
 
-__host__ __device__ static __inline__ cuDoubleComplex 
+__host__ __device__ static __inline__ cuDoubleComplex
 operator-(const cuDoubleComplex a, const cuDoubleComplex b)
 {
     return make_cuDoubleComplex(a.x - b.x, a.y - b.y);
@@ -192,25 +177,25 @@ operator-=(cuDoubleComplex &a, const cuDoubleComplex b)
     a.x -= b.x; a.y -= b.y;
 }
 
-__host__ __device__ static __inline__ cuDoubleComplex 
+__host__ __device__ static __inline__ cuDoubleComplex
 operator*(const cuDoubleComplex a, const cuDoubleComplex b)
 {
     return make_cuDoubleComplex(a.x * b.x - a.y * b.y, a.y * b.x + a.x * b.y);
 }
 
-__host__ __device__ static __inline__ cuDoubleComplex 
+__host__ __device__ static __inline__ cuDoubleComplex
 operator*(const cuDoubleComplex a, const double s)
 {
     return make_cuDoubleComplex(a.x * s, a.y * s);
 }
 
-__host__ __device__ static __inline__ cuDoubleComplex 
+__host__ __device__ static __inline__ cuDoubleComplex
 operator*(const double s, const cuDoubleComplex a)
 {
     return make_cuDoubleComplex(a.x * s, a.y * s);
 }
 
-__host__ __device__ static __inline__ void 
+__host__ __device__ static __inline__ void
 operator*=(cuDoubleComplex &a, const cuDoubleComplex b)
 {
   double tmp = a.y * b.x + a.x * b.y;
@@ -218,7 +203,7 @@ operator*=(cuDoubleComplex &a, const cuDoubleComplex b)
   a.y = tmp;
 }
 
-__host__ __device__ static __inline__ void 
+__host__ __device__ static __inline__ void
 operator*=(cuDoubleComplex &a, const double s)
 {
     a.x *= s; a.y *= s;
@@ -250,23 +235,51 @@ operator/(const cuDoubleComplex a, const cuDoubleComplex b)
   return make_cuDoubleComplex(a.x*b.x + a.y*b.y, a.y*b.x - a.x*b.y) / (b.x*b.x + b.y*b.y);
 }
 
+__host__ __device__ static __inline__ cuDoubleComplex sqrt(cuDoubleComplex x)
+{
+  double radius = cuCabs(x);
+  double cosA = x.x / radius;
+  cuDoubleComplex out;
+  out.x = sqrt(radius * (cosA + 1.0) / 2.0);
+  out.y = sqrt(radius * (1.0 - cosA) / 2.0);
+  // signbit should be false if x.y is negative
+  if (signbit(x.y))
+    out.y *= -1.0;
+
+  return out;
+}
+
+__host__ __device__ static __inline__ void
+operator/=(cuDoubleComplex &a, const float s)
+{
+    a.x /= s; a.y /= s;
+}
+
+__host__ __device__ static __inline__ void
+operator/=(cuDoubleComplex a, const cuDoubleComplex b)
+{
+  double d = (b.x*b.x + b.y*b.y);
+  a.x = (a.x*b.x + a.y*b.y) / d;
+  a.y = (a.y*b.x - a.x*b.y) / d;
+}
+
 /*************************************************************
  *              cuFloatComplex
  */
 
-__host__ __device__ static __inline__ cuFloatComplex 
+__host__ __device__ static __inline__ cuFloatComplex
 operator-(const cuFloatComplex &a)
 {
     return make_cuFloatComplex(-a.x, -a.y);
 }
 
-__host__ __device__ static __inline__ cuFloatComplex 
+__host__ __device__ static __inline__ cuFloatComplex
 operator+(const cuFloatComplex a, const cuFloatComplex b)
 {
     return make_cuFloatComplex(a.x + b.x, a.y + b.y);
 }
 
-__host__ __device__ static __inline__ cuFloatComplex 
+__host__ __device__ static __inline__ cuFloatComplex
 operator+(const cuFloatComplex a, int b)
 {
     return make_cuFloatComplex(a.x + b, a.y);
@@ -278,7 +291,7 @@ operator+=(cuFloatComplex &a, const cuFloatComplex b)
     a.x += b.x; a.y += b.y;
 }
 
-__host__ __device__ static __inline__ cuFloatComplex 
+__host__ __device__ static __inline__ cuFloatComplex
 operator-(const cuFloatComplex a, const cuFloatComplex b)
 {
     return make_cuFloatComplex(a.x - b.x, a.y - b.y);
@@ -296,19 +309,19 @@ operator*(const cuFloatComplex a, const cuFloatComplex b)
     return make_cuFloatComplex(a.x * b.x - a.y * b.y, a.y * b.x + a.x * b.y);
 }
 
-__host__ __device__ static __inline__ cuFloatComplex 
+__host__ __device__ static __inline__ cuFloatComplex
 operator*(const cuFloatComplex a, const float s)
 {
     return make_cuFloatComplex(a.x * s, a.y * s);
 }
 
-__host__ __device__ static __inline__ cuFloatComplex 
+__host__ __device__ static __inline__ cuFloatComplex
 operator*(const float s, const cuFloatComplex a)
 {
     return make_cuFloatComplex(a.x * s, a.y * s);
 }
 
-__host__ __device__ static __inline__ void 
+__host__ __device__ static __inline__ void
 operator*=(cuFloatComplex &a, const cuFloatComplex b)
 {
   float tmp = a.y * b.x + a.x * b.y;
@@ -316,13 +329,13 @@ operator*=(cuFloatComplex &a, const cuFloatComplex b)
   a.y = tmp;
 }
 
-__host__ __device__ static __inline__ void 
+__host__ __device__ static __inline__ void
 operator*=(cuFloatComplex &a, const float s)
 {
     a.x *= s; a.y *= s;
 }
 
-__host__ __device__ static __inline__ bool 
+__host__ __device__ static __inline__ bool
 operator==(const cuFloatComplex a, const cuFloatComplex b)
 {
   return ((a.x == b.x) && (a.y == b.y));
@@ -334,7 +347,7 @@ operator!=(const cuFloatComplex a, const cuFloatComplex b)
   return ((a.x != b.x) || (a.y != b.y));
 }
 
-__host__ __device__ static __inline__ cuFloatComplex 
+__host__ __device__ static __inline__ cuFloatComplex
 operator/(const cuFloatComplex a, const float b)
 {
     //return (a * conjugate(b)) / (b * conjugate(b));
@@ -346,6 +359,33 @@ operator/(const cuFloatComplex a, const cuFloatComplex b)
 {
     //return (a * conjugate(b)) / (b * conjugate(b));
     return make_cuFloatComplex(a.x*b.x + a.y*b.y, a.y*b.x - a.x*b.y) / (b.x*b.x + b.y*b.y);
+}
+
+__host__ __device__ static __inline__ cuFloatComplex sqrt(cuFloatComplex x)
+{
+  float radius = cuCabsf(x);
+  float cosA = x.x / radius;
+  cuFloatComplex out;
+  out.x = sqrt(radius * (cosA + 1.0) / 2.0);
+  out.y = sqrt(radius * (1.0 - cosA) / 2.0);
+  // signbit should be false if x.y is negative
+  if (signbit(x.y))
+    out.y *= -1.0;
+
+  return out;
+}
+__host__ __device__ static __inline__ void
+operator/=(cuFloatComplex &a, const float s)
+{
+    a.x /= s; a.y /= s;
+}
+
+__host__ __device__ static __inline__ void
+operator/=(cuFloatComplex a, const cuFloatComplex b)
+{
+  float d = (b.x*b.x + b.y*b.y);
+  a.x = (a.x*b.x + a.y*b.y) / d;
+  a.y = (a.y*b.x - a.x*b.y) / d;
 }
 
 #endif  // _OPERATORS_

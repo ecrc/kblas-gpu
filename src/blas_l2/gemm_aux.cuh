@@ -1,3 +1,21 @@
+/**
+ * @copyright (c) 2012- King Abdullah University of Science and
+ *                      Technology (KAUST). All rights reserved.
+ **/
+
+
+/**
+ * @file src/blas_l2/gemm_aux.cuh
+
+ * KBLAS is a high performance CUDA library for subset of BLAS
+ *    and LAPACK routines optimized for NVIDIA GPUs.
+ * KBLAS is provided by KAUST.
+ *
+ * @version 2.0.0
+ * @author Ahmad Abdelfattah
+ * @date 2017-11-13
+ **/
+
 #include <cuda.h>
 #include <cuda_runtime.h>
 
@@ -15,8 +33,8 @@ long recommend_tile(long m, long n, long k, long ngpus, long max_good_tile)
 {
 	// the goal is to minimize the load imbalance among the gpus
 	long ngpus_ = ngpus;
-	long tile = (m + ngpus_-1)/ngpus_; 
-	while(tile > max_good_tile) 
+	long tile = (m + ngpus_-1)/ngpus_;
+	while(tile > max_good_tile)
 	{
 		ngpus_ += ngpus_;
 		tile = (m + ngpus_-1)/ngpus_;

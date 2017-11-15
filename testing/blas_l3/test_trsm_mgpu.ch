@@ -1,6 +1,25 @@
+/**
+ * @copyright (c) 2012- King Abdullah University of Science and
+ *                      Technology (KAUST). All rights reserved.
+ **/
+
+
+/**
+ * @file testing/blas_l3/test_trsm_mgpu.ch
+
+ * KBLAS is a high performance CUDA library for subset of BLAS
+ *    and LAPACK routines optimized for NVIDIA GPUs.
+ * KBLAS is provided by KAUST.
+ *
+ * @version 2.0.0
+ * @author Ali Charara
+ * @date 2017-11-13
+ **/
+
 #ifndef _TEST_TRSM_
 #define _TEST_TRSM_
 
+#include "l3_common.h"
 #include "testing_Xtr_common.h"
 #include "omp.h"
 
@@ -99,12 +118,12 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       M = opts.msize[i];
       N = opts.nsize[i];
 
-      gflops = FLOPS_TRSM(alpha, opts.side, M, N ) / 1e9;
+      gflops = FLOPS_TRSM<T>(opts.side, M, N ) / 1e9;
 
       printf("%5d %5d   ",
              (int) M, (int) N);
       fflush( stdout );
-      
+
       if ( opts.side == KBLAS_Left ) {
         lda = Am = M;
         An = M;
@@ -140,12 +159,12 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       }
       check_error( cudaSetDevice(opts.devices[0]) );
       check_error( cudaDeviceSynchronize() );
-      
+
       cudaStream_t curStream;
       //check_error( cudaStreamCreateWithFlags( &curStream, cudaStreamNonBlocking) );
       //check_error( cublasSetStream(cublas_handle, curStream));
       check_error( cublasGetStream(cublas_handle, &curStream ) );
-      
+
       /*if(opts.warmup){
         TESTING_MALLOC_DEV( d_A, T, ldda*An);
         TESTING_MALLOC_DEV( d_B, T, lddb*Bn);
@@ -170,7 +189,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
                                               h_Rk, ldb,
                                       opts.ngpu) );
       }
-      
+
       double time = 0;
       check_error( cudaSetDevice(opts.devices[0]) );
       check_error( cudaDeviceSynchronize() );
@@ -181,10 +200,10 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         {
           check_error( cudaMemcpyAsync ( (void*)h_Rc, (void*)h_B, sizeB * sizeof(T), cudaMemcpyHostToHost, curStream ) );
           start_timing(curStream);
-          
+
           TESTING_MALLOC_DEV( d_A, T, ldda*An);
           TESTING_MALLOC_DEV( d_B, T, lddb*Bn);
-          
+
           check_error( cublasSetMatrixAsync( Am, An, sizeof(T), h_A, lda, d_A, ldda, curStream) );
           check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_Rc, ldb, d_B, lddb, curStream ) );
 
@@ -249,10 +268,10 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
       if(opts.check){
         double normA = kblas_lange<T,double>('M', Am, An, h_A, lda);
         double normX = kblas_lange<T,double>('M', Bm, Bn, h_Rk, ldb);
-        
+
         TESTING_MALLOC_DEV( d_A, T, ldda*An);
         TESTING_MALLOC_DEV( d_B, T, lddb*Bn);
-        
+
         check_error( cublasSetMatrixAsync( Am, An, sizeof(T), h_A, lda, d_A, ldda, curStream) );
         check_error( cublasSetMatrixAsync( Bm, Bn, sizeof(T), h_Rk, ldb, d_B, lddb, curStream ) );
 
@@ -272,7 +291,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
         check_error(  cudaFree( d_A ) );
         check_error(  cudaFree( d_B ) );
       }*/
-      
+
       if(opts.time){
         check_error( cudaSetDevice(opts.devices[0]) );
         check_error( cudaDeviceSynchronize() );

@@ -1,3 +1,21 @@
+/**
+ * @copyright (c) 2012- King Abdullah University of Science and
+ *                      Technology (KAUST). All rights reserved.
+ **/
+
+
+/**
+ * @file testing/blas_l2/test_dgemm_mgpu.c
+
+ * KBLAS is a high performance CUDA library for subset of BLAS
+ *    and LAPACK routines optimized for NVIDIA GPUs.
+ * KBLAS is provided by KAUST.
+ *
+ * @version 2.0.0
+ * @author Ahmad Abdelfattah
+ * @date 2017-11-13
+ **/
+
 // includes, system
 #include <stdlib.h>
 #include <stdio.h>
@@ -79,7 +97,7 @@ int main(int argc, char** argv)
     for(k = 0; k < ngpus2; k++)
             gpu_id[k] = (long)k;
   }
-  
+
   if(ngpus1 > gpus_avail)
   {printf("Error: Can't run on %ld gpus, only %d gpus are available \n", ngpus1, gpus_avail); exit(-1);}
 
@@ -88,7 +106,7 @@ int main(int argc, char** argv)
 
   if(ngpus1 > ngpus2)
   {printf("Error: ngpus-end is larger than ngpu-start \n"); exit(1);}
-  
+
   long M = istop;
   long N = M;
   long K = M;
@@ -272,7 +290,7 @@ int main(int argc, char** argv)
 
           elapsedTime = time/NRUNS + copy_time;
           single_gpu_perf = flops / elapsedTime;
-          
+
           printf("%-13.2f   ", single_gpu_perf);
           //printf("check point 1.5\n");
           if(dA_single)cudaFree(dA_single);

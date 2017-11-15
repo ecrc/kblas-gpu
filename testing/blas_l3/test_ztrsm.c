@@ -1,3 +1,21 @@
+/**
+ * @copyright (c) 2012- King Abdullah University of Science and
+ *                      Technology (KAUST). All rights reserved.
+ **/
+
+
+/**
+ * @file testing/blas_l3/test_ztrsm.c
+
+ * KBLAS is a high performance CUDA library for subset of BLAS
+ *    and LAPACK routines optimized for NVIDIA GPUs.
+ * KBLAS is provided by KAUST.
+ *
+ * @version 2.0.0
+ * @author Ali Charara
+ * @date 2017-11-13
+ **/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -11,6 +29,7 @@
 #include "cublas_v2.h"
 
 #include "kblas.h"
+#define kblasXtrsm kblasZtrsm
 #include "test_trsm.ch"
 
 
@@ -24,15 +43,15 @@ int main(int argc, char** argv)
     USAGE;
     return -1;
   }
-  
+
   cublasHandle_t cublas_handle;
   cublasCreate(&cublas_handle);
-  
+
   kblas_trsm_ib_cublas = opts.nb;
   kblas_trsm_use_custom = (bool)opts.custom;
   cuDoubleComplex alpha = make_cuDoubleComplex(1.2, -0.6);
   test_trsm<cuDoubleComplex>(opts, alpha, cublas_handle);
-  
+
   cublasDestroy(cublas_handle);
 }
 

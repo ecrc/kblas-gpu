@@ -48,7 +48,7 @@ extern "C" {
  * @param[in] n Columns of the matrix A (n >= 0, n <= 512)
  * @param[in] num_ops The size of the batched operation.
  * @see kblasAllocateWorkspace
- * @see kblasFreeeWorkspace
+ * @see kblasFreeWorkspace
  */
 void kblasDgesvj_batch_wsquery(kblasHandle_t handle, int m, int n, int num_ops);
 
@@ -62,7 +62,7 @@ void kblasDgesvj_batch_wsquery(kblasHandle_t handle, int m, int n, int num_ops);
  * @param[in] n Columns of the matrix A (n >= 0, n <= 512)
  * @param[in] num_ops The size of the batched operation.
  * @see kblasAllocateWorkspace
- * @see kblasFreeeWorkspace
+ * @see kblasFreeWorkspace
  */
 void kblasSgesvj_batch_wsquery(kblasHandle_t handle, int m, int n, int num_ops);
 
@@ -77,7 +77,7 @@ void kblasSgesvj_batch_wsquery(kblasHandle_t handle, int m, int n, int num_ops);
  * @param[in] n Columns of the matrix A (n >= 0, n <= 512)
  * @param[in] num_ops The size of the batched operation.
  * @see kblasAllocateWorkspace
- * @see kblasFreeeWorkspace
+ * @see kblasFreeWorkspace
  */
 void kblasDgesvj_gram_batch_wsquery(kblasHandle_t handle, int m, int n, int num_ops);
 
@@ -92,7 +92,7 @@ void kblasDgesvj_gram_batch_wsquery(kblasHandle_t handle, int m, int n, int num_
  * @param[in] n Columns of the matrix A (n >= 0, n <= 512)
  * @param[in] num_ops The size of the batched operation.
  * @see kblasAllocateWorkspace
- * @see kblasFreeeWorkspace
+ * @see kblasFreeWorkspace
  */
 void kblasSgesvj_gram_batch_wsquery(kblasHandle_t handle, int m, int n, int num_ops);
 
@@ -108,7 +108,7 @@ void kblasSgesvj_gram_batch_wsquery(kblasHandle_t handle, int m, int n, int num_
  * @param[in] rank The number of requested singular values (rank < n). If rank == n then the regular SVD is used.
  * @param[in] num_ops The size of the batched operation.
  * @see kblasAllocateWorkspace
- * @see kblasFreeeWorkspace
+ * @see kblasFreeWorkspace
  */
 void kblasDrsvd_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int num_ops);
 
@@ -124,7 +124,7 @@ void kblasDrsvd_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int 
  * @param[in] rank The number of requested singular values (rank < n). If rank == n then the regular SVD is used.
  * @param[in] num_ops The size of the batched operation.
  * @see kblasAllocateWorkspace
- * @see kblasFreeeWorkspace
+ * @see kblasFreeWorkspace
  */
 void kblasSrsvd_batch_wsquery(kblasHandle_t handle, int m, int n, int rank, int num_ops);
 

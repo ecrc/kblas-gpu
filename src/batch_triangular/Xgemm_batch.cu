@@ -118,7 +118,7 @@ int kblasXgemm_batch( kblasHandle_t handle,
  * Uniform-size batch strided GEMM wrapper
  *
  * Workspace needed= ( __CUDACC_VER_MAJOR__ < 8 ) ? device pointers : none
- * @param A, B, C: host pointers to device buffers
+ * A, B, C: host pointers to device buffers
  */
 int kblas_gemm_batch( kblasHandle_t handle,
                       char transA, char transB,

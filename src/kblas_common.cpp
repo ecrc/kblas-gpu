@@ -27,6 +27,9 @@
 #include "kblas_struct.h"
 
 //==============================================================================================
+/**
+ * Creates a KBLAS handle and initialize internal structures including: cuda stream, cublas handle, magma handle, device id, workspace buffers.
+ */
 int kblasCreate(kblasHandle_t *handle){
 
   int dev_id;
@@ -41,6 +44,9 @@ int kblasCreate(kblasHandle_t *handle){
   return KBLAS_Success;
 }
 
+/**
+ * Destroys a KBLAS handle and frees internal structures including: cuda stream, cublas handle, magma handle, workspace buffers.
+ */
 int kblasDestroy(kblasHandle_t *handle){
 
   free((*handle));
@@ -48,11 +54,18 @@ int kblasDestroy(kblasHandle_t *handle){
   return KBLAS_Success;
 }
 
+/**
+ * Allocates workspace buffer for various data types (host pointer array, host data, device pointer array, device data) to be used by KBLAS routines that need it.
+ * To determine which workspace data type is needed and how much, use the corresponding *_wsquery() routine. You may call several *ws_query() routines to allocate the maximum buffers needed by the various KBLAS routines, then call this function to allocate the workspace buffers.
+ */
 int kblasAllocateWorkspace(kblasHandle_t handle) {
 	return handle->work_space.allocate();
 }
 
-int kblasFreeeWorkspace(kblasHandle_t handle) {
+/**
+ * Free workspace buffers hosted in the handle structure, and reset internal workspace sizes.
+ */
+int kblasFreeWorkspace(kblasHandle_t handle) {
 	return handle->work_space.deallocate();
 }
 

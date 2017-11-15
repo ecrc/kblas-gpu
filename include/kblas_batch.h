@@ -26,7 +26,8 @@
 
 
 /**
- * @brief Workspace query for batch strided GEMM.
+ * @ingroup WSQUERY
+ * @brief Workspace query for batch strided GEMM routines.
  *
  * @param[in,out] handle KBLAS handle. On return, stores the needed workspace size in corresponding data field.
  * @param[in]     batchCount Number of matrices to be processed.
@@ -411,7 +412,8 @@ extern "C" {
 
 
 /**
- * @brief Workspace query for batched SYRK.
+ * @ingroup WSQUERY
+ * @brief Workspace query for batched SYRK routines.
  *
  * @param[in,out] handle      KBLAS handle. On return, stores the needed workspace size in corresponding data field.
  * @param[in]     m           Order of matrix C.
@@ -662,7 +664,8 @@ extern "C" {
 // batch TRSM
 
 /**
- * @brief Workspace query for batched Non-strided TRSM.
+ * @ingroup WSQUERY
+ * @brief Workspace query for batched Non-strided TRSM routines.
  *
  * @param[in,out] handle      KBLAS handle. On return, stores the needed workspace size in corresponding data field.
  * @param[in]     side        KBLAS_Left/KBLAS_Right sided TRSM operation.
@@ -674,7 +677,8 @@ extern "C" {
 void kblas_trsm_batch_wsquery(kblasHandle_t handle, char side, int m, int n, int batchCount);
 
 /**
- * @brief Workspace query for batched Strided TRSM.
+ * @ingroup WSQUERY
+ * @brief Workspace query for batched Strided TRSM routines.
  *
  * @param[in,out] handle      KBLAS handle. On return, stores the needed workspace size in corresponding data field.
  * @param[in]     side        KBLAS_Left/KBLAS_Right sided TRSM operation.
@@ -946,7 +950,8 @@ extern "C" {
 // batch TRMM
 
 /**
- * @brief Workspace query for batched Non-strided TRMM.
+ * @ingroup WSQUERY
+ * @brief Workspace query for batched Non-strided TRMM routines.
  *
  * @param[in,out] handle      KBLAS handle. On return, stores the needed workspace size in corresponding data field.
  * @param[in]     side        KBLAS_Left/KBLAS_Right sided TRMM operation.
@@ -958,7 +963,8 @@ extern "C" {
 void kblas_trmm_batch_wsquery(kblasHandle_t handle, char side, int m, int n, int batchCount);
 
 /**
- * @brief Workspace query for batched Strided TRMM.
+ * @ingroup WSQUERY
+ * @brief Workspace query for batched Strided TRMM routines.
  *
  * @param[in,out] handle      KBLAS handle. On return, stores the needed workspace size in corresponding data field.
  * @param[in]     side        KBLAS_Left/KBLAS_Right sided TRSM operation.
@@ -1226,7 +1232,8 @@ extern "C" {
 // batch POTRF
 
 /**
- * @brief Workspace query for batched Non-strided POTRF.
+ * @ingroup WSQUERY
+ * @brief Workspace query for batched Non-strided POTRF routines.
  *
  * @param[in,out] handle      KBLAS handle. On return, stores the needed workspace size in corresponding data field.
  * @param[in]     n           Number of rows and columns of the matrices A.
@@ -1236,7 +1243,8 @@ extern "C" {
 void kblas_potrf_batch_wsquery(kblasHandle_t handle, const int n, int batchCount);
 
 /**
- * @brief Workspace query for batched Strided POTRF.
+ * @ingroup WSQUERY
+ * @brief Workspace query for batched Strided POTRF routines.
  *
  * @param[in,out] handle      KBLAS handle. On return, stores the needed workspace size in corresponding data field.
  * @param[in]     n           Number of rows and columns of the matrices A.
@@ -1455,7 +1463,8 @@ extern "C" {
 // batch LAUUM
 
 /**
- * @brief Workspace query for batched Non-strided LAUUM.
+ * @ingroup WSQUERY
+ * @brief Workspace query for batched Non-strided LAUUM routines.
  *
  * @param[in,out] handle      KBLAS handle. On return, stores the needed workspace size in corresponding data field.
  * @param[in]     n           Number of rows and columns of the matrices A.
@@ -1465,7 +1474,8 @@ extern "C" {
 void kblas_lauum_batch_wsquery(kblasHandle_t handle, const int n, int batchCount);
 
 /**
- * @brief Workspace query for batched Strided LAUUM.
+ * @ingroup WSQUERY
+ * @brief Workspace query for batched Strided LAUUM routines.
  *
  * @param[in,out] handle      KBLAS handle. On return, stores the needed workspace size in corresponding data field.
  * @param[in]     n           Number of rows and columns of the matrices A.
@@ -1682,7 +1692,8 @@ extern "C" {
 // batch TRTRI
 
 /**
- * @brief Workspace query for batched Non-strided TRTRI.
+ * @ingroup WSQUERY
+ * @brief Workspace query for batched Non-strided TRTRI routines.
  *
  * @param[in,out] handle      KBLAS handle. On return, stores the needed workspace size in corresponding data field.
  * @param[in]     n           Number of rows and columns of the matrices A.
@@ -1692,7 +1703,8 @@ extern "C" {
 void kblas_trtri_batch_wsquery(kblasHandle_t handle, const int n, int batchCount);
 
 /**
- * @brief Workspace query for batched Strided TRTRI.
+ * @ingroup WSQUERY
+ * @brief Workspace query for batched Strided TRTRI routines.
  *
  * @param[in,out] handle      KBLAS handle. On return, stores the needed workspace size in corresponding data field.
  * @param[in]     n           Number of rows and columns of the matrices A.
@@ -1916,7 +1928,8 @@ extern "C" {
 // batch POTRS
 
 /**
- * @brief Workspace query for batched Non-strided POTRS.
+ * @ingroup WSQUERY
+ * @brief Workspace query for batched Non-strided POTRS routines.
  *
  * @param[in,out] handle      KBLAS handle. On return, stores the needed workspace size in corresponding data field.
  * @param[in]     m           Number of rows of the matrices B.
@@ -1927,7 +1940,8 @@ extern "C" {
 void kblas_potrs_batch_wsquery(kblasHandle_t handle, const int m, const int n, int batchCount);
 
 /**
- * @brief Workspace query for batched Strided POTRS.
+ * @ingroup WSQUERY
+ * @brief Workspace query for batched Strided POTRS routines.
  *
  * @param[in,out] handle      KBLAS handle. On return, stores the needed workspace size in corresponding data field.
  * @param[in]     m           Number of rows of the matrices B.
@@ -2159,7 +2173,8 @@ extern "C" {
 // batch POTRI
 
 /**
- * @brief Workspace query for batched Non-strided POTRI.
+ * @ingroup WSQUERY
+ * @brief Workspace query for batched Non-strided POTRI routines.
  *
  * @param[in,out] handle      KBLAS handle. On return, stores the needed workspace size in corresponding data field.
  * @param[in]     n           Number of rows and columns of the matrices A.
@@ -2169,7 +2184,8 @@ extern "C" {
 void kblas_potri_batch_wsquery(kblasHandle_t handle, const int n, int batchCount);
 
 /**
- * @brief Workspace query for batched Strided POTRI.
+ * @ingroup WSQUERY
+ * @brief Workspace query for batched Strided POTRI routines.
  *
  * @param[in,out] handle      KBLAS handle. On return, stores the needed workspace size in corresponding data field.
  * @param[in]     n           Number of rows and columns of the matrices A.
@@ -2383,7 +2399,8 @@ extern "C" {
 // batch POTRI
 
 /**
- * @brief Workspace query for batched Non-strided POTI.
+ * @ingroup WSQUERY
+ * @brief Workspace query for batched Non-strided POTI routines.
  *
  * @param[in,out] handle      KBLAS handle. On return, stores the needed workspace size in corresponding data field.
  * @param[in]     n           Number of rows and columns of the matrices A.
@@ -2393,7 +2410,8 @@ extern "C" {
 void kblas_poti_batch_wsquery(kblasHandle_t handle, const int n, int batchCount);
 
 /**
- * @brief Workspace query for batched Strided POTI.
+ * @ingroup WSQUERY
+ * @brief Workspace query for batched Strided POTI routines.
  *
  * @param[in,out] handle      KBLAS handle. On return, stores the needed workspace size in corresponding data field.
  * @param[in]     n           Number of rows and columns of the matrices A.
@@ -2604,7 +2622,8 @@ extern "C" {
 // batch POSV
 
 /**
- * @brief Workspace query for batched Non-strided POSV.
+ * @ingroup WSQUERY
+ * @brief Workspace query for batched Non-strided POSV routines.
  *
  * @param[in,out] handle      KBLAS handle. On return, stores the needed workspace size in corresponding data field.
  * @param[in]     side        KBLAS_Left/KBLAS_Right sided POSV operation.
@@ -2616,7 +2635,8 @@ extern "C" {
 void kblas_posv_batch_wsquery(kblasHandle_t handle, char side, const int m, const int n, int batchCount);
 
 /**
- * @brief Workspace query for batched Strided POSV.
+ * @ingroup WSQUERY
+ * @brief Workspace query for batched Strided POSV routines.
  *
  * @param[in,out] handle      KBLAS handle. On return, stores the needed workspace size in corresponding data field.
  * @param[in]     side        KBLAS_Left/KBLAS_Right sided POSV operation.
@@ -2853,6 +2873,8 @@ extern "C" {
                                   cuDoubleComplex* B, int ldb, long strideB,
                                   int batchCount,
                                   int *info_array);
+/** @} */
+/** @} */
 #ifdef __cplusplus
 }
 #endif

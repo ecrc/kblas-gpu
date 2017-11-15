@@ -31,7 +31,9 @@ void kblas_gemm_batch_wsquery(kblasHandle_t handle,
                               int B_row_off, int B_col_off,
                               int C_row_off, int C_col_off);
 
-/// Non-strided batch gemm with offset
+/**
+ * @brief Uniform-size batch non-strided GEMM with offset wrapper routine
+ */
 int kblas_gemm_batch( kblasHandle_t handle,
                       char transA, char transB,
                       const int m, const int n, const int k,

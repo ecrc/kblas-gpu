@@ -42,10 +42,15 @@
 //Non-Strided form
 
 /**
- * @brief Uniform-size batch non-strided GEMM with offset wrapper routine
- *
  * Workspace needed: device pointers
  *
+ * @param[in] A_row_off row offset to sub-matrix of all A's
+ * @param[in] A_col_off column offset to sub-matrix of all A's
+ * @param[in] B_row_off row offset to sub-matrix of all B's
+ * @param[in] B_col_off column offset to sub-matrix of all B's
+ * @param[in] C_row_off row offset to sub-matrix of all C's
+ * @param[in] C_col_off column offset to sub-matrix of all C's
+ * @see kblasSgemm_batch() for details about rest of params.
  * A, B, C: host pointer to array of device pointers to device buffers
  */
 int kblas_gemm_batch( kblasHandle_t handle,
@@ -68,6 +73,7 @@ int kblas_gemm_batch( kblasHandle_t handle,
                           batchCount);
 }
 
+// Workspace needed: none
 int kblas_gemm_batch( kblasHandle_t handle,
                       char transA, char transB,
                       const int m, const int n, const int k,
@@ -87,6 +93,8 @@ int kblas_gemm_batch( kblasHandle_t handle,
                           C_array, 0, 0, ldc,
                           batchCount);
 }
+
+// Workspace needed: none
 extern "C"
 int kblasXgemm_batch( kblasHandle_t handle,
                       char transA, char transB,

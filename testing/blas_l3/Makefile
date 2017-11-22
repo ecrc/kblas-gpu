@@ -56,4 +56,4 @@ $(OBJ_DIR)/test_%gemm.o: $(KBLAS_TEST3_DIR)/test_%gemm.c $(KBLAS_TEST3_DIR)/test
 $(OBJ_DIR)/test_%gemmXt.o: $(KBLAS_TEST3_DIR)/test_%gemmXt.c $(INC_SRC)
 	$(CXX) $(INCLUDES) -c $< -o $@
 
-EXE_L3= $(patsubst %.c,$(BIN_DIR)/%,$(C_SRC_l3))
+EXE_L3= $(patsubst %.c,$(BIN_DIR)/%,$(C_SRC_L3))

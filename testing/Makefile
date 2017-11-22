@@ -69,7 +69,7 @@ endif
 # C_OBJ= $(patsubst %.c,$(OBJ_DIR)/%.o,$(C_SRC))
 # EXE= $(patsubst %.c,$(BIN_DIR)/%,$(C_SRC))
 
-all: $(EXE_l2) $(EXE_l3) $(EXE_BATCH)
+all: $(EXE_L2) $(EXE_L3) $(EXE_BATCH)
 
 $(OBJ_DIR)/testing_helper.o: testing_helper.cu
 	$(NVCC) $(NVOPTS) $(NVOPTS_3) $(INCLUDES) $(NVCCFLAGS) -c $< -o $@
@@ -77,11 +77,11 @@ $(OBJ_DIR)/testing_helper.o: testing_helper.cu
 $(EXE_BATCH): $(BIN_DIR)/%: $(OBJ_DIR)/%.o $(KBLAS_LIB) $(OBJ_DIR)/testing_helper.o
 	$(CC) $(COPTS) $(OBJ_DIR)/testing_helper.o $< -o $@ $(LIB_PATH) $(LIB)
 
-$(EXE_l2): $(BIN_DIR)/%: $(OBJ_DIR)/%.o $(KBLAS_LIB)
+$(EXE_L2): $(BIN_DIR)/%: $(OBJ_DIR)/%.o $(KBLAS_LIB)
 	$(CC) $(COPTS) $< -o $@ $(LIB_PATH) $(LIB)
 
-$(EXE_l3): $(BIN_DIR)/%: $(OBJ_DIR)/%.o $(KBLAS_LIB)
+$(EXE_L3): $(BIN_DIR)/%: $(OBJ_DIR)/%.o $(KBLAS_LIB)
 	$(CC) $(COPTS) $< -o $@ $(LIB_PATH) $(LIB)
 
 clean:
-	rm -f $(OBJ_DIR)/*.o $(EXE_l2) $(EXE_l3) $(EXE_BATCH)
+	rm -f $(OBJ_DIR)/*.o $(EXE_L2) $(EXE_L3) $(EXE_BATCH)

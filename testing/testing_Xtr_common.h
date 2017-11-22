@@ -112,12 +112,17 @@ float get_elapsed_time(cudaStream_t curStream){
     exit(-1);                                                   \
   }
 
-#define TESTING_MALLOC_DEV( ptr, T, size)                       \
-{ \
+#define TESTING_MALLOC_DEV( ptr, T, size)                         \
+{                                                                 \
   cudaError_t err = cudaMalloc( (void**)&ptr, (size)*sizeof(T) ); \
-  if(!_kblas_error( (err), __func__, __FILE__, __LINE__ )) \
-    return 0; \
+  if(err != cudaSuccess)                                          \
+  {                                                               \
+    printf("gpuAssert: %s(%d) %s %d\n", cudaGetErrorString(err), (int)err, __FILE__, __LINE__); \
+    break;                                                        \
+  }                                                               \
 }
+  // if(!_kblas_error( (err), __func__, __FILE__, __LINE__ ))     \
+    // return 0;                                                  \
 //  check_error( cudaMalloc( (void**)&ptr, (size)*sizeof(T) ) )
 
 #define TESTING_MALLOC_PIN( ptr, T, size)                       \

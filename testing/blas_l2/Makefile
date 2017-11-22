@@ -1,7 +1,7 @@
 #WARNING: Don't invoke this file independently, must be included into parent folder makefile
 
 # C_SRC+=
-C_SRC_l2=	\
+C_SRC_L2=	\
 	test_sscal.c \
 	test_dscal.c \
 	test_cscal.c \
@@ -50,4 +50,4 @@ C_SRC_l2=	\
 $(OBJ_DIR)/test_%.o: $(KBLAS_TEST2_DIR)/test_%.c $(INC_SRC)
 	$(CC) $(COPTS) $(INCLUDES) -c $< -o $@
 
-EXE_L2= $(patsubst %.c,$(BIN_DIR)/%,$(C_SRC_l2))
+EXE_L2= $(patsubst %.c,$(BIN_DIR)/%,$(C_SRC_L2))

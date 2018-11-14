@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #include <stdio.h>
@@ -33,7 +33,7 @@
 #include "testing_prec_def.h"
 #include "flops.h"
 
-#include "batch_triangular/Xhelper_funcs.ch" // TODO: need Xset_pointer_1 from this
+#include "Xhelper_funcs.ch" // TODO: need Xset_pointer_1 from this
 #include "operators.h" // TODO: this has templates and C++ host/device functions
 
 //==============================================================================================
@@ -227,55 +227,9 @@ int test_Xpotrf_batch(kblas_opts& opts)
         }
         double time = 0;
 
-        #ifdef USE_MAGMA
-          for(int r = 0; r < nruns; r++){
-            for(int g = 0; g < ngpu; g++){
-              check_error( cudaSetDevice( opts.devices[g] ));
-              check_cublas_error( cublasSetMatrixAsync( Am, An * batchCount_gpu, sizeof(T),
-                                                       h_A + Am * An * batchCount_gpu * g, lda,
-                                                       d_A[g], ldda, kblasGetStream(kblas_handle[g]) ) );
-              check_error( cudaMemset(d_info[g], 0, batchCount_gpu * sizeof(int)) );
-            }
-
-
-            for(int g = 0; g < ngpu; g++){
-              check_error( cudaSetDevice( opts.devices[g] ));
-              cudaDeviceSynchronize();//TODO sync with streams instead
-            }
-            //start_timing(curStream);
-            time = -gettime();
-            for(int g = 0; g < ngpu; g++){
-              check_error( cudaSetDevice( opts.devices[g] ));
-              if(strided){
-                check_kblas_error( kblas_potrf_batch( kblas_handle[g],
-                                                      uplo, N,
-                                                      d_A[g], ldda, An*ldda,
-                                                      batchCount_gpu,
-                                                      d_info[g]) );
-              }else{
-                check_kblas_error( kblas_potrf_batch( kblas_handle[g],
-                                                      uplo, N,
-                                                      d_A_array[g], ldda,
-                                                      batchCount_gpu,
-                                                      d_info[g]) );
-              }
-            }
-            for(int g = 0; g < ngpu; g++){
-              check_error( cudaSetDevice( opts.devices[g] ));
-              cudaDeviceSynchronize();//TODO sync with streams instead
-            }
-            //time = get_elapsed_time(curStream);
-            time += gettime();
-            kblas_time += time;
-          }
-          kblas_time /= nruns;
-          kblas_perf = gflops / kblas_time;
-          kblas_time *= 1000.0;
-        #endif
 
         for(int r = 0;  r < nruns; r++){
           for(int g = 0; g < ngpu; g++){
-            // kblas_handle[g]->use_magma = 0; // TODO: fix this - off by default so should be fine for now
             check_error( cudaSetDevice( opts.devices[g] ));
             check_cublas_error( cublasSetMatrixAsync( Am, An * batchCount_gpu, sizeof(T),
                                                      h_A + Am * An * batchCount_gpu * g, lda,

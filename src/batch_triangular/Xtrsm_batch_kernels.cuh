@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #ifndef __XTRSM_BATCH_KERNELS_H__
@@ -28,9 +28,9 @@
 //==============================================================================================
 //Naming convention <dev/kernel>_<KernelName>_<Non/Uniform>_<Right/Left><Lower/Upper><Non/Transpose><Non/Diag>_<variants>
 //==============================================================================================
-#ifndef SM
-  #error "SM is not defined"
-#elif (SM >= 30)
+#ifndef TARGET_SM
+  #error "TARGET_SM is not defined"
+#elif (TARGET_SM >= 30)
 
 //==============================================================================================
 template<typename T, bool TRANS, int TX, int TY>
@@ -110,18 +110,19 @@ kernel_trsm_U_RLXN_registers_fixN_mulM( const int m, const int n, int batchCount
 {
   if( (TX != n) || (m % TX) ) return;//necessary condition
 
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
+  if(ind >= batchCount) return;
 
   int Bm_start = TY * blockIdx.y;
   const T *A;
         T *B;
   if(STRIDED == true){
-    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
-    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB;
+    A = (const T*)A_array + (ind) * strideA;
+    B =       (T*)B_array + (ind) * strideB;
   }else{
-    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty];
-    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty];
+    A = ((const T**)A_array)[ind];
+    B =       ((T**)B_array)[ind];
   }
   A += A_row_off + A_col_off * lda;
   B += B_row_off + B_col_off * ldb + Bm_start;
@@ -257,18 +258,19 @@ kernel_trsm_U_RLXN_registers_fixN_varM( const int m, const int n, int batchCount
                                         const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
                                                                           T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB)
 {
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
+  if(ind >= batchCount) return;
 
   int Bm_start = TY * blockIdx.y;
   const T *A;
         T *B;
   if(STRIDED){
-    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
-    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB;
+    A = (const T*)A_array + (ind) * strideA;
+    B =       (T*)B_array + (ind) * strideB;
   }else{
-    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty];
-    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty];
+    A = ((const T**)A_array)[ind];
+    B =       ((T**)B_array)[ind];
   }
   A += A_row_off + A_col_off * lda;
   B += B_row_off + B_col_off * ldb + Bm_start;
@@ -422,18 +424,19 @@ kernel_trsm_U_RLXN_registers_varN_varM( const int m, const int n, int batchCount
 {
   if( (TX < n) ) return;//necessary condition
 
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
+  if(ind >= batchCount) return;
 
   int Bm_start = TY * blockIdx.y;
   const T *A;
         T *B;
   if(STRIDED){
-    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
-    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB;
+    A = (const T*)A_array + (ind) * strideA;
+    B =       (T*)B_array + (ind) * strideB;
   }else{
-    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty];
-    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty];
+    A = ((const T**)A_array)[ind];
+    B =       ((T**)B_array)[ind];
   }
   A += A_row_off + A_col_off * lda;
   B += B_row_off + B_col_off * ldb + Bm_start;
@@ -522,19 +525,20 @@ kernel_trsm_U_LLXN_registers_Mfix_Nmul( const int m, const int n, int batchCount
 {
   if( (TX != m) || (n % TX) ) return;//necessary condition
 
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
+  if(ind >= batchCount) return;
 
   //TODO better grid layout can be devised here
   int Bn_start = TY * blockIdx.y;
   const T *A;
         T *B;
   if(STRIDED){
-    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
-    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB;
+    A = (const T*)A_array + (ind) * strideA;
+    B =       (T*)B_array + (ind) * strideB;
   }else{
-    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty];
-    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty];
+    A = ((const T**)A_array)[ind];
+    B =       ((T**)B_array)[ind];
   }
   A += A_row_off + A_col_off * lda;
   B += B_row_off + B_col_off * ldb + Bn_start;
@@ -696,19 +700,20 @@ kernel_trsm_U_LLXN_registers_Mfix_Nvar( const int m, const int n, int batchCount
 {
   if( TX != m ) return;//necessary condition
 
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
+  if(ind >= batchCount) return;
 
   //TODO better grid layout can be devised here
   int Bn_start = TY * blockIdx.y;
   const T *A;
         T *B;
   if(STRIDED){
-    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
-    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB;
+    A = (const T*)A_array + (ind) * strideA;
+    B =       (T*)B_array + (ind) * strideB;
   }else{
-    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty];
-    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty];
+    A = ((const T**)A_array)[ind];
+    B =       ((T**)B_array)[ind];
   }
   A += A_row_off + A_col_off * lda;
   B += B_row_off + B_col_off * ldb + Bn_start * ldb;
@@ -870,19 +875,20 @@ kernel_trsm_U_LLXN_registers_MNvar( const int m, const int n, int batchCount,
 {
   if( TX < m ) return;//necessary condition
 
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
+  if(ind >= batchCount) return;
 
   //TODO better grid layout can be devised here
   int Bn_start = TY * blockIdx.y;
   const T *A;
         T *B;
   if(STRIDED){
-    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
-    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB;
+    A = (const T*)A_array + (ind) * strideA;
+    B =       (T*)B_array + (ind) * strideB;
   }else{
-    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty];
-    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty];
+    A = ((const T**)A_array)[ind];
+    B =       ((T**)B_array)[ind];
   }
   A += A_row_off + A_col_off * lda;
   B += B_row_off + B_col_off * ldb + Bn_start * ldb;

@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #ifndef __XTRMM_BATCH_KERNELS_H__
@@ -28,9 +28,9 @@
 //==============================================================================================
 //Naming convention <dev/kernel>_<KernelName>_<Non/Uniform>_<Right/Left><Lower/Upper><Non/Transpose><Non/Diag>_<variants>
 //==============================================================================================
-#ifndef SM
-  #error "SM is not defined"
-#elif (SM >= 30)
+#ifndef TARGET_SM
+  #error "TARGET_SM is not defined"
+#elif (TARGET_SM >= 30)
 
 
 //==============================================================================================
@@ -173,7 +173,7 @@ dev_trmm_U_LLXN_reg_shared_Mfix_Nvar(const int m, const int n,
   }
 }
 //--------------------------------------------------------------------------------------------
-template<typename T, typename T_PTR, bool STRIDED, bool TRANS, int TX, int TY>
+template<typename T, typename T_PTR, bool TRANS, int TX, int TY>
 __global__ void  //__launch_bounds__(256)
 kernel_trmm_U_LLXN_reg_shared_Mfix_Nvar(const int m, const int n, int batchCount,
                                         const T alpha, T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
@@ -186,15 +186,15 @@ kernel_trmm_U_LLXN_reg_shared_Mfix_Nvar(const int m, const int n, int batchCount
 
   //TODO better grid layout can be devised here
   int Bn_start = TY * blockIdx.y;
-  const T *A;
-        T *B;
-  if(STRIDED == true){
-    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
-    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB;
-  }else{
-    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty];
-    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty];
-  }
+  const T *A = getOperationPtr(A_array, blockIdx.x * blockDim.y + ty, strideA);
+        T *B = getOperationPtr(B_array, blockIdx.x * blockDim.y + ty, strideB);
+  // if(STRIDED == true){
+  //   A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
+  //   B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB;
+  // }else{
+  //   A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty];
+  //   B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty];
+  // }
   A += A_row_off + A_col_off * lda;
   B += B_row_off + B_col_off * ldb + Bn_start * ldb;
 
@@ -361,7 +361,7 @@ dev_trmm_U_LLXN_reg_shared_MNvar(const int m, const int n,
   }
 }
 //--------------------------------------------------------------------------------------------
-template<typename T, typename T_PTR, bool STRIDED, bool TRANS, int TX, int TY>
+template<typename T, typename T_PTR, bool TRANS, int TX, int TY>
 __global__ void  //__launch_bounds__(256)
 kernel_trmm_U_LLXN_reg_shared_MNvar(const int m, const int n, int batchCount,
                                     const T alpha, T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
@@ -374,15 +374,15 @@ kernel_trmm_U_LLXN_reg_shared_MNvar(const int m, const int n, int batchCount,
 
   //TODO better grid layout can be devised here
   int Bn_start = TY * blockIdx.y;
-  const T *A;
-        T *B;
-  if(STRIDED == true){
-    A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
-    B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB;
-  }else{
-    A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty];
-    B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty];
-  }
+  const T *A = getOperationPtr(A_array, blockIdx.x * blockDim.y + ty, strideA);
+        T *B = getOperationPtr(B_array, blockIdx.x * blockDim.y + ty, strideB);
+  // if(STRIDED == true){
+  //   A = (const T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
+  //   B =       (T*)B_array + (blockIdx.x * blockDim.y + ty) * strideB;
+  // }else{
+  //   A = ((const T**)A_array)[blockIdx.x * blockDim.y + ty];
+  //   B =       ((T**)B_array)[blockIdx.x * blockDim.y + ty];
+  // }
   A += A_row_off + A_col_off * lda;
   B += B_row_off + B_col_off * ldb + Bn_start * ldb;
 

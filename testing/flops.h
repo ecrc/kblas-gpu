@@ -20,11 +20,11 @@
  *
  * @version 1.0.0
  * @author Mathieu Faverge
- * @date 2010-12-20
+ * @date 2018-11-14
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 /*
@@ -45,6 +45,8 @@
 #include <typeinfo>
 
 #define is_complex(t) ( typeid(t) == typeid(cuFloatComplex) || typeid(t) == typeid(cuComplex) || typeid(t) == typeid(cuDoubleComplex) )
+#define factorMul(t) (is_complex(t) ? 6. : 1.)
+#define factorAdd(t) (is_complex(t) ? 2. : 1.)
 //==============================================================================================
 #define FMULS_GEMM(m_, n_, k_) ((m_) * (n_) * (k_))
 #define FADDS_GEMM(m_, n_, k_) ((m_) * (n_) * (k_))
@@ -53,12 +55,6 @@ template<class T>
 double FLOPS_GEMM(int m, int n, int k){
   return (is_complex(T) ? 6. : 1.) * FMULS_GEMM((double)(m), (double)(n), (double)(k))
        + (is_complex(T) ? 2. : 1.) * FADDS_GEMM((double)(m), (double)(n), (double)(k));
-}
-
-//==============================================================================================
-template<class T>
-double FLOPS_GEMM_PLR(int m, int n, int k, int ra, int rb){
-  return FLOPS_GEMM<T>(ra, rb, k) + FLOPS_GEMM<T>(ra, n, rb) + FLOPS_GEMM<T>(m, n, ra);
 }
 
 //==============================================================================================
@@ -151,6 +147,53 @@ template<class T>
 double FLOPS_SYRK(int k_, int n_){
   return (is_complex(T) ? 6. : 1.) * FMULS_SYRK((double)(k_), (double)(n_))
        + (is_complex(T) ? 2. : 1.) * FADDS_SYRK((double)(k_), (double)(n_));
+}
+
+//==============================================================================================
+#define FMULS_GEQRF(m_, n_) (((m_) > (n_)) \
+    ? ((n_) * ((n_) * (  0.5-(1./3.) * (n_) + (m_)) +    (m_) + 23. / 6.)) \
+    : ((m_) * ((m_) * ( -0.5-(1./3.) * (m_) + (n_)) + 2.*(n_) + 23. / 6.)) )
+#define FADDS_GEQRF(m_, n_) (((m_) > (n_)) \
+    ? ((n_) * ((n_) * (  0.5-(1./3.) * (n_) + (m_))           +  5. / 6.)) \
+    : ((m_) * ((m_) * ( -0.5-(1./3.) * (m_) + (n_)) +    (n_) +  5. / 6.)) )
+
+template<class T>
+double FLOPS_GEQRF(int m, int n){
+  return factorMul(T) * FMULS_GEQRF((double)(m), (double)(n))
+       + factorAdd(T) * FADDS_GEQRF((double)(m), (double)(n));
+}
+
+//==============================================================================================
+#define FMULS_ORGQR(m_, n_, k_) ((k_) * (2.* (m_) * (n_) +   2. * (n_) - 5./3. + (k_) * ( 2./3. * (k_) - ((m_) + (n_)) - 1.)))
+#define FADDS_ORGQR(m_, n_, k_) ((k_) * (2.* (m_) * (n_) + (n_) - (m_) + 1./3. + (k_) * ( 2./3. * (k_) - ((m_) + (n_))     )))
+
+template<class T>
+double FLOPS_ORGQR(int m, int n, int k){
+  return factorMul(T) * FMULS_ORGQR((double)(m), (double)(n), (double)(k))
+       + factorAdd(T) * FADDS_ORGQR((double)(m), (double)(n), (double)(k));
+}
+
+//==============================================================================================
+template<class T>
+double FLOPS_GEMM_LR_LLD(int m, int n, int k, int ra, int rb){
+  return FLOPS_GEMM<T>(ra, rb, k) + FLOPS_GEMM<T>(ra, n, rb) + FLOPS_GEMM<T>(m, n, ra);
+}
+//==============================================================================================
+template<class T>
+double FLOPS_GEMM_LR_LLL(int m, int n, int k, int ra, int rb, int rc){
+  int kApkC = ra+rc;
+  return  FLOPS_GEMM<T>(ra, rb, m)      //P = Av^tBv
+        + FLOPS_GEMM<T>(n, ra, rb)      //Bv * P^T
+        + FLOPS_GEQRF<T>(m, kApkC)  //GEQRF(A)
+        + factorMul(T) * n*rc           //Scale by Beta
+        + FLOPS_GEQRF<T>(n, kApkC)  //GEQRF(B)
+        + FLOPS_TRMM<T>(KBLAS_Right, kApkC, kApkC)    //rA = rA*rB^T
+        + (kApkC*kApkC*kApkC) * (factorMul(T) + 2 * factorAdd(T)) //ACA
+        + FLOPS_ORGQR<T>(m, kApkC, kApkC) //ORGQR(U)
+        + FLOPS_ORGQR<T>(n, kApkC, kApkC) //ORGQR(V)
+        + FLOPS_GEMM<T>(m, kApkC, kApkC)  //U=Qu*Tu
+        + FLOPS_GEMM<T>(n, kApkC, kApkC)  //V=Qv*Tv
+        ;
 }
 
 #endif //_TESTING_FLOPS_

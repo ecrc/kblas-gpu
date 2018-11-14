@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #ifndef __XPOTRF_BATCH_DRIVERS_H__
@@ -25,7 +25,6 @@
 
 //==============================================================================================
 
-#define offA(i,j) A + A_row_off + (i) + (A_col_off + (j)) * lda
 #define Aoff(_i,_j) A, A_row_off + (_i), A_col_off + (_j)
 
 template<class T, class T_PTR, bool STRIDED>
@@ -101,59 +100,37 @@ int Xpotrf_batch_core(kblasHandle_t handle,
       n2 = n-n1;
     }
 
-    int status;
     T one = make_one<T>();
     T mone = make_zero<T>() - one;
 
     //POTRF_BATCH
-    check_error_ret((status = Xpotrf_batch_core<T, T_PTR, STRIDED>(
-                                                handle,
-                                                uplo, n1,
-                                                Aoff(0, 0), lda, strideA,
-                                                batchCount,
-                                                info_array)), status);
-
+    check_ret_error( (Xpotrf_batch_core<T, T_PTR, STRIDED>(
+                                        handle,
+                                        uplo, n1,
+                                        Aoff(0, 0), lda, strideA,
+                                        batchCount,
+                                        info_array)) );
     //TRSM_BATCH
-    if(STRIDED){
-      check_error_ret (status = Xtrsm_batch_offset( handle,
-                                                    KBLAS_Right, uplo, KBLAS_Trans, KBLAS_NonUnit,
-                                                    n2, n1,
-                                                    one, (const T*)Aoff( 0,  0), lda, strideA,
-                                                               (T*)Aoff(n1,  0), lda, strideA,
-                                                    batchCount), status);
-    }else{
-      check_error_ret (status = Xtrsm_batch_offset( handle,
-                                                    KBLAS_Right, uplo, KBLAS_Trans, KBLAS_NonUnit,
-                                                    n2, n1,
-                                                    one, (const T**)Aoff( 0,  0), lda,
-                                                               (T**)Aoff(n1,  0), lda,
-                                                    batchCount), status);
-    }
-
+    check_ret_error( Xtrsm_batch( handle,
+                                  KBLAS_Right, uplo, KBLAS_Trans, KBLAS_NonUnit,
+                                  n2, n1,
+                                  one, (T_PTR)Aoff( 0,  0), lda, strideA,
+                                       (T_PTR)Aoff(n1,  0), lda, strideA,
+                                  batchCount) );
     //SYRK_BATCH
-    if(STRIDED){
-      check_error_ret (status = kblas_syrk_batch( handle,
-                                                  uplo, KBLAS_NoTrans,
-                                                  n2, n1,
-                                                  mone, (const T*)offA(n1,  0), lda, strideA,
-                                                  one,        (T*)offA(n1, n1), lda, strideA,
-                                                  batchCount), status);
-    }else{
-      check_error_ret (status = Xsyrk_batch_offset( handle,
-                                                    uplo, KBLAS_NoTrans,
-                                                    n2, n1,
-                                                    mone, (const T**)Aoff(n1,  0), lda,
-                                                    one,        (T**)Aoff(n1, n1), lda,
-                                                    batchCount), status);
-    }
-
+    check_ret_error( Xsyrk_batch( handle,
+                                  uplo, KBLAS_NoTrans,
+                                  n2, n1,
+                                  mone, (T_PTR)Aoff(n1,  0), lda, strideA,
+                                  one,  (T_PTR)Aoff(n1, n1), lda, strideA,
+                                  batchCount) );
     //POTRF_BATCH
-    check_error_ret((status = Xpotrf_batch_core<T, T_PTR, STRIDED>(
-                                                handle,
-                                                uplo, n2,
-                                                Aoff(n1, n1), lda, strideA,
-                                                batchCount,
-                                                info_array)), status);
+    check_ret_error( (Xpotrf_batch_core<T, T_PTR, STRIDED>(
+                                        handle,
+                                        uplo, n2,
+                                        Aoff(n1, n1), lda, strideA,
+                                        batchCount,
+                                        info_array)) );
 
   }
   return KBLAS_Success;

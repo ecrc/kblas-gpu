@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Wajih Halim Boukaram
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #include <curand.h>
@@ -27,6 +27,7 @@
 #include "batch_qr.h"
 #include "batch_transpose.h"
 #include "batch_block_copy.h"
+#include "batch_rand.h"
 
 #include "svd_kernels.cuh"
 
@@ -34,81 +35,82 @@
 #include "perf_counter.h"
 #endif
 
-#define OSBJ_BS		SHARED_SVD_DIM_LIMIT / 2
+#include "workspace_queries.ch"
+// #define OSBJ_BS		SHARED_SVD_DIM_LIMIT / 2
 #define KBLAS_SVD_CHECK_RET(func)	{ if( (func) != KBLAS_Success ) return KBLAS_UnknownError; }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Workspace routines
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-template<class T>
-void batch_svd_osbj_workspace(int rows, int cols, int num_ops, KBlasWorkspaceState& requested_ws, int top_level)
-{
-	if(cols <= SHARED_SVD_DIM_LIMIT && rows <= SHARED_SVD_DIM_LIMIT)
-		return;
+// template<class T>
+// void batch_svd_osbj_workspace(int rows, int cols, int num_ops, KBlasWorkspaceState& requested_ws, int top_level)
+// {
+// 	if(cols <= SHARED_SVD_DIM_LIMIT && rows <= SHARED_SVD_DIM_LIMIT)
+// 		return;
 
-	int block_cols = iDivUp(cols, OSBJ_BS);
+// 	int block_cols = iDivUp(cols, OSBJ_BS);
 
-	requested_ws.d_data_bytes += (
-		4 * OSBJ_BS * OSBJ_BS + // Gram matrix or R
-		rows * 2 * OSBJ_BS    + // Temporary block column
-		2 * OSBJ_BS           + // Temporary singular values
-		2 * OSBJ_BS           + // tau
-		1                       // Offdiagonal sum
-	) * sizeof(T) * num_ops;
+// 	requested_ws.d_data_bytes += (
+// 		4 * OSBJ_BS * OSBJ_BS + // Gram matrix or R
+// 		rows * 2 * OSBJ_BS    + // Temporary block column
+// 		2 * OSBJ_BS           + // Temporary singular values
+// 		2 * OSBJ_BS           + // tau
+// 		1                       // Offdiagonal sum
+// 	) * sizeof(T) * num_ops;
 
-	requested_ws.d_ptrs_bytes += (block_cols + 7) * sizeof(T*) * num_ops;
-}
+// 	requested_ws.d_ptrs_bytes += (block_cols + 7) * sizeof(T*) * num_ops;
+// }
 
-template<class T>
-void batch_tall_svd_workspace(int rows, int cols, int num_ops, KBlasWorkspaceState& requested_ws, int top_level)
-{
-	requested_ws.d_data_bytes += (
-		cols * cols + // R
-		rows * cols + // Q
-		cols          // tau
-	) * sizeof(T) * num_ops;
+// template<class T>
+// void batch_tall_svd_workspace(int rows, int cols, int num_ops, KBlasWorkspaceState& requested_ws, int top_level)
+// {
+// 	requested_ws.d_data_bytes += (
+// 		cols * cols + // R
+// 		rows * cols + // Q
+// 		cols          // tau
+// 	) * sizeof(T) * num_ops;
 
-	requested_ws.d_ptrs_bytes += 4 * sizeof(T*) * num_ops;
-}
+// 	requested_ws.d_ptrs_bytes += 4 * sizeof(T*) * num_ops;
+// }
 
-template<class T>
-void batch_wide_svd_workspace(int rows, int cols, int num_ops, KBlasWorkspaceState& requested_ws, int top_level)
-{
-	requested_ws.d_data_bytes += (
-		rows * rows + // R
-		cols * rows + // Q
-		rows          // tau
-	) * sizeof(T) * num_ops;
+// template<class T>
+// void batch_wide_svd_workspace(int rows, int cols, int num_ops, KBlasWorkspaceState& requested_ws, int top_level)
+// {
+// 	requested_ws.d_data_bytes += (
+// 		rows * rows + // R
+// 		cols * rows + // Q
+// 		rows          // tau
+// 	) * sizeof(T) * num_ops;
 
-	requested_ws.d_ptrs_bytes += 3 * sizeof(T*) * num_ops;
+// 	requested_ws.d_ptrs_bytes += 3 * sizeof(T*) * num_ops;
 
-	// Do we need to do osbj of the rows x rows matrix?
-	if(!top_level && rows > SHARED_SVD_DIM_LIMIT)
-		batch_svd_osbj_workspace<T>(rows, rows, num_ops, requested_ws, 0);
-}
+// 	// Do we need to do osbj of the rows x rows matrix?
+// 	if(!top_level && rows > SHARED_SVD_DIM_LIMIT)
+// 		batch_svd_osbj_workspace<T>(rows, rows, num_ops, requested_ws, 0);
+// }
 
-template<class T>
-void batch_svd_randomized_workspace(int rows, int cols, int rank, int num_ops, KBlasWorkspaceState& requested_ws, int top_level)
-{
-	if(rank > cols || rank > rows) return;
+// template<class T>
+// void batch_svd_randomized_workspace(int rows, int cols, int rank, int num_ops, KBlasWorkspaceState& requested_ws, int top_level)
+// {
+// 	if(rank > cols || rank > rows) return;
 
-	if(rank < cols)
-	{
-		requested_ws.d_data_bytes += (
-			cols * rank + // Omega
-			rows * rank + // Y
-			rank * cols + // B
-			rank * rank + // R
-			rank          // tau
-		) * sizeof(T) * num_ops;
+// 	if(rank < cols)
+// 	{
+// 		requested_ws.d_data_bytes += (
+// 			cols * rank + // Omega
+// 			rows * rank + // Y
+// 			rank * cols + // B
+// 			rank * rank + // R
+// 			rank          // tau
+// 		) * sizeof(T) * num_ops;
 
-		requested_ws.d_ptrs_bytes += 5 * sizeof(T*) * num_ops;
-	}
+// 		requested_ws.d_ptrs_bytes += 5 * sizeof(T*) * num_ops;
+// 	}
 
-	// Do we need to do osbj of the rank x rank matrix?
-	if(!top_level && rank > SHARED_SVD_DIM_LIMIT)
-		batch_svd_osbj_workspace<T>(rank, rank, num_ops, requested_ws, 0);
-}
+// 	// Do we need to do osbj of the rank x rank matrix?
+// 	if(!top_level && rank > SHARED_SVD_DIM_LIMIT)
+// 		batch_svd_osbj_workspace<T>(rank, rank, num_ops, requested_ws, 0);
+// }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Random matrix geenration using curand for the RSVD
@@ -525,11 +527,11 @@ int batch_svd_osbj_qr(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int
 }
 
 template<class T, class T_ptr>
-int batch_svd_randomized(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int rows, int cols, int rank, int num_ops, kblasHandle_t handle)
+int batch_svd_randomized(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int rows, int cols, int rank, int num_ops, kblasRandState_t state, kblasHandle_t handle)
 {
 	if(rank > cols || rank > rows)
 	{
-		printf("Requested rank must be smaller than or equal to the rank of the matrix\n");
+		printf("Requested rank(%d) must be smaller than or equal to the rank of the matrix(%d,%d)\n", rank, rows, cols);
 		return KBLAS_Error_WrongInput;
 	}
 
@@ -587,8 +589,11 @@ int batch_svd_randomized(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, 
 		T_ptr S_batch = advanceOperationPtr(S, op_start, stride_s);
 
 		// generate the sampling matrices
-		check_error_forward( generateRandomMatrices(
+		/*check_error_forward( generateRandomMatrices(
 			Omega_strided, cols, rank, op_start, batch_size, handle->stream
+		) );*/
+		check_error_forward( kblas_rand_batch (
+			handle, cols, rank, Omega_strided, cols, cols * rank, state, batch_size
 		) );
 
 		// generate the pointer arrays
@@ -781,14 +786,14 @@ extern "C" int kblasSgesvj_gram_batch_strided(kblasHandle_t handle, int m, int n
 	return batch_svd_osbj_gram<float, float*>(A_strided, lda, stride_a, S_strided, stride_s, m, n, num_ops, handle);
 }
 
-extern "C" int kblasDrsvd_batch_strided(kblasHandle_t handle, int m, int n, int rank, double* A_strided, int lda, int stride_a, double* S_strided, int stride_s, int num_ops)
+extern "C" int kblasDrsvd_batch_strided(kblasHandle_t handle, int m, int n, int rank, double* A_strided, int lda, int stride_a, double* S_strided, int stride_s, kblasRandState_t state, int num_ops)
 {
-	return batch_svd_randomized<double, double*>(A_strided, lda, stride_a, S_strided, stride_s, m, n, rank, num_ops, handle);
+	return batch_svd_randomized<double, double*>(A_strided, lda, stride_a, S_strided, stride_s, m, n, rank, num_ops, state, handle);
 }
 
-extern "C" int kblasSrsvd_batch_strided(kblasHandle_t handle, int m, int n, int rank, float* A_strided, int lda, int stride_a, float* S_strided, int stride_s, int num_ops)
+extern "C" int kblasSrsvd_batch_strided(kblasHandle_t handle, int m, int n, int rank, float* A_strided, int lda, int stride_a, float* S_strided, int stride_s, kblasRandState_t state, int num_ops)
 {
-	return batch_svd_randomized<float, float*>(A_strided, lda, stride_a, S_strided, stride_s, m, n, rank, num_ops, handle);
+	return batch_svd_randomized<float, float*>(A_strided, lda, stride_a, S_strided, stride_s, m, n, rank, num_ops, state, handle);
 }
 
 ////////////////////////////////////////////////////////////////////
@@ -836,12 +841,12 @@ extern "C" int kblasSgesvj_gram_batch(kblasHandle_t handle, int m, int n, float*
 	return batch_svd_osbj_gram<float, float**>(A_ptrs, lda, 0, S_ptrs, 0, m, n, num_ops, handle);
 }
 
-extern "C" int kblasDrsvd_batch(kblasHandle_t handle, int m, int n, int rank, double** A_ptrs, int lda, double** S_ptrs, int num_ops)
+extern "C" int kblasDrsvd_batch(kblasHandle_t handle, int m, int n, int rank, double** A_ptrs, int lda, double** S_ptrs, kblasRandState_t state, int num_ops)
 {
-	return batch_svd_randomized<double, double**>(A_ptrs, lda, 0, S_ptrs, 0, m, n, rank, num_ops, handle);
+	return batch_svd_randomized<double, double**>(A_ptrs, lda, 0, S_ptrs, 0, m, n, rank, num_ops, state, handle);
 }
 
-extern "C" int kblasSrsvd_batch(kblasHandle_t handle, int m, int n, int rank, float** A_ptrs, int lda, float** S_ptrs, int num_ops)
+extern "C" int kblasSrsvd_batch(kblasHandle_t handle, int m, int n, int rank, float** A_ptrs, int lda, float** S_ptrs, kblasRandState_t state, int num_ops)
 {
-	return batch_svd_randomized<float, float**>(A_ptrs, lda, 0, S_ptrs, 0, m, n, rank, num_ops, handle);
+	return batch_svd_randomized<float, float**>(A_ptrs, lda, 0, S_ptrs, 0, m, n, rank, num_ops, state, handle);
 }

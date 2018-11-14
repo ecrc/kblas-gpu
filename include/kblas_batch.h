@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #ifndef _KBLAS_BATCH_H_
@@ -33,6 +33,7 @@
  * @param[in]     batchCount Number of matrices to be processed.
  */
 void kblas_gemm_batch_strided_wsquery(kblasHandle_t handle, int batchCount);
+void kblas_gemm_batch_nonuniform_wsquery(kblasHandle_t handle);
 
 /** @addtogroup CPP_API
 *  @{
@@ -187,6 +188,67 @@ void kblas_gemm_batch_strided_wsquery(kblasHandle_t handle, int batchCount);
                                 cuDoubleComplex* C, int ldc, long strideC,
                           int batchCount);
     //@}
+
+    /**
+     * @name TODO Non-uniform batch gemm,
+     * if all maximum m/n/k are passed 0, they will be recomputed
+     */
+    //@{
+
+    /**
+     * @brief TODO
+     */
+    int kblas_gemm_batch( kblasHandle_t handle,
+                          char transA, char transB,
+                          int* m, int* n, int* k,
+                          int max_m, int max_n, int max_k,
+                          const float alpha,
+                          const float** A, int* lda,
+                          const float** B, int* ldb,
+                          const float beta,
+                                float** C, int* ldc,
+                          int batchCount );
+    /**
+     * @brief TODO
+     */
+    int kblas_gemm_batch( kblasHandle_t handle,
+                          char transA, char transB,
+                          int* m, int* n, int* k,
+                          int max_m, int max_n, int max_k,
+                          const double alpha,
+                          const double** A, int* lda,
+                          const double** B, int* ldb,
+                          const double beta,
+                                double** C, int* ldc,
+                          int batchCount );
+    /**
+     * @brief TODO
+     */
+    int kblas_gemm_batch( kblasHandle_t handle,
+                          char transA, char transB,
+                          int* m, int* n, int* k,
+                          int max_m, int max_n, int max_k,
+                          const cuFloatComplex alpha,
+                          const cuFloatComplex** A, int* lda,
+                          const cuFloatComplex** B, int* ldb,
+                          const cuFloatComplex beta,
+                                cuFloatComplex** C, int* ldc,
+                          int batchCount );
+    /**
+     * @brief TODO
+     */
+    int kblas_gemm_batch( kblasHandle_t handle,
+                          char transA, char transB,
+                          int* m, int* n, int* k,
+                          int max_m, int max_n, int max_k,
+                          const cuDoubleComplex alpha,
+                          const cuDoubleComplex** A, int* lda,
+                          const cuDoubleComplex** B, int* ldb,
+                          const cuDoubleComplex beta,
+                                cuDoubleComplex** C, int* ldc,
+                          int batchCount );
+    //@}
+
 #endif
 /** @} */
 
@@ -422,10 +484,12 @@ extern "C" {
  */
 void kblas_syrk_batch_wsquery(kblasHandle_t handle, const int m, int batchCount);
 
+void kblas_syrk_batch_nonuniform_wsquery(kblasHandle_t handle);
+
 #ifdef __cplusplus
 
     //------------------------------------------------------------------------------
-    // Non-Strided
+    // Non-Strided Uniform
     int kblas_syrk_batch( kblasHandle_t handle,
                           char uplo, char trans,
                           const int m, const int n,
@@ -452,6 +516,38 @@ void kblas_syrk_batch_wsquery(kblasHandle_t handle, const int m, int batchCount)
                           const int m, const int n,
                           const cuDoubleComplex alpha, const cuDoubleComplex** A, int lda,
                           const cuDoubleComplex beta,        cuDoubleComplex** B, int ldb,
+                          int batchCount);
+
+    //------------------------------------------------------------------------------
+    // Non-Strided Non-uniform
+    // if all maximum m/n are passed 0, they will be recomputed
+    int kblas_syrk_batch( kblasHandle_t handle,
+                          char uplo, char trans,
+                          int* m, int* n,
+                          int max_m, int max_n,
+                          float alpha, float** A, int* lda,
+                          float beta,  float** B, int* ldb,
+                          int batchCount);
+    int kblas_syrk_batch( kblasHandle_t handle,
+                          char uplo, char trans,
+                          int* m, int* n,
+                          int max_m, int max_n,
+                          double alpha, double** A, int* lda,
+                          double beta,  double** B, int* ldb,
+                          int batchCount);
+    int kblas_syrk_batch( kblasHandle_t handle,
+                          char uplo, char trans,
+                          int* m, int* n,
+                          int max_m, int max_n,
+                          cuFloatComplex alpha, cuFloatComplex** A, int* lda,
+                          cuFloatComplex beta,  cuFloatComplex** B, int* ldb,
+                          int batchCount);
+    int kblas_syrk_batch( kblasHandle_t handle,
+                          char uplo, char trans,
+                          int* m, int* n,
+                          int max_m, int max_n,
+                          cuDoubleComplex alpha, cuDoubleComplex** A, int* lda,
+                          cuDoubleComplex beta,  cuDoubleComplex** B, int* ldb,
                           int batchCount);
 
     //------------------------------------------------------------------------------
@@ -689,6 +785,8 @@ void kblas_trsm_batch_wsquery(kblasHandle_t handle, char side, int m, int n, int
  */
 void kblas_trsm_batch_strided_wsquery(kblasHandle_t handle, char side, int m, int n, int batchCount);
 
+void kblas_trsm_batch_nonuniform_wsquery(kblasHandle_t handle);
+
 #ifdef __cplusplus
     //------------------------------------------------------------------------------
     // Non-Strided
@@ -724,6 +822,45 @@ void kblas_trsm_batch_strided_wsquery(kblasHandle_t handle, char side, int m, in
                          const cuDoubleComplex** A, int lda,
                                cuDoubleComplex** B, int ldb,
                         int batchCount);
+
+    //------------------------------------------------------------------------------
+    // Non-Strided Non-uniform
+    // if all maximum m/n are passed 0, they will be recomputed
+    int kblas_trsm_batch( kblasHandle_t handle,
+                          char side, char uplo, char trans, char diag,
+                          int *m, int *n,
+                          int max_m, int max_n,
+                          float alpha,
+                          float** A, int* lda,
+                          float** B, int* ldb,
+                          int batchCount);
+
+    int kblas_trsm_batch( kblasHandle_t handle,
+                          char side, char uplo, char trans, char diag,
+                          int *m, int *n,
+                          int max_m, int max_n,
+                          double alpha,
+                          double** A, int* lda,
+                          double** B, int* ldb,
+                          int batchCount);
+
+    int kblas_trsm_batch( kblasHandle_t handle,
+                          char side, char uplo, char trans, char diag,
+                          int *m, int *n,
+                          int max_m, int max_n,
+                          cuFloatComplex alpha,
+                          cuFloatComplex** A, int* lda,
+                          cuFloatComplex** B, int* ldb,
+                          int batchCount);
+
+    int kblas_trsm_batch( kblasHandle_t handle,
+                          char side, char uplo, char trans, char diag,
+                          int *m, int *n,
+                          int max_m, int max_n,
+                          cuDoubleComplex alpha,
+                          cuDoubleComplex** A, int* lda,
+                          cuDoubleComplex** B, int* ldb,
+                          int batchCount);
 
     //------------------------------------------------------------------------------
     // Strided

@@ -11,10 +11,10 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Wajih Halim Boukaram
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #include <thrust/device_vector.h>
@@ -470,10 +470,10 @@ extern "C" void generateSrandomMatrices(
 ////////////////////////////////////////////////////////////
 
 // Vectors
-template<class T, class T_complex>
-T get_magnitude(T_complex a){ return sqrt(a.x * a.x + a.y * a.y); }
-template<class T>
-T get_magnitude(T ax, T ay){ return sqrt(ax * ax + ay * ay); }
+// template<class T, class T_complex>
+// T get_magnitude(T_complex a){ return sqrt(a.x * a.x + a.y * a.y); }
+// template<class T>
+// T get_magnitude(T ax, T ay){ return sqrt(ax * ax + ay * ay); }
 
 template<class T>
 T get_max_error(T* ref, T *res, int n, int inc)
@@ -562,6 +562,26 @@ T get_max_error_matrix_complex(T_complex* ref, T_complex *res, long m, long n, l
 	return max_err;
 }
 
+template<class T>
+T get_max_error_matrix_uplo(T* ref, T *res, long m, long n, long lda, char uplo)
+{
+  long i, j;
+  T max_err = -1.0;
+  T err = -1.0;
+  for(i = 0; i < m; i++){
+    for(j = (uplo == KBLAS_Upper ? i : 0); j < (uplo == KBLAS_Lower ? i+1 : n); j++)
+    {
+      T ref_ = ref[j * lda + i];
+      T res_ = res[j * lda + i];
+      err = fabs(res_ - ref_);
+      if(ref_ != 0.0)err /= fabs(ref_);
+      if(err > max_err)max_err = err;
+      //printf("\n[%2d]   %-.2f   %-.2f   %-.2e \n", i, ref_, res_, err);
+    }
+  }
+  return max_err;
+}
+
 extern "C" float sget_max_error_matrix(float* ref, float *res, long m, long n, long lda)
 { return get_max_error_matrix<float>(ref, res, m, n, lda); }
 
@@ -573,6 +593,9 @@ extern "C" float cget_max_error_matrix(cuFloatComplex* ref, cuFloatComplex *res,
 
 extern "C" double zget_max_error_matrix(cuDoubleComplex* ref, cuDoubleComplex *res, long m, long n, long lda)
 { return get_max_error_matrix_complex<double, cuDoubleComplex>(ref, res, m, n, lda); }
+
+extern "C" double dget_max_error_matrix_uplo(double* ref, double *res, long m, long n, long lda, char uplo)
+{ return get_max_error_matrix_uplo<double>(ref, res, m, n, lda, uplo); }
 
 ////////////////////////////////////////////////////////////
 // Command line parser
@@ -642,25 +665,31 @@ extern "C" int parse_opts(int argc, char** argv, kblas_opts *opts)
   opts->nruns      = 4;
   opts->nb         = 64;  // ??
   opts->db         = 512;  // ??
-  opts->tolerance  = 30.;
+  opts->tolerance  = 0.;
   opts->check      = 0;
   opts->verbose    = 0;
   opts->custom     = 0;
   opts->warmup     = 0;
   opts->time       = 0;
   opts->lapack     = 0;
+  opts->cuda       = 0;
+  opts->nonUniform = 0;
+  opts->magma      = 0;
+  opts->svd        = 0;
   opts->batchCount = 4;
   opts->strided    = 0;
   opts->btest      = 1;
   opts->rtest      = 1;
   //opts->bd[0]      = -1;
   opts->omp_numthreads = 20;
+  opts->LR = 't';
 
   opts->uplo      = 'L';      // potrf, etc.
   opts->transA    = 'N';    // gemm, etc.
   opts->transB    = 'N';    // gemm
   opts->side      = 'L';       // trsm, etc.
   opts->diag      = 'N';    // trsm, etc.
+  opts->version    = 1;
 
   if(argc < 2){
     USAGE
@@ -867,6 +896,11 @@ extern "C" int parse_opts(int argc, char** argv, kblas_opts *opts)
       kblas_assert( opts->nruns > 0,
         "error: --nruns %s is invalid; ensure nruns > 0.\n", argv[i] );
     }
+    else if ( strcmp("--ver",   argv[i]) == 0 && i+1 < argc ) {
+      opts->version = atoi( argv[++i] );
+      // kblas_assert( opts->nruns > 0,
+      //   "error: --nruns %s is invalid; ensure nruns > 0.\n", argv[i] );
+    }
     else if ( (strcmp("--batchCount",   argv[i]) == 0 || strcmp("--batch",   argv[i]) == 0) && i+1 < argc ) {
       i++;
       int start, stop, step;
@@ -893,12 +927,16 @@ extern "C" int parse_opts(int argc, char** argv, kblas_opts *opts)
     else if ( (strcmp("--rank",   argv[i]) == 0) && i+1 < argc ) {
       i++;
       int start, stop, step;
-      char op;
-      info = sscanf( argv[i], "%d:%d%c%d", &start, &stop, &op, &step );
+      char op, sep;
+      info = sscanf( argv[i], "%d%c%d%c%d", &start, &sep, &stop, &op, &step );
       if( info == 1 ){
-        opts->rank[0] = start;
+        opts->rank[0] = opts->rank[1] = start;
       }else
-      if ( info == 4 && start >= 0 && stop >= 0 && step != 0 && (op == '+' || op == '*' || op == ':')) {
+      if( info == 3 ){
+        opts->rank[0] = start;
+        opts->rank[1] = stop;
+      }else
+      if ( info == 5 && start >= 0 && stop >= 0 && step != 0 && (op == '+' || op == '*' || op == ':')) {
         opts->rtest = 0;
         for( int b = start; (step > 0 ? b <= stop : b >= stop); ) {
           opts->rank[ opts->rtest++ ] = b;
@@ -913,11 +951,20 @@ extern "C" int parse_opts(int argc, char** argv, kblas_opts *opts)
       //opts->batchCount = atoi( argv[++i] );
       //kblas_assert( opts->batchCount > 0, "error: --batchCount %s is invalid; ensure batchCount > 0.\n", argv[i] );
     }
+    else if ( strcmp("--cuda",  argv[i]) == 0  ) { opts->cuda = 1;  }
+    else if ( strcmp("--magma",  argv[i]) == 0  ) { opts->magma = 1;  }
     else if ( strcmp("--strided",  argv[i]) == 0 || strcmp("-s",  argv[i]) == 0 ) { opts->strided = 1;  }
-    else if ( strcmp("--tolerance", argv[i]) == 0 && i+1 < argc ) {
-      opts->tolerance = atof( argv[++i] );
-      kblas_assert( opts->tolerance >= 0 && opts->tolerance <= 1000,
-       "error: --tolerance %s is invalid; ensure tolerance in [0,1000].\n", argv[i] );
+    else if ( (strcmp("--tolerance", argv[i]) == 0 || strcmp("--tol", argv[i]) == 0) && i+1 < argc ) {
+      int tol = atoi( argv[++i] );
+      if (tol != 0)
+        opts->tolerance = pow(10, tol);
+      else
+        opts->tolerance = 0;
+    }
+    else if ( strcmp("--svd",      argv[i]) == 0 && i+1 < argc ) {
+      opts->svd = atoi( argv[++i] );
+      kblas_assert( opts->svd >= SVD_Jacobi && opts->svd <= SVD_aca,
+       "error: --svd %s is invalid; ensure 0 <= svd <= 2.\n", argv[i] );
     }
     else if ( strcmp("--nb",      argv[i]) == 0 && i+1 < argc ) {
       opts->nb = atoi( argv[++i] );
@@ -928,6 +975,11 @@ extern "C" int parse_opts(int argc, char** argv, kblas_opts *opts)
       opts->db = atoi( argv[++i] );
       kblas_assert( opts->db > 0,
        "error: --db %s is invalid; ensure db > 0.\n", argv[i] );
+    }
+    else if ( (strcmp("--LR",      argv[i]) == 0  || strcmp("--lr",      argv[i]) == 0 )&& i+1 < argc ) {
+      opts->LR = char(argv[++i][0]);
+      kblas_assert( opts->LR == 't' || opts->LR == 'b',
+       "error: --LR %s is invalid; ensure LT = t|l.\n", argv[i] );
     }
     #ifdef KBLAS_ENABLE_BACKDOORS
     else if ( strcmp("--bd",      argv[i]) == 0 && i+1 < argc ) {
@@ -965,6 +1017,7 @@ extern "C" int parse_opts(int argc, char** argv, kblas_opts *opts)
     }
     // ----- boolean arguments
     // check results
+    else if ( strcmp("--var",      argv[i]) == 0 ) { opts->nonUniform  = 1; }
     else if ( strcmp("-c",         argv[i]) == 0 ) { opts->check  = 1; }
     else if ( strcmp("-t",         argv[i]) == 0 ) { opts->time  = 1; }
     else if ( strcmp("-l",         argv[i]) == 0 ) { opts->lapack  = 1; }

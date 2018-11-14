@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #include <stdlib.h>
@@ -29,7 +29,7 @@
 #include "operators.h"
 #include "defs.h"
 #include "kblas_common.h"
-#include "batch_common.ch"
+#include "workspace_queries.ch"
 
 //==============================================================================================
 #include "Xblas_core.ch"

@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #ifndef __XTRTRI_BATCH_DRIVERS_H__
@@ -28,7 +28,7 @@
 #define Aoff(_i,_j) A, A_row_off + (_i), A_col_off + (_j)
 
 //==============================================================================================
-template<class T, class T_PTR, bool STRIDED>
+template<class T, class T_PTR>
 int Xtrtri_trsm_rec(kblasHandle_t handle,
                     char uplo, char diag,
                     const int m,
@@ -49,55 +49,37 @@ int Xtrtri_trsm_rec(kblasHandle_t handle,
     m2 = m-m1;
   }
 
-  int status;
   if(uplo == KBLAS_Lower)
   {
     //TRSM_BATCH
-    if(STRIDED){
-      check_error_ret (status = Xtrsm_batch_offset( handle,
-                                                    KBLAS_Right, uplo, KBLAS_NoTrans, diag,
-                                                    m2, m1,
-                                                    mone, (const T*)Aoff( 0,  0), lda, strideA,
-                                                                (T*)Aoff(m1,  0), lda, strideA,
-                                                    batchCount), status);
-    }else{
-      check_error_ret (status = Xtrsm_batch_offset( handle,
-                                                    KBLAS_Right, uplo, KBLAS_NoTrans, diag,
-                                                    m2, m1,
-                                                    mone, (const T**)Aoff( 0,  0), lda,
-                                                                (T**)Aoff(m1,  0), lda,
-                                                    batchCount), status);
-    }
+    check_ret_error( Xtrsm_batch( handle,
+                                  KBLAS_Right, uplo, KBLAS_NoTrans, diag,
+                                  m2, m1,
+                                  mone, (T_PTR)Aoff( 0,  0), lda, strideA,
+                                        (T_PTR)Aoff(m1,  0), lda, strideA,
+                                  batchCount) );
 
     //TRSM_BATCH
-    if(STRIDED){
-      check_error_ret (status = Xtrsm_batch_offset( handle,
-                                                    KBLAS_Left, uplo, KBLAS_NoTrans, diag,
-                                                    m2, m1,
-                                                    one, (const T*)Aoff(m1, m1), lda, strideA,
-                                                               (T*)Aoff(m1,  0), lda, strideA,
-                                                    batchCount), status);
-    }else{
-      check_error_ret (status = Xtrsm_batch_offset( handle,
-                                                    KBLAS_Left, uplo, KBLAS_NoTrans, diag,
-                                                    m2, m1,
-                                                    one, (const T**)Aoff(m1, m1), lda,
-                                                               (T**)Aoff(m1,  0), lda,
-                                                    batchCount), status);
-    }
+    check_ret_error( Xtrsm_batch( handle,
+                                  KBLAS_Left, uplo, KBLAS_NoTrans, diag,
+                                  m2, m1,
+                                  one, (T_PTR)Aoff(m1, m1), lda, strideA,
+                                       (T_PTR)Aoff(m1,  0), lda, strideA,
+                                  batchCount) );
 
-    check_error_ret ((status = Xtrtri_trsm_rec<T, T_PTR, STRIDED>(
-                                              handle,
-                                              uplo, diag,
-                                              m1,
-                                              Aoff(0, 0), lda, strideA,
-                                              batchCount)), status);
-    check_error_ret ((status = Xtrtri_trsm_rec<T, T_PTR, STRIDED>(
-                                              handle,
-                                              uplo, diag,
-                                              m2,
-                                              Aoff(m1, m1), lda, strideA,
-                                              batchCount)), status);
+    check_ret_error( (Xtrtri_trsm_rec<T, T_PTR>(
+                                      handle,
+                                      uplo, diag,
+                                      m1,
+                                      Aoff(0, 0), lda, strideA,
+                                      batchCount)) );
+
+    check_ret_error( (Xtrtri_trsm_rec<T, T_PTR>(
+                                      handle,
+                                      uplo, diag,
+                                      m2,
+                                      Aoff(m1, m1), lda, strideA,
+                                      batchCount)) );
   }else{
     return KBLAS_NotImplemented;
   }
@@ -118,13 +100,12 @@ int Xtrtri_batch_core(kblasHandle_t handle,
   }
 
   if(n > 16){
-    int status;
-    check_error_ret((status = Xtrtri_trsm_rec<T, T_PTR, STRIDED>(
-                                              handle,
-                                              uplo, diag,
-                                              n,
-                                              (T_PTR)A, A_row_off, A_col_off, lda, strideA,
-                                              batchCount)), status);
+    check_ret_error( (Xtrtri_trsm_rec<T, T_PTR>(
+                                      handle,
+                                      uplo, diag,
+                                      n,
+                                      (T_PTR)A, A_row_off, A_col_off, lda, strideA,
+                                      batchCount)) );
   }
 
   if(1)

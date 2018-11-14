@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #include <stdio.h>
@@ -33,7 +33,7 @@
 #include "testing_prec_def.h"
 #include "flops.h"
 
-#include "batch_triangular/Xhelper_funcs.ch" // TODO: need Xset_pointer_2 from this
+#include "Xhelper_funcs.ch" // TODO: need Xset_pointer_2 from this
 #include "operators.h" // TODO: this has templates and C++ host/device functions (make_one and make_zero)
 
 
@@ -79,10 +79,20 @@ int test_Xposv_batch(kblas_opts& opts)
 
   //USING
   cudaError_t err;
+  #ifdef USE_MAGMA
+    if(opts.magma == 1){
+      magma_init();//TODO is this in the proper place?
+    }
+  #endif
 
   for(int g = 0; g < ngpu; g++){
     err = cudaSetDevice( opts.devices[g] );
     kblasCreate(&kblas_handle[g]);
+    #ifdef USE_MAGMA
+      if(opts.magma == 1){
+        kblasEnableMagma(kblas_handle[g]);
+      }
+    #endif
   }
 
   #ifdef USE_OPENMP
@@ -217,7 +227,6 @@ int test_Xposv_batch(kblas_opts& opts)
 
         for(int r = 0;  r < nruns; r++){
           for(int g = 0; g < ngpu; g++){
-            // kblas_handle[g]->use_magma = 0; // TODO: Off by default
             check_error( cudaSetDevice( opts.devices[g] ));
             check_cublas_error( cublasSetMatrixAsync( Am, An * batchCount_gpu, sizeof(T),
                                                      h_A + Am * An * batchCount_gpu * g, lda,
@@ -397,6 +406,11 @@ int test_Xposv_batch(kblas_opts& opts)
   for(int g = 0; g < ngpu; g++){
     kblasDestroy(&kblas_handle[g]);
   }
+  #ifdef USE_MAGMA
+    if(opts.magma == 1){
+      magma_finalize();//TODO is this in the proper place?
+    }
+  #endif
 }
 
 //==============================================================================================

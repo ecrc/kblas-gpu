@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #include <stdlib.h>
@@ -26,15 +26,12 @@
 #include "operators.h"
 #include <typeinfo>
 
-// #ifdef USE_MAGMA
-// #include "magma.h"
-// #endif
 
 #include "kblas_struct.h"
 #include "kblas_prec_def.h"
 
 #include "kblas_common.h"
-#include "batch_common.ch"
+#include "workspace_queries.ch"
 #include "Xhelper_funcs.ch"
 #include "Xgemm_batch_core.cuh"
 
@@ -61,18 +58,70 @@ int kblas_gemm_batch( kblasHandle_t handle,
                       const TYPE** B, int B_row_off, int B_col_off, int ldb,
                       const TYPE beta,
                             TYPE** C, int C_row_off, int C_col_off, int ldc,
-                      int batchCount){
-  return Xgemm_batch_core(handle,
-                          transA, transB,
-                          m, n, k,
-                          alpha,
-                          A, A_row_off, A_col_off, lda,
-                          B, B_row_off, B_col_off, ldb,
-                          beta,
-                          C, C_row_off, C_col_off, ldc,
-                          batchCount);
+                      int batchCount)
+{
+  return Xgemm_batch_uniform_core(handle,
+                                  transA, transB,
+                                  m, n, k,
+                                  alpha,
+                                  A, A_row_off, A_col_off, lda,
+                                  B, B_row_off, B_col_off, ldb,
+                                  beta,
+                                  C, C_row_off, C_col_off, ldc,
+                                  batchCount);
+}
+//--------------------------------------------
+int Xgemm_batch(kblasHandle_t handle,
+                char transA, char transB,
+                int m, int n, int k,
+                TYPE alpha,
+                TYPE** A, int A_row_off, int A_col_off, int lda, long strideA,
+                TYPE** B, int B_row_off, int B_col_off, int ldb, long strideB,
+                TYPE beta,
+                TYPE** C, int C_row_off, int C_col_off, int ldc, long strideC,
+                int batchCount)
+{
+  (void)strideA;
+  (void)strideB;
+  (void)strideC;
+  return Xgemm_batch_uniform_core(handle,
+                                  transA, transB,
+                                  m, n, k,
+                                  alpha,
+                                  (const TYPE**)A, A_row_off, A_col_off, lda,
+                                  (const TYPE**)B, B_row_off, B_col_off, ldb,
+                                  beta,
+                                        (TYPE**)C, C_row_off, C_col_off, ldc,
+                                  batchCount);
 }
 
+//--------------------------------------------
+// Workspace needed: none
+int Xgemm_batch(kblasHandle_t handle,
+                char transA, char transB,
+                int m, int n, int k,
+                TYPE alpha,
+                TYPE** A_array, int lda, long strideA,
+                TYPE** B_array, int ldb, long strideB,
+                TYPE beta,
+                TYPE** C_array, int ldc, long strideC,
+                int batchCount)
+{
+  (void)strideA;
+  (void)strideB;
+  (void)strideC;
+  return Xgemm_batch_uniform_core(handle,
+                                  transA, transB,
+                                  m, n, k,
+                                  alpha,
+                                  (const TYPE**)A_array, 0, 0, lda,
+                                  (const TYPE**)B_array, 0, 0, ldb,
+                                  beta,
+                                        (TYPE**)C_array, 0, 0, ldc,
+                                  batchCount);
+}
+
+//--------------------------------------------
 // Workspace needed: none
 int kblas_gemm_batch( kblasHandle_t handle,
                       char transA, char transB,
@@ -82,18 +131,20 @@ int kblas_gemm_batch( kblasHandle_t handle,
                       const TYPE** B_array, int ldb,
                       const TYPE beta,
                             TYPE** C_array, int ldc,
-                      int batchCount){
-  return Xgemm_batch_core(handle,
-                          transA, transB,
-                          m, n, k,
-                          alpha,
-                          A_array, 0, 0, lda,
-                          B_array, 0, 0, ldb,
-                          beta,
-                          C_array, 0, 0, ldc,
-                          batchCount);
+                      int batchCount)
+{
+  return Xgemm_batch_uniform_core(handle,
+                                  transA, transB,
+                                  m, n, k,
+                                  alpha,
+                                  A_array, 0, 0, lda,
+                                  B_array, 0, 0, ldb,
+                                  beta,
+                                  C_array, 0, 0, ldc,
+                                  batchCount);
 }
 
+//--------------------------------------------
 // Workspace needed: none
 extern "C"
 int kblasXgemm_batch( kblasHandle_t handle,
@@ -104,18 +155,113 @@ int kblasXgemm_batch( kblasHandle_t handle,
                       const TYPE** B, int ldb,
                       const TYPE beta,
                             TYPE** C, int ldc,
-                      int batchCount){
-  return Xgemm_batch_core(handle,
-                          transA, transB,
-                          m, n, k,
-                          alpha,
-                          A, 0, 0, lda,
-                          B, 0, 0, ldb,
-                          beta,
-                          C, 0, 0, ldc,
-                          batchCount);
+                      int batchCount)
+{
+  return Xgemm_batch_uniform_core(handle,
+                                  transA, transB,
+                                  m, n, k,
+                                  alpha,
+                                  A, 0, 0, lda,
+                                  B, 0, 0, ldb,
+                                  beta,
+                                  C, 0, 0, ldc,
+                                  batchCount);
 }
 
+//--------------------------------------------
+int Xgemm_batch(kblasHandle_t handle,
+                char transA, char transB,
+                int* m, int* n, int* k,
+                int max_m, int max_n, int max_k,
+                const TYPE alpha,
+                const TYPE** A, int A_row_off, int A_col_off, int* lda,
+                const TYPE** B, int B_row_off, int B_col_off, int* ldb,
+                const TYPE beta,
+                      TYPE** C, int C_row_off, int C_col_off, int* ldc,
+                int batchCount )
+{
+  return Xgemm_batch_nonuniform_core<TYPE>(
+                                    handle,
+                                    transA, transB,
+                                    m, n, k,
+                                    alpha,
+                                    A, A_row_off, A_col_off, lda,
+                                    B, B_row_off, B_col_off, ldb,
+                                    beta,
+                                    C, C_row_off, C_col_off, ldc,
+                                    max_m, max_n, max_k,
+                                    batchCount );
+}
+
+//--------------------------------------------
+int kblas_gemm_batch( kblasHandle_t handle,
+                      char transA, char transB,
+                      int* m, int* n, int* k,
+                      int max_m, int max_n, int max_k,
+                      const TYPE alpha,
+                      const TYPE** A, int* lda,
+                      const TYPE** B, int* ldb,
+                      const TYPE beta,
+                            TYPE** C, int* ldc,
+                      int batchCount )
+{
+  return Xgemm_batch( handle,
+                      transA, transB,
+                      m, n, k,
+                      max_m, max_n, max_k,
+                      alpha,
+                      A, 0, 0, lda,
+                      B, 0, 0, ldb,
+                      beta,
+                      C, 0, 0, ldc,
+                      batchCount );
+}
+
+// //--------------------------------------------
+// int kblas_gemm_batch( kblasHandle_t handle,
+//                       char transA, char transB,
+//                       int* m, int* n, int* k,
+//                       const TYPE alpha,
+//                       const TYPE** A, int A_row_off, int A_col_off, int* lda,
+//                       const TYPE** B, int B_row_off, int B_col_off, int* ldb,
+//                       const TYPE beta,
+//                             TYPE** C, int C_row_off, int C_col_off, int* ldc,
+//                       int batchCount )
+// {
+//   return Xgemm_batch_nonuniform_core<TYPE>(
+//                                     handle,
+//                                     transA, transB,
+//                                     m, n, k,
+//                                     alpha,
+//                                     A, A_row_off, A_col_off, lda,
+//                                     B, B_row_off, B_col_off, ldb,
+//                                     beta,
+//                                     C, C_row_off, C_col_off, ldc,
+//                                     batchCount );
+// }
+
+//--------------------------------------------
+int kblas_gemm_batch( kblasHandle_t handle,
+                      char transA, char transB,
+                      int* m, int* n, int* k,
+                      const TYPE alpha,
+                      const TYPE** A, int* lda,
+                      const TYPE** B, int* ldb,
+                      const TYPE beta,
+                            TYPE** C, int* ldc,
+                      int batchCount )
+{
+  return Xgemm_batch( handle,
+                      transA, transB,
+                      m, n, k,
+                      0, 0, 0,
+                      alpha,
+                      A, 0, 0, lda,
+                      B, 0, 0, ldb,
+                      beta,
+                      C, 0, 0, ldc,
+                      batchCount );
+}
 //==============================================================================================
 //Strided form
 
@@ -128,6 +274,27 @@ int kblasXgemm_batch( kblasHandle_t handle,
  * Workspace needed= ( __CUDACC_VER_MAJOR__ < 8 ) ? device pointers : none
  * A, B, C: host pointers to device buffers
  */
+int Xgemm_batch(kblasHandle_t handle,
+                char transA, char transB,
+                int m, int n, int k,
+                TYPE alpha,
+                TYPE* A, int lda, long strideA,
+                TYPE* B, int ldb, long strideB,
+                TYPE beta,
+                TYPE* C, int ldc, long strideC,
+                int batchCount)
+{
+  return Xgemm_batch_uniform_core(handle,
+                                  transA, transB,
+                                  m, n, k,
+                                  alpha,
+                                  (const TYPE*)A, 0, 0, lda, strideA,
+                                  (const TYPE*)B, 0, 0, ldb, strideB,
+                                  beta,
+                                        (TYPE*)C, 0, 0, ldc, strideC,
+                                  batchCount);
+}
+//--------------------------------------------
 int kblas_gemm_batch( kblasHandle_t handle,
                       char transA, char transB,
                       const int m, const int n, const int k,
@@ -136,18 +303,42 @@ int kblas_gemm_batch( kblasHandle_t handle,
                       const TYPE* B, int ldb, long strideB,
                       const TYPE beta,
                             TYPE* C, int ldc, long strideC,
-                      int batchCount){
-  return Xgemm_batch_core(handle,
-                          transA, transB,
-                          m, n, k,
-                          alpha,
-                          A, lda, strideA,
-                          B, ldb, strideB,
-                          beta,
-                          C, ldc, strideC,
-                          batchCount);
+                      int batchCount)
+{
+  return Xgemm_batch_uniform_core(handle,
+                                  transA, transB,
+                                  m, n, k,
+                                  alpha,
+                                  A, 0, 0, lda, strideA,
+                                  B, 0, 0, ldb, strideB,
+                                  beta,
+                                  C, 0, 0, ldc, strideC,
+                                  batchCount);
 }
 
+//--------------------------------------------
+int Xgemm_batch(kblasHandle_t handle,
+                char transA, char transB,
+                int m, int n, int k,
+                TYPE alpha,
+                TYPE* A, int A_row_off, int A_col_off, int lda, long strideA,
+                TYPE* B, int B_row_off, int B_col_off, int ldb, long strideB,
+                TYPE beta,
+                TYPE* C, int C_row_off, int C_col_off, int ldc, long strideC,
+                int batchCount)
+{
+  return Xgemm_batch_uniform_core(handle,
+                                  transA, transB,
+                                  m, n, k,
+                                  alpha,
+                                  A, A_row_off, A_col_off, lda, strideA,
+                                  B, B_row_off, B_col_off, ldb, strideB,
+                                  beta,
+                                  C, C_row_off, C_col_off, ldc, strideC,
+                                  batchCount);
+}
+
+//--------------------------------------------
 // A, B, C: host pointers to device buffers
 extern "C"
 int kblasXgemm_batch_strided( kblasHandle_t handle,
@@ -158,14 +349,15 @@ int kblasXgemm_batch_strided( kblasHandle_t handle,
                               const TYPE* B, int ldb, long strideB,
                               const TYPE beta,
                                     TYPE* C, int ldc, long strideC,
-                              int batchCount){
-  return Xgemm_batch_core(handle,
-                          transA, transB,
-                          m, n, k,
-                          alpha,
-                          A, lda, strideA,
-                          B, ldb, strideB,
-                          beta,
-                          C, ldc, strideC,
-                          batchCount);
+                              int batchCount)
+{
+  return Xgemm_batch_uniform_core(handle,
+                                  transA, transB,
+                                  m, n, k,
+                                  alpha,
+                                  A, 0, 0, lda, strideA,
+                                  B, 0, 0, ldb, strideB,
+                                  beta,
+                                  C, 0, 0, ldc, strideC,
+                                  batchCount);
 }

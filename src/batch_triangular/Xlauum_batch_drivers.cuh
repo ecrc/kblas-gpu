@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #ifndef __XLAUUM_BATCH_DRIVERS_H__
@@ -98,59 +98,55 @@ int Xlauum_batch_core(kblasHandle_t handle,
       n2 = n-n1;
     }
 
-    int status;
+    // int status;
     T one = make_one<T>();
     T mone = make_zero<T>() - one;
 
     //LAUUM_BATCH
-    check_error_ret((status = Xlauum_batch_core<T, T_PTR, STRIDED>(
-                                                handle,
-                                                uplo, n1,
-                                                Aoff(0, 0), lda, strideA,
-                                                batchCount,
-                                                info_array)), status);
-
+    check_ret_error(( Xlauum_batch_core<T, T_PTR, STRIDED>(
+                                        handle,
+                                        uplo, n1,
+                                        Aoff(0, 0), lda, strideA,
+                                        batchCount,
+                                        info_array)) );
     //SYRK_BATCH
-    if(STRIDED){
-      check_error_ret (status = kblas_syrk_batch( handle,
-                                                  uplo, KBLAS_Trans,
-                                                  n1, n2,
-                                                  one, (const T*)offA(n1, 0), lda, strideA,
-                                                  one,       (T*)offA( 0, 0), lda, strideA,
-                                                  batchCount), status);
-    }else{
-      check_error_ret (status = Xsyrk_batch_offset( handle,
-                                                    uplo, KBLAS_Trans,
-                                                    n1, n2,
-                                                    one, (const T**)Aoff(n1, 0), lda,
-                                                    one,       (T**)Aoff( 0, 0), lda,
-                                                    batchCount), status);
-    }
-
+    check_ret_error( Xsyrk_batch( handle,
+                                  uplo, KBLAS_Trans,
+                                  n1, n2,
+                                  one, (T_PTR)Aoff(n1, 0), lda, strideA,
+                                  one, (T_PTR)Aoff( 0, 0), lda, strideA,
+                                  batchCount) );
     //TRMM_BATCH
-    if(STRIDED){
-      check_error_ret (status = Xtrmm_batch_offset( handle,
-                                                    KBLAS_Left, uplo, KBLAS_Trans, KBLAS_NonUnit,
-                                                    n2, n1,
-                                                    one, (const T*)Aoff(n1, n1), lda, strideA,
-                                                               (T*)Aoff(n1,  0), lda, strideA,
-                                                    batchCount), status);
-    }else{
-      check_error_ret (status = Xtrmm_batch_offset( handle,
-                                                    KBLAS_Left, uplo, KBLAS_Trans, KBLAS_NonUnit,
-                                                    n2, n1,
-                                                    one, (const T**)Aoff(n1, n1), lda,
-                                                               (T**)Aoff(n1,  0), lda,
-                                                    batchCount), status);
-    }
+    check_ret_error( Xtrmm_batch( handle,
+                                  KBLAS_Left, uplo, KBLAS_Trans, KBLAS_NonUnit,
+                                  n2, n1,
+                                  one, (T_PTR)Aoff(n1, n1), lda, strideA,
+                                       (T_PTR)Aoff(n1,  0), lda, strideA,
+                                  batchCount) );
+    // //TRMM_BATCH
+    // if(STRIDED){
+    //   check_error_ret (status = Xtrmm_batch_offset( handle,
+    //                                                 KBLAS_Left, uplo, KBLAS_Trans, KBLAS_NonUnit,
+    //                                                 n2, n1,
+    //                                                 one, (const T*)Aoff(n1, n1), lda, strideA,
+    //                                                            (T*)Aoff(n1,  0), lda, strideA,
+    //                                                 batchCount), status);
+    // }else{
+    //   check_error_ret (status = Xtrmm_batch_offset( handle,
+    //                                                 KBLAS_Left, uplo, KBLAS_Trans, KBLAS_NonUnit,
+    //                                                 n2, n1,
+    //                                                 one, (const T**)Aoff(n1, n1), lda,
+    //                                                            (T**)Aoff(n1,  0), lda,
+    //                                                 batchCount), status);
+    // }
 
     //LAUUM_BATCH
-    check_error_ret((status = Xlauum_batch_core<T, T_PTR, STRIDED>(
-                                                handle,
-                                                uplo, n2,
-                                                Aoff(n1, n1), lda, strideA,
-                                                batchCount,
-                                                info_array)), status);
+    check_ret_error(( Xlauum_batch_core<T, T_PTR, STRIDED>(
+                                        handle,
+                                        uplo, n2,
+                                        Aoff(n1, n1), lda, strideA,
+                                        batchCount,
+                                        info_array)) );
 
   }
   return KBLAS_Success;

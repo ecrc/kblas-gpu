@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #ifndef __XSYRK_BATCH_DRIVERS_H__
@@ -103,7 +103,7 @@ int Xsyrk_gemm_rec_flat_strided(kblasHandle_t handle,
       //issue one batch call
       kblas_gemm_batch( handle,
                         transA, transB,
-                        m - mm*b, nn, kk,
+                        m - (row+2*b*row), nn, kk,
                         alpha, (const T**)A_work, lda,
                                (const T**)B_work, lda,
                         beta,             C_work, ldb,
@@ -122,12 +122,12 @@ int Xsyrk_gemm_rec_flat_strided(kblasHandle_t handle,
 // batch strided SYRK core routine
 // workspace needed: device pointers
 // A, B: host pointer to device buffers
-template<class T>
+template<typename T, typename T_PTR>
 int Xsyrk_batch_strided_core( kblasHandle_t handle,
                               char uplo, char trans,
                               const int m, const int n,
-                              const T alpha, const T* A, int lda, long strideA,
-                              const T beta,        T* B, int ldb, long strideB,
+                              const T alpha, const T_PTR A, int lda, long strideA,
+                              const T beta,        T_PTR B, int ldb, long strideB,
                               int batchCount)
 {
   if( uplo == KBLAS_Upper ){
@@ -171,30 +171,30 @@ int Xsyrk_batch_strided_core( kblasHandle_t handle,
   int func_idx = 0;
   int dim_idx = 0;
 
-  typedef void (*syrk_kernels_type)( const int m, const int n, int batchCount,
-                                     const T alpha, const T* __restrict__ A_array, int lda, long strideA,
-                                     const T beta, T* B_array, int ldb, long strideB);
+  typedef void (*syrk_kernels_type)(const int m, const int n, int batchCount,
+                                    const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
+                                    const T beta,        T_PTR              B_array, int B_row_off, int B_col_off, int ldb, long strideB);
 
   syrk_kernels_type syrk_kernels[] = {
-    kernel_syrk_US_LN_registers_Mfix_Nmul   <T, 8, A_COLS_PTY>,
-    kernel_syrk_US_LN_registers_Mfix_Nvar   <T, 8, A_COLS_PTY>,
-    kernel_syrk_US_LN_registers_MNvar       <T, 8, A_COLS_PTY>,
-    kernel_syrk_US_LN_registers_MNvar       <T, 8, A_COLS_PTY>,
-    kernel_syrk_US_LN_registers_Mblock2_Nmul<T, 8, A_COLS_PTY>,
-    kernel_syrk_US_LN_registers_Mblock2_Nvar<T, 8, A_COLS_PTY>,
-    kernel_syrk_US_LN_registers_NMblock2var <T, 8, A_COLS_PTY>,
-    kernel_syrk_US_LN_registers_NMblock2var <T, 8, A_COLS_PTY>,
-    kernel_syrk_US_LT_reg_shared_Mfix_Nmul   <T, 8, A_COLS_PTY>,
-    kernel_syrk_US_LT_reg_shared_Mfix_Nvar   <T, 8, A_COLS_PTY>,
-    kernel_syrk_US_LT_reg_shared_MNvar       <T, 8, A_COLS_PTY>,
-    kernel_syrk_US_LT_reg_shared_MNvar       <T, 8, A_COLS_PTY>,
-    kernel_syrk_US_LT_reg_shared_Mblock2_Nmul<T, 8, A_COLS_PTY>,
-    kernel_syrk_US_LT_reg_shared_Mblock2_Nvar<T, 8, A_COLS_PTY>,
-    kernel_syrk_US_LT_reg_shared_NMblock2var <T, 8, A_COLS_PTY>,
-    kernel_syrk_US_LT_reg_shared_NMblock2var <T, 8, A_COLS_PTY>,
-    kernel_syrk_US_LN_registers_Mfix_Nvar_DB <T, 8, 4>,
-    //kernel_syrk_LN_registers_Mblock2_Nvar<T, 8, 4>,
-    kernel_syrk_US_LN_registers_Mblock2_Nvar_DB<T, 8, 4>
+    kernel_syrk_U_LN_registers_Mfix_Nmul    <T, T_PTR, true, 8, A_COLS_PTY>,
+    kernel_syrk_U_LN_registers_Mfix_Nvar    <T, T_PTR, true, 8, A_COLS_PTY>,
+    kernel_syrk_U_LN_registers_MNvar        <T, T_PTR, true, 8, A_COLS_PTY>,
+    kernel_syrk_U_LN_registers_MNvar        <T, T_PTR, true, 8, A_COLS_PTY>,
+    kernel_syrk_U_LN_registers_Mblock2_Nmul <T, T_PTR, true, 8, A_COLS_PTY>,
+    kernel_syrk_U_LN_registers_Mblock2_Nvar <T, T_PTR, true, 8, A_COLS_PTY>,
+    kernel_syrk_U_LN_registers_NMblock2var  <T, T_PTR, true, 8, A_COLS_PTY>,
+    kernel_syrk_U_LN_registers_NMblock2var  <T, T_PTR, true, 8, A_COLS_PTY>,
+    kernel_syrk_U_LT_reg_shared_Mfix_Nmul   <T, T_PTR, true, 8, A_COLS_PTY>,
+    kernel_syrk_U_LT_reg_shared_Mfix_Nvar   <T, T_PTR, true, 8, A_COLS_PTY>,
+    kernel_syrk_U_LT_reg_shared_MNvar       <T, T_PTR, true, 8, A_COLS_PTY>,
+    kernel_syrk_U_LT_reg_shared_MNvar       <T, T_PTR, true, 8, A_COLS_PTY>,
+    kernel_syrk_U_LT_reg_shared_Mblock2_Nmul<T, T_PTR, true, 8, A_COLS_PTY>,
+    kernel_syrk_U_LT_reg_shared_Mblock2_Nvar<T, T_PTR, true, 8, A_COLS_PTY>,
+    kernel_syrk_U_LT_reg_shared_NMblock2var <T, T_PTR, true, 8, A_COLS_PTY>,
+    kernel_syrk_U_LT_reg_shared_NMblock2var <T, T_PTR, true, 8, A_COLS_PTY>,
+    kernel_syrk_U_LN_registers_Mfix_Nvar_DB <T, T_PTR, true, 8, 4>,
+    //kernel_syrk_LN_registers_Mblock2_Nvar<T, T_PTR, true, 8, 4>,
+    kernel_syrk_U_LN_registers_Mblock2_Nvar_DB<T, T_PTR, true, 8, 4>
   };
 
   // determine which kernel to launch
@@ -218,7 +218,9 @@ int Xsyrk_batch_strided_core( kblasHandle_t handle,
 
   //invoke the syrk kernel on diagonal blocks
   syrk_kernels[func_idx]<<< gridDim, blockDim, syrk_kernels_sharedMem[func_idx], handle->stream>>>
-                        (m, n, batchCount, alpha, A, lda, strideA, beta, B, ldb, strideB);
+                         (m, n, batchCount,
+                          alpha, A, 0, 0, lda, strideA,
+                          beta,  B, 0, 0, ldb, strideB);
 
   check_error_ret( cudaGetLastError(), KBLAS_UnknownError);
 
@@ -229,14 +231,14 @@ int Xsyrk_batch_strided_core( kblasHandle_t handle,
 // invoke gemm kernel on off diagonal blocks
 // workspace needed: device pointers
 // A, B: host pointer to array of device pointers to device buffers
-template<class T>
+template<class T, class T_PTR>
 int Xsyrk_gemm_rec_flat(kblasHandle_t handle,
                         char uplo, char trans,
                         const int m, const int n,
                         const T alpha,
-                        const T** A, int A_row_off, int A_col_off, int lda,
+                        const T_PTR A, int A_row_off, int A_col_off, int lda,
                         const T beta,
-                              T** B, int B_row_off, int B_col_off, int ldb,
+                              T_PTR B, int B_row_off, int B_col_off, int ldb,
                         int batchCount)
 {
   //these gemm calls can run in parallel, through streams or merged batch call
@@ -307,7 +309,7 @@ int Xsyrk_gemm_rec_flat(kblasHandle_t handle,
       //issue one batch call
       kblas_gemm_batch( handle,
                         transA, transB,
-                        m - mm*b, nn, kk,
+                        m - (row+2*b*row), nn, kk,
                         alpha, (const T**)A_work, lda,
                                (const T**)B_work, lda,
                         beta,             C_work, ldb,
@@ -324,12 +326,12 @@ int Xsyrk_gemm_rec_flat(kblasHandle_t handle,
 // batch SYRK core routine
 // workspace needed: device pointers
 // A, B: host pointer to array of device pointers to device buffers
-template<class T>
+template<typename T, typename T_PTR>
 int Xsyrk_batch_core( kblasHandle_t handle,
                       char uplo, char trans,
                       const int m, const int n,
-                      const T alpha, const T** A, int A_row_off, int A_col_off, int lda,
-                      const T beta,        T** B, int B_row_off, int B_col_off, int ldb,
+                      const T alpha,  T_PTR A, int A_row_off, int A_col_off, int lda,
+                      const T beta,   T_PTR B, int B_row_off, int B_col_off, int ldb,
                       int batchCount)
 {
   //printf("Xsyrk_batch_strided_core\n");
@@ -353,8 +355,8 @@ int Xsyrk_batch_core( kblasHandle_t handle,
     check_error_ret( status = Xsyrk_gemm_rec_flat( handle,
                                                    uplo, trans,
                                                    m, n,
-                                                   alpha, A, A_row_off, A_col_off, lda,
-                                                   beta,  B, B_row_off, B_col_off, ldb,
+                                                   alpha, (T_PTR)A, A_row_off, A_col_off, lda,
+                                                   beta,  (T_PTR)B, B_row_off, B_col_off, ldb,
                                                    batchCount), status);
   }
 
@@ -374,30 +376,30 @@ int Xsyrk_batch_core( kblasHandle_t handle,
   int dim_idx = 0;
 
 
-  typedef void (*syrk_kernels_type)( const int m, const int n, int batchCount,
-                                     const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
-                                     const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb);
+  typedef void (*syrk_kernels_type)(const int m, const int n, int batchCount,
+                                    const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
+                                    const T beta,        T_PTR              B_array, int B_row_off, int B_col_off, int ldb, long strideB);
 
   syrk_kernels_type syrk_kernels[] = {
-    kernel_syrk_UN_LN_registers_Mfix_Nmul   <T, 8, A_COLS_PTY>,
-    kernel_syrk_UN_LN_registers_Mfix_Nvar   <T, 8, A_COLS_PTY>,
-    kernel_syrk_UN_LN_registers_MNvar       <T, 8, A_COLS_PTY>,
-    kernel_syrk_UN_LN_registers_MNvar       <T, 8, A_COLS_PTY>,
-    kernel_syrk_UN_LN_registers_Mblock2_Nmul<T, 8, A_COLS_PTY>,
-    kernel_syrk_UN_LN_registers_Mblock2_Nvar<T, 8, A_COLS_PTY>,
-    kernel_syrk_UN_LN_registers_NMblock2var <T, 8, A_COLS_PTY>,
-    kernel_syrk_UN_LN_registers_NMblock2var <T, 8, A_COLS_PTY>,
-    kernel_syrk_UN_LT_reg_shared_Mfix_Nmul   <T, 8, A_COLS_PTY>,
-    kernel_syrk_UN_LT_reg_shared_Mfix_Nvar   <T, 8, A_COLS_PTY>,
-    kernel_syrk_UN_LT_reg_shared_MNvar       <T, 8, A_COLS_PTY>,
-    kernel_syrk_UN_LT_reg_shared_MNvar       <T, 8, A_COLS_PTY>,
-    kernel_syrk_UN_LT_reg_shared_Mblock2_Nmul<T, 8, A_COLS_PTY>,
-    kernel_syrk_UN_LT_reg_shared_Mblock2_Nvar<T, 8, A_COLS_PTY>,
-    kernel_syrk_UN_LT_reg_shared_NMblock2var <T, 8, A_COLS_PTY>,
-    kernel_syrk_UN_LT_reg_shared_NMblock2var <T, 8, A_COLS_PTY>,
-    kernel_syrk_UN_LN_registers_Mfix_Nvar_DB <T, 8, 4>,
-    //kernel_syrk_LN_registers_Mblock2_Nvar<T, 8, 4>,
-    kernel_syrk_UN_LN_registers_Mblock2_Nvar_DB<T, 8, 4>
+    kernel_syrk_U_LN_registers_Mfix_Nmul    <T, T_PTR, false, 8, A_COLS_PTY>,
+    kernel_syrk_U_LN_registers_Mfix_Nvar    <T, T_PTR, false, 8, A_COLS_PTY>,
+    kernel_syrk_U_LN_registers_MNvar        <T, T_PTR, false, 8, A_COLS_PTY>,
+    kernel_syrk_U_LN_registers_MNvar        <T, T_PTR, false, 8, A_COLS_PTY>,
+    kernel_syrk_U_LN_registers_Mblock2_Nmul <T, T_PTR, false, 8, A_COLS_PTY>,
+    kernel_syrk_U_LN_registers_Mblock2_Nvar <T, T_PTR, false, 8, A_COLS_PTY>,
+    kernel_syrk_U_LN_registers_NMblock2var  <T, T_PTR, false, 8, A_COLS_PTY>,
+    kernel_syrk_U_LN_registers_NMblock2var  <T, T_PTR, false, 8, A_COLS_PTY>,
+    kernel_syrk_U_LT_reg_shared_Mfix_Nmul   <T, T_PTR, false, 8, A_COLS_PTY>,
+    kernel_syrk_U_LT_reg_shared_Mfix_Nvar   <T, T_PTR, false, 8, A_COLS_PTY>,
+    kernel_syrk_U_LT_reg_shared_MNvar       <T, T_PTR, false, 8, A_COLS_PTY>,
+    kernel_syrk_U_LT_reg_shared_MNvar       <T, T_PTR, false, 8, A_COLS_PTY>,
+    kernel_syrk_U_LT_reg_shared_Mblock2_Nmul<T, T_PTR, false, 8, A_COLS_PTY>,
+    kernel_syrk_U_LT_reg_shared_Mblock2_Nvar<T, T_PTR, false, 8, A_COLS_PTY>,
+    kernel_syrk_U_LT_reg_shared_NMblock2var <T, T_PTR, false, 8, A_COLS_PTY>,
+    kernel_syrk_U_LT_reg_shared_NMblock2var <T, T_PTR, false, 8, A_COLS_PTY>,
+    kernel_syrk_U_LN_registers_Mfix_Nvar_DB <T, T_PTR, false, 8, 4>,
+    //kernel_syrk_LN_registers_Mblock2_Nvar<T, T_PTR, false, 8, 4>,
+    kernel_syrk_U_LN_registers_Mblock2_Nvar_DB<T, T_PTR, false, 8, 4>
   };
 
   // determine which kernel to launch
@@ -422,10 +424,87 @@ int Xsyrk_batch_core( kblasHandle_t handle,
   //invoke the syrk kernel on diagonal blocks
   syrk_kernels[func_idx]<<< gridDim, blockDim, syrk_kernels_sharedMem[func_idx], handle->stream>>>
                        (m, n, batchCount,
-                        alpha, A, A_row_off, A_col_off, lda,
-                        beta,  B, B_row_off, B_col_off, ldb);
+                        alpha, A, A_row_off, A_col_off, lda, 0,
+                        beta,  B, B_row_off, B_col_off, ldb, 0);
 
   check_error_ret( cudaGetLastError(), KBLAS_UnknownError);
+
+  return KBLAS_Success;
+}
+
+//==============================================================================================
+template<class T>
+int Xsyrk_batch_nonuniform_core(kblasHandle_t handle,
+                                char uplo, char trans,
+                                int *m, int *n,
+                                T alpha, T** A, int *lda,
+                                T beta,  T** B, int *ldb,
+                                int max_m, int max_n,
+                                int batchCount)
+{
+  if(handle->use_magma){
+  #ifdef USE_MAGMA
+
+    //TODO: it might be better to look up the maximum per 65k chunck, except that synchromizations will be forced
+    // if(batchCount > 65535) return KBLAS_Error_WrongInput;
+    KBlasWorkspaceState ws_needed;
+    syrk_batch_nonuniform_wsquery_core((kblasWorkspaceState_t)&ws_needed);
+
+    if( !ws_needed.isSufficient( &(handle->work_space.allocated_ws_state) ) ){
+      return KBLAS_InsufficientWorkspace;
+    }
+
+    int h_max_mn[2];
+    kblasWorkspace_t ws_current = &(handle->work_space);
+    int* d_max_mn = (int*)(ws_current->d_data);
+
+    //take care of batch size limitation with magma
+    int batch_increment = 65535;
+    int batch_start = 0;
+    if(max_m > 0 || max_n > 0){
+      h_max_mn[0] = max_m;
+      h_max_mn[1] = max_n;
+    }
+
+    while(batch_start != batchCount)
+    {
+      int batch_size = kmin(batch_increment, batchCount - batch_start);
+
+      if((batchCount > batch_increment) || (max_m <= 0 && max_n <= 0)){
+        // compute the max. dimensions
+        kblas_imax_size_2(handle, m, n, *d_max_mn, *(d_max_mn+1), batch_size);
+        check_error_ret( cublasGetVectorAsync( 2, sizeof(int), d_max_mn, 1, h_max_mn, 1, handle->stream ), KBLAS_cuBLAS_Error);
+        check_error_ret( cudaStreamSynchronize(handle->stream), KBLAS_CUDA_Error );
+      }
+      magmablas_Xsyrk_vbatched_max_nocheck(
+                  (magma_uplo_t)(uplo == KBLAS_Lower ? MagmaLower : MagmaUpper),
+                  (magma_trans_t)(trans == KBLAS_Trans ? MagmaTrans : MagmaNoTrans),
+                  m, n,
+                  alpha, A, lda,
+                  beta,  B, ldb,
+                  batch_size,
+                  h_max_mn[0], h_max_mn[1], handle->magma_queue);
+
+      A += batch_size;
+      B += batch_size;
+      m += batch_size;
+      n += batch_size;
+      lda += batch_size;
+      ldb += batch_size;
+
+      batch_start += batch_size;
+      check_error_ret( cudaGetLastError(), KBLAS_MAGMA_Error);
+    }
+  #else
+    printf("Configuration error at %s in file %s at line %d, MAGMA required but KBLAS not compiled with it!\n", __func__, __FILE__, __LINE__ );
+    return KBLAS_WrongConfig;
+  #endif
+  }
+  else
+  if(!handle->use_magma){
+    printf("Configuration error at %s in file %s at line %d, MAGMA required but not enabled!\n", __func__, __FILE__, __LINE__ );
+    return KBLAS_WrongConfig;
+  }
 
   return KBLAS_Success;
 }

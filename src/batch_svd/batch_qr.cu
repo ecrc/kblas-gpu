@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Wajih Halim Boukaram
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #include <stdio.h>
@@ -808,8 +808,8 @@ extern "C" int kblasDgeqrf_batch_strided(kblasHandle_t handle, int m, int n, dou
 {
 	if(m > QR_Config<double>::HH_MAX_ROWS || lda < m)
 		return KBLAS_Error_WrongInput;
-	else if(stride_a < lda * n || stride_tau < n)
-		return KBLAS_Error_WrongInput;
+	// else if(stride_a < lda * n || stride_tau < n)
+	// 	return KBLAS_Error_WrongInput;
 	
 	return batch_qr<double, double*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops, m);
 }
@@ -848,8 +848,8 @@ extern "C" int kblasDorgqr_batch_strided(kblasHandle_t handle, int m, int n, dou
 {
 	if(m > QR_Config<double>::HH_MAX_ROWS || lda < m)
 		return KBLAS_Error_WrongInput;
-	else if(stride_a < lda * n || stride_tau < n)
-		return KBLAS_Error_WrongInput;
+	// else if(stride_a < lda * n || stride_tau < n)
+	// 	return KBLAS_Error_WrongInput;
 	
 	return batch_unpack_Q<double, double*>(handle, A_strided, lda, stride_a, tau, stride_tau, m, n, num_ops);
 }

@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ahmad Abdelfattah
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #include <stdio.h>
@@ -24,7 +24,7 @@
 #include "gemv_mgpu_offset_core.cuh"
 #include "defs.h"
 
-#if(SM >= 30)
+#if(TARGET_SM >= 30)
 
 #define sgemvn_mgpu_bs		(64)
 #define sgemvn_mgpu_ty		(4)

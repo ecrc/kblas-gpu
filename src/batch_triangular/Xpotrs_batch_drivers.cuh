@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #ifndef __XPOTRS_BATCH_DRIVERS_H__
@@ -92,22 +92,12 @@ int Xpotrs_batch_core(kblasHandle_t handle,
     }
 
     //TRSM_BATCH
-    if(STRIDED){
-      check_error_ret (status = Xtrsm_batch_offset( handle,
-                                                    side, uplo, KBLAS_Trans, KBLAS_NonUnit,
-                                                    m, n1,
-                                                    one, (const T*)Aoff(0, 0), lda, strideA,
-                                                               (T*)Boff(0, 0), ldb, strideB,
-                                                    batchCount), status);
-    }else{
-      check_error_ret (status = Xtrsm_batch_offset( handle,
-                                                    side, uplo, KBLAS_Trans, KBLAS_NonUnit,
-                                                    m, n1,
-                                                    one, (const T**)Aoff(0, 0), lda,
-                                                               (T**)Boff(0, 0), ldb,
-                                                    batchCount), status);
-    }
-
+    check_ret_error( Xtrsm_batch( handle,
+                                  side, uplo, KBLAS_Trans, KBLAS_NonUnit,
+                                  m, n1,
+                                  one, (T_PTR)Aoff(0, 0), lda, strideA,
+                                       (T_PTR)Boff(0, 0), ldb, strideB,
+                                  batchCount) );
     //GEMM_BATCH
     if(STRIDED){
       check_error_ret (status = kblas_gemm_batch( handle,
@@ -129,37 +119,19 @@ int Xpotrs_batch_core(kblasHandle_t handle,
     #if 1
     //TODO replace by one POTRS call
     //TRSM_BATCH
-    if(STRIDED){
-      check_error_ret (status = Xtrsm_batch_offset( handle,
-                                                    side, uplo, KBLAS_Trans, KBLAS_NonUnit,
-                                                    m, n2,
-                                                    one, (const T*)Aoff(n1, n1), lda, strideA,
-                                                               (T*)Boff( 0, n1), ldb, strideB,
-                                                    batchCount), status);
-    }else{
-      check_error_ret (status = Xtrsm_batch_offset( handle,
-                                                    side, uplo, KBLAS_Trans, KBLAS_NonUnit,
-                                                    m, n2,
-                                                    one, (const T**)Aoff(n1, n1), lda,
-                                                               (T**)Boff( 0, n1), ldb,
-                                                    batchCount), status);
-    }
+    check_ret_error( Xtrsm_batch( handle,
+                                  side, uplo, KBLAS_Trans, KBLAS_NonUnit,
+                                  m, n2,
+                                  one, (T_PTR)Aoff(n1, n1), lda, strideA,
+                                       (T_PTR)Boff( 0, n1), ldb, strideB,
+                                  batchCount) );
     //TRSM_BATCH
-    if(STRIDED){
-      check_error_ret (status = Xtrsm_batch_offset( handle,
-                                                    side, uplo, KBLAS_NoTrans, KBLAS_NonUnit,
-                                                    m, n2,
-                                                    one, (const T*)Aoff(n1, n1), lda, strideA,
-                                                               (T*)Boff( 0, n1), ldb, strideB,
-                                                    batchCount), status);
-    }else{
-      check_error_ret (status = Xtrsm_batch_offset( handle,
-                                                    side, uplo, KBLAS_NoTrans, KBLAS_NonUnit,
-                                                    m, n2,
-                                                    one, (const T**)Aoff(n1, n1), lda,
-                                                               (T**)Boff( 0, n1), ldb,
-                                                    batchCount), status);
-    }
+    check_ret_error( Xtrsm_batch( handle,
+                                  side, uplo, KBLAS_NoTrans, KBLAS_NonUnit,
+                                  m, n2,
+                                  one, (T_PTR)Aoff(n1, n1), lda, strideA,
+                                       (T_PTR)Boff( 0, n1), ldb, strideB,
+                                  batchCount) );
     #else
     //POTRS_BATCH
     check_error_ret((status = Xpotrs_batch_core<T, T_PTR, STRIDED>(
@@ -191,21 +163,12 @@ int Xpotrs_batch_core(kblasHandle_t handle,
     }
 
     //TRSM_BATCH
-    if(STRIDED){
-      check_error_ret (status = Xtrsm_batch_offset( handle,
-                                                    side, uplo, KBLAS_NoTrans, KBLAS_NonUnit,
-                                                    m, n1,
-                                                    one, (const T*)Aoff(0, 0), lda, strideA,
-                                                               (T*)Boff(0, 0), ldb, strideB,
-                                                    batchCount), status);
-    }else{
-      check_error_ret (status = Xtrsm_batch_offset( handle,
-                                                    side, uplo, KBLAS_NoTrans, KBLAS_NonUnit,
-                                                    m, n1,
-                                                    one, (const T**)Aoff(0, 0), lda,
-                                                               (T**)Boff(0, 0), ldb,
-                                                    batchCount), status);
-    }
+    check_ret_error( Xtrsm_batch( handle,
+                                  side, uplo, KBLAS_NoTrans, KBLAS_NonUnit,
+                                  m, n1,
+                                  one, (T_PTR)Aoff(0, 0), lda, strideA,
+                                       (T_PTR)Boff(0, 0), ldb, strideB,
+                                  batchCount) );
   }
   return KBLAS_Success;
 }

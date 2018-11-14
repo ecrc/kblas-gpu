@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #ifndef __XPOTRF_BATCH_KERNELS_H__
@@ -28,9 +28,9 @@
 //==============================================================================================
 //Naming convention <dev/kernel>_<KernelName>_<Non/Uniform>_<Right/Left><Lower/Upper><Non/Transpose><Non/Diag>_<variants>
 //==============================================================================================
-#ifndef SM
-  #error "SM is not defined"
-#elif (SM >= 30)
+#ifndef TARGET_SM
+  #error "TARGET_SM is not defined"
+#elif (TARGET_SM >= 30)
 
 //==============================================================================================
 
@@ -83,16 +83,17 @@ kernel_potrf_U_registers_fixN(const int n, int batchCount,
                               T_PTR A_array, int A_row_off, int A_col_off, int lda, long strideA,
                               int* info)
 {
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
+  if(ind >= batchCount) return;
 
-  if(n != N){ info[blockIdx.x * blockDim.y + ty] = -1; return; }
+  if(n != N){ info[ind] = -1; return; }
 
   T *A;
   if(STRIDED == true){
-    A = (T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
+    A = (T*)A_array + (ind) * strideA;
   }else{
-    A = ((T**)A_array)[blockIdx.x * blockDim.y + ty];
+    A = ((T**)A_array)[ind];
   }
   A += A_row_off + A_col_off * lda;
 
@@ -152,16 +153,17 @@ kernel_potrf_U_registers_varN(int n, int batchCount,
                               T_PTR A_array, int A_row_off, int A_col_off, int lda, long strideA,
                               int* info)
 {
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
+  if(ind >= batchCount) return;
 
-  if(n > TX){ info[blockIdx.x * blockDim.y + ty] = -1; return; }
+  if(n > TX){ info[ind] = -1; return; }
 
   T *A;
   if(STRIDED == true){
-    A = (T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
+    A = (T*)A_array + (ind) * strideA;
   }else{
-    A = ((T**)A_array)[blockIdx.x * blockDim.y + ty];
+    A = ((T**)A_array)[ind];
   }
   A += A_row_off + A_col_off * lda;
 
@@ -305,16 +307,17 @@ kernel_potrf_U_registers_fixN_blocked_2(int n, int batchCount,
                                         T_PTR A_array, int A_row_off, int A_col_off, int lda, long strideA,
                                         int* info)
 {
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
+  if(ind >= batchCount) return;
 
-  if(n != N){ info[blockIdx.x * blockDim.y + ty] = -1; return; }
+  if(n != N){ info[ind] = -1; return; }
 
   T *A;
   if(STRIDED == true){
-    A = (T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
+    A = (T*)A_array + (ind) * strideA;
   }else{
-    A = ((T**)A_array)[blockIdx.x * blockDim.y + ty];
+    A = ((T**)A_array)[ind];
   }
   A += A_row_off + A_col_off * lda;
 
@@ -467,16 +470,17 @@ kernel_potrf_U_registers_varN_blocked_2(int n, int batchCount,
                                         T_PTR A_array, int A_row_off, int A_col_off, int lda, long strideA,
                                         int* info)
 {
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
+  if(ind >= batchCount) return;
 
-  if(BS >= n || n > 2*BS){ info[blockIdx.x * blockDim.y + ty] = -1; return; }
+  if(BS >= n || n > 2*BS){ info[ind] = -1; return; }
 
   T *A;
   if(STRIDED == true){
-    A = (T*)A_array + (blockIdx.x * blockDim.y + ty) * strideA;
+    A = (T*)A_array + (ind) * strideA;
   }else{
-    A = ((T**)A_array)[blockIdx.x * blockDim.y + ty];
+    A = ((T**)A_array)[ind];
   }
   A += A_row_off + A_col_off * lda;
 

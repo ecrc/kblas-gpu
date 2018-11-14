@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #include <stdio.h>
@@ -33,7 +33,7 @@
 #include "testing_prec_def.h"
 #include "flops.h"
 
-#include "batch_triangular/Xhelper_funcs.ch" // TODO: need Xset_pointer_2 from this
+#include "Xhelper_funcs.ch" // TODO: need Xset_pointer_2 from this
 #include "operators.h" // TODO: this has templates and C++ host/device functions (make_one and make_zero)
 
 //==============================================================================================
@@ -77,10 +77,20 @@ int test_Xtrmm_batch(kblas_opts& opts, T alpha)
 
   //USING
   cudaError_t err;
+  #ifdef USE_MAGMA
+    if(opts.magma == 1){
+      magma_init();//TODO is this in the proper place?
+    }
+  #endif
 
   for(int g = 0; g < ngpu; g++){
     err = cudaSetDevice( opts.devices[g] );
     kblasCreate(&kblas_handle[g]);
+    #ifdef USE_MAGMA
+      if(opts.magma == 1){
+        kblasEnableMagma(kblas_handle[g]);
+      }
+    #endif
   }
 
   #ifdef USE_OPENMP
@@ -239,57 +249,10 @@ int test_Xtrmm_batch(kblas_opts& opts, T alpha)
         }
         double time = 0;
 
-        #ifdef USE_MAGMA
-          for(int r = 0; r < nruns; r++){
-            for(int g = 0; g < ngpu; g++){
-              check_error( cudaSetDevice( opts.devices[g] ));
-              check_cublas_error( cublasSetMatrixAsync( Cm, Cn * batchCount_gpu, sizeof(T),
-                                                 h_C + Cm * Cn * batchCount_gpu * g, ldc,
-                                                 d_C[g], lddc, kblasGetStream(kblas_handle[g]) ) );
-            }
 
-
-            for(int g = 0; g < ngpu; g++){
-              check_error( cudaSetDevice( opts.devices[g] ));
-              cudaDeviceSynchronize();//TODO sync with streams instead
-            }
-            //start_timing(curStream);
-            time = -gettime();
-            for(int g = 0; g < ngpu; g++){
-              check_error( cudaSetDevice( opts.devices[g] ));
-              //check_error( cublasSetStream(cublas_handle, streams[g]) );
-              if(strided){
-                check_kblas_error( kblasXtrsm_batch_strided(kblas_handle[g],
-                                                            opts.side, opts.uplo, opts.transA, opts.diag,
-                                                            M, N,
-                                                            alpha, d_A[g], ldda, An*ldda,
-                                                                   d_C[g], lddc, Cn*lddc,
-                                                            batchCount_gpu) );
-              }else{
-                check_kblas_error( kblasXtrsm_batch(kblas_handle[g],
-                                                    opts.side, opts.uplo, opts.transA, opts.diag,
-                                                    M, N,
-                                                    alpha, (const T**)(d_A_array[g]), ldda,
-                                                                       d_C_array[g], lddc,
-                                                    batchCount_gpu));
-              }
-            }
-            for(int g = 0; g < ngpu; g++){
-              check_error( cudaSetDevice( opts.devices[g] ));
-              cudaDeviceSynchronize();//TODO sync with streams instead
-            }
-            //time = get_elapsed_time(curStream);
-            time += gettime();
-            kblas_time += time;
-          }
-          kblas_time /= nruns;
-          kblas_perf = gflops / kblas_time;
-          kblas_time *= 1000.0;
-        #endif
 
         for(int r = 0;  r < nruns; r++){
           for(int g = 0; g < ngpu; g++){
-            // kblas_handle[g]->use_magma = 0;
             check_error( cudaSetDevice( opts.devices[g] ));
             check_cublas_error( cublasSetMatrixAsync( Cm, Cn * batchCount_gpu, sizeof(T),
                                                      h_C + Cm * Cn * batchCount_gpu * g, ldc,
@@ -464,6 +427,11 @@ int test_Xtrmm_batch(kblas_opts& opts, T alpha)
   for(int g = 0; g < ngpu; g++){
     kblasDestroy(&kblas_handle[g]);
   }
+  #ifdef USE_MAGMA
+    if(opts.magma == 1){
+      magma_finalize();//TODO is this in the proper place?
+    }
+  #endif
 }
 
 //==============================================================================================

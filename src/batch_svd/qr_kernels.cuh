@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Wajih Halim Boukaram
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #ifndef __QR_KERNELS_H__
@@ -25,7 +25,7 @@
 #define MULT_REDUCTION_SMEM(warps, width) ((warps) * WARP_SIZE * (width) + (warps) * (width))
 
 // Enable/disable support for 
-// #define QR_SUPPORT_LARGE	
+#define QR_SUPPORT_LARGE
 
 template<class T> struct QR_Config{};
 #ifndef QR_SUPPORT_LARGE

@@ -29,16 +29,30 @@ KBLAS_BATCH_DIR=./batch_triangular
 include $(KBLAS_BATCH_DIR)/Makefile
 endif
 
+ifdef _SUPPORT_TLR_
+KBLAS_TLR_DIR=./blas_tlr
+include $(KBLAS_TLR_DIR)/Makefile
+endif
+
 ifdef _SUPPORT_SVD_
 KBLAS_BATCH_SVD_DIR=./batch_svd
 include $(KBLAS_BATCH_SVD_DIR)/Makefile
 endif
 
-KBLAS3_COM_SRC= kblas_common.cpp
-ALL_OBJ+= $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(KBLAS3_COM_SRC))
+KBLAS_COM_CU = kblas_common.cu workspace_queries.cu
+KBLAS_COM_CU += sblas_core.cu dblas_core.cu cblas_core.cu zblas_core.cu
 
-$(OBJ_DIR)/%blas_common.o: %blas_common.cpp $(DEPS_COM)
-	$(CXX) $(COPTS) $(INC) -c $< -o $@
+ALL_OBJ+= $(patsubst %.cu,$(OBJ_DIR)/%.cu_o,$(KBLAS_COM_CU))
+
+$(OBJ_DIR)/%blas_common.cu_o: %blas_common.cu $(DEPS_COM)
+	$(NVCC) $(NVOPTS) $(NVOPTS_3) $(INC) -c $< -o $@
+	# $(CXX) $(COPTS) $(INC) -c $< -o $@
+
+$(OBJ_DIR)/%blas_core.cu_o: Xblas_core.cu Xblas_core.ch $(DEPS_COM)
+	$(NVCC) $(NVOPTS) -DPREC_$* $(NVOPTS_3) $(INC) -c $< -o $@
+
+$(OBJ_DIR)/%_queries.cu_o: %_queries.cu workspace_queries.ch kblas_struct.h $(DEPS_COM)
+	$(NVCC) $(NVOPTS) $(NVOPTS_3) $(INC) -c $< -o $@
 
 
 KBLAS_DIR=$(KBLAS_ROOT)/lib
@@ -53,4 +67,4 @@ $(LIBKBLAS): $(ALL_OBJ)
 #cp $(LIBKBLAS) ${KBLAS_ROOT}/lib
 
 clean:
-	rm -f $(OBJ_DIR)/*.cu_o
+	rm -f $(OBJ_DIR)/*.cu_o $(OBJ_DIR)/*.o

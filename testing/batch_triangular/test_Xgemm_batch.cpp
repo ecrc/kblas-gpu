@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #include <stdio.h>
@@ -24,13 +24,22 @@
 #include <math.h>
 #include <sys/time.h>
 
+// #define DEBUG_DUMP
+
 #if ((defined PREC_c) || (defined PREC_z)) && (defined USE_MKL)
 //TODO need to handle MKL types properly
 #undef USE_MKL
 #endif
 
 #include "testing_helper.h"
+
+#ifdef check_error
+#undef check_error
+#endif
+
+#include "kblas_common.h" // TODO: need iset_value_1 from this
 #include "testing_prec_def.h"
+#include "Xhelper_funcs.ch" // TODO: need Xset_pointer_2 from this
 #include "flops.h"
 
 //==============================================================================================
@@ -40,8 +49,6 @@
 
 #define USING printf("side %c, uplo %c, transA %c, transB %c, diag %c , batchCount %d, backDoor %d\n", opts.side, opts.uplo, opts.transA, opts.transB, opts.diag, batchCount, -1);
 
-// extern bool use_magma_gemm;
-// extern bool use_cublas_gemm;
 
 template<class T>
 int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
@@ -49,36 +56,51 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
   kblasHandle_t kblas_handle;
   GPU_Timer_t kblas_timer;
   int nruns = opts.nruns;
-  int M, N, K;
+  int nonUniform = opts.nonUniform;
+  int M, N, K, max_M, max_N, max_K;
   int Am, An, Bm, Bn, Cm, Cn;
-  int sizeA, sizeB, sizeC;
-  int strideA, strideB, strideC;
+  int h_strideA, h_strideB, h_strideC;
+  int d_strideA, d_strideB, d_strideC;
   int lda, ldb, ldc, ldda, lddb, lddc;
+  int *h_lda, *h_ldb, *h_ldc, *d_ldda, *d_lddb, *d_lddc;
 
   int ISEED[4] = {0,0,0,1};
 
   T *h_R,
     *h_A, *h_B, *h_C,
     *d_A, *d_B, *d_C;
+  int *h_M = NULL, *h_N = NULL, *h_K = NULL,
+      *d_M = NULL, *d_N = NULL, *d_K = NULL;
+  T **d_A_array, **d_B_array, **d_C_array;
   #ifdef USE_MKL_BATCH
   T **h_A_array, **h_B_array, **h_C_array;
   #endif
 
   int batchCount = opts.batchCount;
-  bool strided = 0;//kblas_back_door[3] > 0;
-  //FILE *outK, *outL, *outO;
-
+  bool strided = opts.strided;
+  if(nonUniform) strided = 0;
+  #ifdef DEBUG_DUMP
+  FILE *outK, *outL, *outO;
+  #endif
   USING
   cudaError_t err;
 
   check_error( cudaSetDevice( opts.devices[0] ));
   kblasCreate(&kblas_handle);
+  #ifdef USE_MAGMA
+    if(opts.magma == 1){
+      magma_init();
+      kblasEnableMagma(kblas_handle);
+    }
+  #endif
   kblas_timer = newGPU_Timer(kblasGetStream(kblas_handle));
 
 
   cublasOperation_t cub_transA = (opts.transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);
   cublasOperation_t cub_transB = (opts.transB == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);
 
+  bool isTransA = (opts.transA == KBLAS_Trans);
+  bool isTransB = (opts.transB == KBLAS_Trans);
 
   #ifdef USE_MKL_BATCH
   TESTING_MALLOC_CPU( h_A_array, T*, batchCount );
@@ -116,51 +138,79 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
               batchCount, (int) M, (int) N, (int) K);
       fflush( stdout );
 
-      if ( opts.transA == KBLAS_NoTrans ) {
-        lda = Am = M;
-        An = K;
-      } else {
-        lda = Am = K;
-        An = M;
+      if(nonUniform){
+        max_M = max_N = max_K = 0;
+        TESTING_MALLOC_CPU( h_M, int, batchCount);
+        TESTING_MALLOC_CPU( h_N, int, batchCount);
+        TESTING_MALLOC_CPU( h_K, int, batchCount);
+        // TESTING_MALLOC_CPU( h_lda, int, batchCount);
+        // TESTING_MALLOC_CPU( h_ldb, int, batchCount);
+        // TESTING_MALLOC_CPU( h_ldc, int, batchCount);
+
+        for(int k = 0; k < batchCount; k++){
+            h_M[k] = 1 + (rand() % M);
+            h_N[k] = 1 + (rand() % N);
+            h_K[k] = 1 + (rand() % K);
+            max_M = kmax( max_M, h_M[k] );
+            max_N = kmax( max_N, h_N[k] );
+            max_K = kmax( max_K, h_K[k] );
+            // h_lda[k] = (isTransA ? K : M);
+            // h_ldb[k] = (isTransB ? N : K);
+            // h_ldc[k] = M;
+            gflops += FLOPS_GEMM<T>(h_M[k], h_N[k], h_K[k]) / 1e9;
+        }
+      }else{
+        gflops = batchCount * FLOPS_GEMM<T>(M, N, K) / 1e9;
       }
-      if ( opts.transB == KBLAS_NoTrans ) {
-        ldb = Bm = K;
-        Bn = N;
-      } else {
-        ldb = Bm = N;
-        Bn = K;
-      }
+      lda = Am = (isTransA ? K : M);
+            An = (isTransA ? M : K);
+      ldb = Bm = (isTransB ? N : K);
+            Bn = (isTransB ? K : N);
       Cm = ldc = M;
       Cn = N;
 
-      ldda = ((lda+31)/32)*32;
-      lddb = ((ldb+31)/32)*32;
-      lddc = ((ldc+31)/32)*32;
+      ldda = kblas_roundup(lda, 32);
+      lddb = kblas_roundup(ldb, 32);
+      lddc = kblas_roundup(ldc, 32);
 
-      sizeA = lda * An;
-      sizeB = ldb * Bn;
-      sizeC = ldc * Cn;
-      strideA = ldda * An;
-      strideB = lddb * Bn;
-      strideC = lddc * Cn;
+      h_strideA = lda * An;
+      h_strideB = ldb * Bn;
+      h_strideC = ldc * Cn;
+      d_strideA = ldda * An;
+      d_strideB = lddb * Bn;
+      d_strideC = lddc * Cn;
 
-      gflops = batchCount * FLOPS_GEMM<T>(M, N, K ) / 1e9;
 
-      TESTING_MALLOC_CPU( h_A, T, sizeA * batchCount);
-      TESTING_MALLOC_CPU( h_B, T, sizeB * batchCount);
-      TESTING_MALLOC_CPU( h_C, T, sizeC * batchCount);
+      TESTING_MALLOC_CPU( h_A, T, h_strideA * batchCount);
+      TESTING_MALLOC_CPU( h_B, T, h_strideB * batchCount);
+      TESTING_MALLOC_CPU( h_C, T, h_strideC * batchCount);
 
-      TESTING_MALLOC_DEV( d_A, T, strideA * batchCount);
-      TESTING_MALLOC_DEV( d_B, T, strideB * batchCount);
-      TESTING_MALLOC_DEV( d_C, T, strideC * batchCount);
+      TESTING_MALLOC_DEV( d_A, T, d_strideA * batchCount);
+      TESTING_MALLOC_DEV( d_B, T, d_strideB * batchCount);
+      TESTING_MALLOC_DEV( d_C, T, d_strideC * batchCount);
+      if(!strided){
+        TESTING_MALLOC_DEV( d_A_array, T*, batchCount);
+        TESTING_MALLOC_DEV( d_B_array, T*, batchCount);
+        TESTING_MALLOC_DEV( d_C_array, T*, batchCount);
+      }
+      if(nonUniform){
+        TESTING_MALLOC_DEV( d_M, int, batchCount);
+        TESTING_MALLOC_DEV( d_N, int, batchCount);
+        TESTING_MALLOC_DEV( d_K, int, batchCount);
+        TESTING_MALLOC_DEV( d_ldda, int, batchCount);
+        TESTING_MALLOC_DEV( d_lddb, int, batchCount);
+        TESTING_MALLOC_DEV( d_lddc, int, batchCount);
+      }
 
       if(opts.check || opts.time)
       {
-        TESTING_MALLOC_CPU( h_R, T, sizeC * batchCount);
+        TESTING_MALLOC_CPU( h_R, T, h_strideC * batchCount);
 
-        /*outO = fopen("outO", "a");
-        outK = fopen("outK", "a");
-        outL = fopen("outL", "a");*/
+        #ifdef DEBUG_DUMP
+        //outO = fopen("outO", "a");
+        outK = fopen("outK.csv", "a");
+        outL = fopen("outL.csv", "a");
+        #endif
         if(opts.check)
         {
           opts.time = 0;
@@ -181,17 +231,43 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
       #endif
 
       if(opts.time)
-        memcpy(h_R, h_C, sizeC * batchCount * sizeof(T));
+        memcpy(h_R, h_C, h_strideC * batchCount * sizeof(T));
       //int curDev;
       //cudaGetDevice(&curDev);
       cudaStream_t curStream = kblasGetStream(kblas_handle);
-      /*
-      check_error( cudaStreamCreateWithFlags( &curStream, cudaStreamNonBlocking) );
-      check_error(cublasSetStream(cublas_handle, curStream));*/
 
       check_cublas_error( cublasSetMatrixAsync( Am, An * batchCount, sizeof(T), h_A, lda, d_A, ldda, curStream ) );
       check_cublas_error( cublasSetMatrixAsync( Bm, Bn * batchCount, sizeof(T), h_B, ldb, d_B, lddb, curStream ) );
+      if(!strided){
+        check_kblas_error( Xset_pointer_3(d_A_array, d_A, ldda, d_strideA,
+                                          d_B_array, d_B, lddb, d_strideB,
+                                          d_C_array, d_C, lddc, d_strideC,
+                                          batchCount, kblasGetStream(kblas_handle)) );
+      }
 
+      if(nonUniform){
+        check_cublas_error( cublasSetVectorAsync(batchCount, sizeof(int),
+                                                 h_M, 1,
+                                                 d_M, 1, curStream) );
+        check_cublas_error( cublasSetVectorAsync(batchCount, sizeof(int),
+                                                 h_N, 1,
+                                                 d_N, 1, curStream ) );
+        check_cublas_error( cublasSetVectorAsync(batchCount, sizeof(int),
+                                                 h_K, 1,
+                                                 d_K, 1, curStream ) );
+        check_kblas_error(iset_value_1( d_ldda, ldda, batchCount, curStream));
+        check_kblas_error(iset_value_1( d_lddb, lddb, batchCount, curStream));
+        check_kblas_error(iset_value_1( d_lddc, lddc, batchCount, curStream));
+        // check_cublas_error( cublasSetVectorAsync(batchCount, sizeof(int),
+        //                                          h_lda, 1,
+        //                                          d_ldda, 1, curStream) );
+        // check_cublas_error( cublasSetVectorAsync(batchCount, sizeof(int),
+        //                                          h_ldb, 1,
+        //                                          d_lddb, 1, curStream ) );
+        // check_cublas_error( cublasSetVectorAsync(batchCount, sizeof(int),
+        //                                          h_ldc, 1,
+        //                                          d_lddc, 1, curStream ) );
+      }
       if(opts.warmup){
         check_cublas_error( cublasSetMatrixAsync( Cm, Cn * batchCount, sizeof(T), h_C, ldc, d_C, lddc, curStream ) );
         check_cublas_error( cublasXgemm( kblasGetCublasHandle(kblas_handle),
@@ -209,82 +285,72 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
             #pragma omp for //schedule(guided,10)
             for (int s=0; s < batchCount; s++)
             {
-              LAPACK_GEMM( (opts.transA == KBLAS_Trans ? "Transpose" : "No Transpose"), (opts.transB == KBLAS_Trans ? "Transpose" : "No Transpose"),
-                           &Cm, &Cn, &An,
-                           &alpha, h_A + s * lda * An, &lda,
-                                   h_B + s * ldb * Bn, &ldb,
-                           &beta,  h_C + s * ldc * Cn, &ldc
+              LAPACK_GEMM( CblasColMajor,
+                           (opts.transA == KBLAS_Trans ? CblasTrans : CblasNoTrans), 
+                           (opts.transB == KBLAS_Trans ? CblasTrans : CblasNoTrans),
+                           Cm, Cn, An,
+                           alpha, h_A + s * lda * An, lda,
+                                  h_B + s * ldb * Bn, ldb,
+                           beta,  h_C + s * ldc * Cn, ldc
               );
             }
           }
-          memcpy(h_R, h_C, sizeC * batchCount * sizeof(T));
+          memcpy(h_R, h_C, h_strideC * batchCount * sizeof(T));
         }
         #endif//USE_OPENMP
       }
 
-      kblas_gemm_batch_strided_wsquery(kblas_handle, batchCount);
+      if(nonUniform)
+        kblas_gemm_batch_nonuniform_wsquery(kblas_handle);
+      else
+      if(strided)
+        kblas_gemm_batch_strided_wsquery(kblas_handle, batchCount);
       check_kblas_error( kblasAllocateWorkspace(kblas_handle) );
-
       double time = 0;
 
       //if(opts.bd >= 0) kblas_back_door[0] = opts.bd;
-      #ifdef USE_MAGMA
-      // use_magma_gemm = 1; use_cublas_gemm = 0;
-      //TODO this is not a safe access
-      // kblas_handle->use_magma = 1;
-      for(int r = 0; r < nruns; r++)
-      {
-        check_cublas_error( cublasSetMatrixAsync( Cm, Cn * batchCount, sizeof(T), h_C, ldc, d_C, lddc, curStream ) );
 
-        gpuTimerTic(kblas_timer);
-        check_kblas_error( kblas_gemm_batch(kblas_handle,
-                                            opts.transA, opts.transB,
-                                            M, N, K,
-                                            alpha, d_A, ldda, An*ldda,
-                                                   d_B, lddb, Bn*lddb,
-                                            beta,  d_C, lddc, Cn*lddc,
-                                            batchCount) );
-		gpuTimerRecordEnd(kblas_timer);
-        time = gpuTimerToc(kblas_timer);
-        magma_time += time;
-      }
-      magma_time /= nruns;
-      magma_time *= 1000.;//convert to ms
-      #endif
-
-      // use_magma_gemm = 0; use_cublas_gemm = 1;
-      // kblas_handle->use_magma = 0; // It's off by default so this should be OK to comment out
-      /*for(int r = 0; r < nruns; r++)
-      {
-        check_error( cublasSetMatrixAsync( Cm, Cn * batchCount, sizeof(T), h_C, ldc, d_C, lddc, curStream ) );
-
-        kblas_handle->tic();
-        check_error( Xgemm_batch_strided( kblas_handle,
-                                  opts.transA, opts.transB,
-                                  M, N, K,
-                                  alpha, d_A, ldda, An*ldda,
-                                         d_B, lddb, Bn*lddb,
-                                  beta,  d_C, lddc, Cn*lddc,
-                                  batchCount) );
-        time = kblas_handle->toc();
-        cublas_time += time;
-      }
-      cublas_time /= nruns;
-      cublas_time *= 1000.;//convert to ms*/
-
-      // use_magma_gemm = 0; use_cublas_gemm = 0;
       for(int r = 0; r < nruns; r++)
       {
         check_cublas_error( cublasSetMatrixAsync( Cm, Cn * batchCount, sizeof(T), h_C, ldc, d_C, lddc, curStream ) );
 
         kblasTimerTic(kblas_handle);
-        check_kblas_error( kblas_gemm_batch(kblas_handle,
-                                            opts.transA, opts.transB,
-                                            M, N, K,
-                                            alpha, d_A, ldda, An*ldda,
-                                                   d_B, lddb, Bn*lddb,
-                                            beta,  d_C, lddc, Cn*lddc,
-                                            batchCount) );
+        if(nonUniform){
+          //*
+          check_kblas_error( kblas_gemm_batch(kblas_handle,
+                                              opts.transA, opts.transB,
+                                              d_M, d_N, d_K,
+                                              max_M, max_N, max_K,
+                                              alpha, (const T**)d_A_array, d_ldda,
+                                                     (const T**)d_B_array, d_lddb,
+                                              beta,        (T**)d_C_array, d_lddc,
+                                              batchCount ) );
+          /*/
+          check_kblas_error( kblas_gemm_batch(kblas_handle,
+                                              opts.transA, opts.transB,
+                                              d_M, d_N, d_K,
+                                              alpha, (const T**)d_A_array, d_ldda,
+                                                     (const T**)d_B_array, d_lddb,
+                                              beta,        (T**)d_C_array, d_lddc,
+                                              batchCount ) );//*/
+        }else
+        if(strided){
+          check_kblas_error( kblas_gemm_batch(kblas_handle,
+                                              opts.transA, opts.transB,
+                                              M, N, K,
+                                              alpha, d_A, ldda, An*ldda,
+                                                     d_B, lddb, Bn*lddb,
+                                              beta,  d_C, lddc, Cn*lddc,
+                                              batchCount) );
+        }else{
+          check_kblas_error( kblas_gemm_batch(kblas_handle,
+                                              opts.transA, opts.transB,
+                                              M, N, K,
+                                              alpha, (const T**)d_A_array, ldda,
+                                                     (const T**)d_B_array, lddb,
+                                              beta,  (T**)d_C_array, lddc,
+                                              batchCount) );
+        }
 		    kblasTimerRecordEnd(kblas_handle);
         time = kblasTimerToc(kblas_handle);
         kblas_time += time;
@@ -304,7 +370,7 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
         for(int r = 0; r < nruns; r++)
         {
           if(opts.time){
-            memcpy(h_C, h_R, sizeC * batchCount * sizeof(T));
+            memcpy(h_C, h_R, h_strideC * batchCount * sizeof(T));
             time = -gettime();
           }
           #ifdef USE_OPENMP
@@ -317,15 +383,36 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
           for (int s=0; s < batchCount; s++)
           {
 
-            LAPACK_GEMM( (opts.transA == KBLAS_Trans ? "Transpose" : "No Transpose"), (opts.transB == KBLAS_Trans ? "Transpose" : "No Transpose"),
-                        &Cm, &Cn, &An,
-                        &alpha, h_A + s * lda * An, &lda,
-                                h_B + s * ldb * Bn, &ldb,
-                        &beta,  h_C + s * ldc * Cn, &ldc
+            if(nonUniform){
+              LAPACK_GEMM( CblasColMajor,
+                           (opts.transA == KBLAS_Trans ? CblasTrans : CblasNoTrans), 
+                           (opts.transB == KBLAS_Trans ? CblasTrans : CblasNoTrans),
+                           h_M[s], h_N[s], h_K[s],
+                           alpha, h_A + s * lda * An, lda,
+                                  h_B + s * ldb * Bn, ldb,
+                           beta,  h_C + s * ldc * Cn, ldc
+                      );
+            }else{
+              LAPACK_GEMM( CblasColMajor,
+                           (opts.transA == KBLAS_Trans ? CblasTrans : CblasNoTrans), 
+                           (opts.transB == KBLAS_Trans ? CblasTrans : CblasNoTrans),
+                           Cm, Cn, An,
+                           alpha, h_A + s * lda * An, lda,
+                                  h_B + s * ldb * Bn, ldb,
+                           beta,  h_C + s * ldc * Cn, ldc
                       );
 
+            }
             if(opts.check && !opts.time){
-              ref_error += Xget_max_error_matrix(h_C + s * ldc * Cn, h_R + s * ldc * Cn, Cm, Cn, ldc);
+              if(nonUniform){
+                #ifdef DEBUG_DUMP
+                printMatrix(h_M[s], h_N[s], h_R + s * ldc * Cn, ldc, outK);
+                printMatrix(h_M[s], h_N[s], h_C + s * ldc * Cn, ldc, outL);
+                #endif
+                ref_error += Xget_max_error_matrix(h_C + s * ldc * Cn, h_R + s * ldc * Cn, h_M[s], h_N[s], ldc);
+              }
+              else
+                ref_error += Xget_max_error_matrix(h_C + s * ldc * Cn, h_R + s * ldc * Cn, Cm, Cn, ldc);
             }
           }
           #ifdef USE_OPENMP
@@ -351,7 +438,7 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
           const int grp_size = 1;
 
           if(opts.time){
-            memcpy(h_C, h_R, sizeC * batchCount * sizeof(T));
+            memcpy(h_C, h_R, h_strideC * batchCount * sizeof(T));
             time = -gettime();
           }
 
@@ -376,7 +463,7 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
         /*if(opts.check){
           ref_error = Xget_max_error_matrix(h_A, h_R, N, N, lda);
           //Cnorm = kblas_lange<T,double>( 'M', N, N, h_A, lda);
-          //LAPACK_AXPY( &sizeA, &c_neg_one, h_A, &ione, h_R, &ione );
+          //LAPACK_AXPY( &h_strideA, &c_neg_one, h_A, &ione, h_R, &ione );
           //ref_error = kblas_lange<T,double>( 'M', N, N, h_R, lda) / Cnorm;
         }*/
         if(opts.time){
@@ -391,11 +478,32 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
       free( h_A );
       free( h_B );
       free( h_C );
+      if(nonUniform){
+        free(h_M);
+        free(h_N);
+        free(h_K);
+        // free(h_lda);
+        // free(h_ldb);
+        // free(h_ldc);
+      }
       if(opts.check || opts.time)
         free( h_R );
       check_error(  cudaFree( d_A ) );
       check_error(  cudaFree( d_B ) );
       check_error(  cudaFree( d_C ) );
+      if(nonUniform){
+        check_error(  cudaFree( d_M ) );
+        check_error(  cudaFree( d_N ) );
+        check_error(  cudaFree( d_K ) );
+        check_error(  cudaFree( d_ldda ) );
+        check_error(  cudaFree( d_lddb ) );
+        check_error(  cudaFree( d_lddc ) );
+      }
+      if(!strided){
+        check_error(  cudaFree( d_A_array ) );
+        check_error(  cudaFree( d_B_array ) );
+        check_error(  cudaFree( d_C_array ) );
+      }
 
       if(opts.time){
         ref_sdev_perf = sqrt((ref_sdev_perf - (ref_avg_perf * ref_avg_perf / nruns)) / nruns);
@@ -414,11 +522,13 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
              bat_avg_time / kblas_time);
       #endif
       printf(" %.4e \n", ref_error);
-      /*if(opts.check){
-        fclose(outO);
+      #ifdef DEBUG_DUMP
+      if(opts.check){
+        // fclose(outO);
         fclose(outL);
         fclose(outK);
-      }*/
+      }
+      #endif
     }
     }
     if ( opts.niter > 1 ) {
@@ -436,6 +546,11 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
 
   kblasDestroy(&kblas_handle);
   deleteGPU_Timer(kblas_timer);
+  #ifdef USE_MAGMA
+    if(opts.magma == 1){
+      magma_finalize();//TODO is this in the proper place?
+    }
+  #endif
 }
 
 

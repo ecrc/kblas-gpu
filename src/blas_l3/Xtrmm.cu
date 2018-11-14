@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #include <stdlib.h>
@@ -114,7 +114,7 @@ bool kblas_trmm_use_custom = 0;
 #define SIMPLE_SIZE_DATA(n) ( (n) <= kblas_trmm_ib_data )
 
 //shuffle intrinsic is not supported before KEPLER
-#if (SM >= 30)
+#if (TARGET_SM >= 30)
 //==============================================================================================
 template<typename T, int WARPS_PER_BLOCK, int B_COLS_PER_WARP, bool LOWER, bool TRANS, bool CONJG>
 __global__ void //__launch_bounds__(256)
@@ -499,7 +499,7 @@ cublasStatus_t Xtrmm(cublasHandle_t handle,
                              B, incB );
 }
 
-#endif //(SM >= 30)
+#endif //(TARGET_SM >= 30)
 
 //==============================================================================================
 template<class T>

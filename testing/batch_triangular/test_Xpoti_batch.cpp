@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #include <stdio.h>
@@ -33,7 +33,7 @@
 #include "testing_prec_def.h"
 #include "flops.h"
 
-#include "batch_triangular/Xhelper_funcs.ch" // TODO: need Xset_pointer_1 from this
+#include "Xhelper_funcs.ch" // TODO: need Xset_pointer_1 from this
 #include "operators.h" // TODO: this has templates and C++ host/device functions
 
 //==============================================================================================
@@ -181,7 +181,6 @@ int test_Xpoti_batch(kblas_opts& opts)
 
         for(int r = 0;  r < nruns; r++){
           for(int g = 0; g < ngpu; g++){
-            // kblas_handle[g]->use_magma = 0; // TODO: fix this - off by default so should be fine for now
             check_error( cudaSetDevice( opts.devices[g] ));
             check_cublas_error( cublasSetMatrixAsync( Am, An * batchCount_gpu, sizeof(T),
                                                      h_A + Am * An * batchCount_gpu * g, lda,

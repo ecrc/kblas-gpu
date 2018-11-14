@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #include <stdlib.h>
@@ -109,7 +109,7 @@ int kblas_trsm_ib_data = 512;
 //==============================================================================================
 
 //shuffle intrinsic is not supported before KEPLER
-#if (SM >= 30)
+#if (TARGET_SM >= 30)
 template<typename T, int WARPS_PER_BLOCK, bool LOWER, bool TRANS, bool CONJG, bool UNIT>
 __global__ void //__launch_bounds__(WARP * WARPS_PER_BLOCK)
 trsm_mul32_L(int M, int N, T alpha, const T* /*__restrict__*/ A, int incA, T* B, int incB, int mb)
@@ -257,7 +257,8 @@ cublasStatus_t Xtrsm(cublasHandle_t handle,
                      int m, int n,
                      const T *alpha,
                      const T *A, int incA,
-                           T *B, int incB){
+                           T *B, int incB)
+{
 
   //handle odd cases with cublas
   if(  (*alpha == make_zero<T>())

@@ -11,16 +11,15 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #ifndef __XTRMM_BATCH_DRIVERS_H__
 #define __XTRMM_BATCH_DRIVERS_H__
 
 
-#include "Xgemm_batch_core.cuh"
 #include "Xtrmm_batch_kernels.cuh"
 
 //==============================================================================================
@@ -29,7 +28,7 @@
 #define BY 64
 
 #define TRMM_R_NUM_VARIANTS 8
-#define TRMM_kernel_variant_R(__T, __T_PTR, __STRIDED, __TX, __BY)                            \
+#define TRMM_kernel_variant_R(__T, __T_PTR, __TX, __BY)                            \
       NULL, /*kernel_trsm_U_RLXN_registers_fixN_mulM<__T, __T_PTR, __STRIDED,  true,  __TX, __BY>,*/    \
       NULL, /*kernel_trsm_U_RLXN_registers_fixN_mulM<__T, __T_PTR, __STRIDED, false,  __TX, __BY>,*/    \
       NULL, /*kernel_trsm_U_RLXN_registers_fixN_varM<__T, __T_PTR, __STRIDED,  true,  __TX, __BY>,*/    \
@@ -40,18 +39,18 @@
       NULL  /*kernel_trsm_U_RLXN_registers_varN_varM<__T, __T_PTR, __STRIDED, false,  __TX, __BY>*/
 
 #define TRMM_L_NUM_VARIANTS 4
-#define TRMM_kernel_variant_L(__T, __T_PTR, __STRIDED, __TX, __BY)                            \
-      kernel_trmm_U_LLXN_reg_shared_Mfix_Nvar<__T, __T_PTR, __STRIDED,  true,  __TX, __BY>,   \
-      kernel_trmm_U_LLXN_reg_shared_Mfix_Nvar<__T, __T_PTR, __STRIDED, false,  __TX, __BY>,   \
-      kernel_trmm_U_LLXN_reg_shared_MNvar    <__T, __T_PTR, __STRIDED,  true,  __TX, __BY>,   \
-      kernel_trmm_U_LLXN_reg_shared_MNvar    <__T, __T_PTR, __STRIDED, false,  __TX, __BY>
+#define TRMM_kernel_variant_L(__T, __T_PTR, __TX, __BY)                            \
+      kernel_trmm_U_LLXN_reg_shared_Mfix_Nvar<__T, __T_PTR,  true,  __TX, __BY>,   \
+      kernel_trmm_U_LLXN_reg_shared_Mfix_Nvar<__T, __T_PTR, false,  __TX, __BY>,   \
+      kernel_trmm_U_LLXN_reg_shared_MNvar    <__T, __T_PTR,  true,  __TX, __BY>,   \
+      kernel_trmm_U_LLXN_reg_shared_MNvar    <__T, __T_PTR, false,  __TX, __BY>
 
 #define offA(i,j) A + A_row_off + (i) + (A_col_off + (j)) * lda
 #define offB(i,j) B + B_row_off + (i) + (B_col_off + (j)) * ldb
 #define Aoff(_i,_j) A, A_row_off + (_i), A_col_off + (_j)
 #define Boff(_i,_j) B, B_row_off + (_i), B_col_off + (_j)
 
-template<class T, class T_PTR, bool STRIDED>
+template<class T, class T_PTR>
 int Xtrmm_batch_core( kblasHandle_t handle,
                       char side, char uplo, char trans, char diag,
                       const int m, const int n,
@@ -87,10 +86,10 @@ int Xtrmm_batch_core( kblasHandle_t handle,
                                                                    T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB);
 
     trmm_kernels_type trmm_kernels[] = {
-      TRMM_kernel_variant_R(T, T_PTR, STRIDED,  8, BY),
-      TRMM_kernel_variant_R(T, T_PTR, STRIDED, 16, BY),
-      TRMM_kernel_variant_L(T, T_PTR, STRIDED,  8, BY),
-      TRMM_kernel_variant_L(T, T_PTR, STRIDED, 16, BY)
+      TRMM_kernel_variant_R(T, T_PTR,  8, BY),
+      TRMM_kernel_variant_R(T, T_PTR, 16, BY),
+      TRMM_kernel_variant_L(T, T_PTR,  8, BY),
+      TRMM_kernel_variant_L(T, T_PTR, 16, BY)
     };
     int mmul = ((n == 16) && (m % 16 == 0)) || ((n == 8) && (m % 8 == 0)), nvar = (n != 8) && (n != 16);
     int mvar = (m != 8) && (m != 16);
@@ -124,7 +123,7 @@ int Xtrmm_batch_core( kblasHandle_t handle,
       ( (side == KBLAS_Left ) && (m > 16) ) )
   {
 
-    int status;
+    // int status;
     T one = make_one<T>();
 
     if(side == KBLAS_Right){
@@ -141,80 +140,60 @@ int Xtrmm_batch_core( kblasHandle_t handle,
       //Right / Lower / [Conj]Trans
       if(trans == KBLAS_Trans){
         //TRMM_BATCH
-        check_error_ret((status = Xtrmm_batch_core<T, T_PTR, STRIDED>(
-                                                  handle,
-                                                  side, uplo, trans, diag,
-                                                  m, n2,
-                                                  alpha, Aoff(n1, n1), lda, strideA,
-                                                         Boff( 0, n1), ldb, strideB,
-                                                  batchCount)), status);
+        check_ret_error(( Xtrmm_batch_core<T, T_PTR>(
+                                          handle,
+                                          side, uplo, trans, diag,
+                                          m, n2,
+                                          alpha, Aoff(n1, n1), lda, strideA,
+                                                 Boff( 0, n1), ldb, strideB,
+                                          batchCount)) );
 
         //GEMM_BATCH
-        if(STRIDED){
-          check_error_ret (status = kblas_gemm_batch( handle,
-                                                      KBLAS_NoTrans, trans,
-                                                      m, n2, n1,
-                                                      alpha, (const T*)offB( 0,  0), ldb, strideB,
-                                                             (const T*)offA(n1,  0), lda, strideA,
-                                                      one,         (T*)offB( 0, n1), ldb, strideB,
-                                                      batchCount), status);
-        }else{
-          check_error_ret (status = kblas_gemm_batch( handle,
-                                                      KBLAS_NoTrans, trans,
-                                                      m, n2, n1,
-                                                      alpha, (const T**)Boff( 0,  0), ldb,
-                                                             (const T**)Aoff(n1,  0), lda,
-                                                      one,         (T**)Boff( 0, n1), ldb,
-                                                      batchCount), status);
-        }
+        check_ret_error( Xgemm_batch( handle,
+                                      KBLAS_NoTrans, trans,
+                                      m, n2, n1,
+                                      alpha, (T_PTR)Boff( 0,  0), ldb, strideB,
+                                             (T_PTR)Aoff(n1,  0), lda, strideA,
+                                      one,   (T_PTR)Boff( 0, n1), ldb, strideB,
+                                      batchCount) );
 
         //TRMM_BATCH
-        check_error_ret ((status = Xtrmm_batch_core<T, T_PTR, STRIDED>(
-                                                  handle,
-                                                  side, uplo, trans, diag,
-                                                  m, n1,
-                                                  alpha, Aoff(0, 0), lda, strideA,
-                                                         Boff(0, 0), ldb, strideB,
-                                                  batchCount)), status);
+        check_ret_error(( Xtrmm_batch_core<T, T_PTR>(
+                                          handle,
+                                          side, uplo, trans, diag,
+                                          m, n1,
+                                          alpha, Aoff(0, 0), lda, strideA,
+                                                 Boff(0, 0), ldb, strideB,
+                                          batchCount)) );
       }
       //Right / Lower / NoTrans
       else{
         //TRMM_BATCH
-        check_error_ret((status = Xtrmm_batch_core<T, T_PTR, STRIDED>(
-                                                  handle,
-                                                  side, uplo, trans, diag,
-                                                  m, n1,
-                                                  alpha, Aoff(0, 0), lda, strideA,
-                                                         Boff(0, 0), ldb, strideB,
-                                                  batchCount)), status);
+        check_ret_error(( Xtrmm_batch_core<T, T_PTR>(
+                                          handle,
+                                          side, uplo, trans, diag,
+                                          m, n1,
+                                          alpha, Aoff(0, 0), lda, strideA,
+                                                 Boff(0, 0), ldb, strideB,
+                                          batchCount)) );
 
         //GEMM_BATCH
-        if(STRIDED){
-          check_error_ret((status = kblas_gemm_batch( handle,
-                                                      KBLAS_NoTrans, trans,
-                                                      m, n1, n2,
-                                                      alpha, (const T*)offB( 0, n1), ldb, strideB,
-                                                             (const T*)offA(n1,  0), lda, strideA,
-                                                      one,         (T*)offB( 0,  0), ldb, strideB,
-                                                      batchCount)), status);
-        }else{
-          check_error_ret((status = kblas_gemm_batch( handle,
-                                                      KBLAS_NoTrans, trans,
-                                                      m, n1, n2,
-                                                      alpha, (const T**)Boff( 0, n1), ldb,
-                                                             (const T**)Aoff(n1,  0), lda,
-                                                      one,         (T**)Boff( 0,  0), ldb,
-                                                      batchCount)), status);
-        }
+        check_ret_error( Xgemm_batch( handle,
+                                      KBLAS_NoTrans, trans,
+                                      m, n1, n2,
+                                      alpha, (T_PTR)Boff( 0, n1), ldb, strideB,
+                                             (T_PTR)Aoff(n1,  0), lda, strideA,
+                                      one,   (T_PTR)Boff( 0,  0), ldb, strideB,
+                                      batchCount) );
 
         //TRMM_BATCH
-        check_error_ret((status = Xtrmm_batch_core<T, T_PTR, STRIDED>(
-                                                  handle,
-                                                  side, uplo, trans, diag,
-                                                  m, n2,
-                                                  alpha, Aoff(n1, n1), lda, strideA,
-                                                         Boff(0, n1), ldb, strideB,
-                                                  batchCount)), status);
+        check_ret_error(( Xtrmm_batch_core<T, T_PTR>(
+                                          handle,
+                                          side, uplo, trans, diag,
+                                          m, n2,
+                                          alpha, Aoff(n1, n1), lda, strideA,
+                                                 Boff( 0, n1), ldb, strideB,
+                                          batchCount)) );
       }
     }else{
 
@@ -229,79 +208,60 @@ int Xtrmm_batch_core( kblasHandle_t handle,
       //Left / Lower / [Conj]Trans
       if(trans == KBLAS_Trans){
         //TRMM_BATCH
-        check_error_ret((status = Xtrmm_batch_core<T, T_PTR, STRIDED>(
-                                                  handle,
-                                                  side, uplo, trans, diag,
-                                                  m1, n,
-                                                  alpha, Aoff(0, 0), lda, strideA,
-                                                         Boff(0, 0), ldb, strideB,
-                                                  batchCount)), status);
+        check_ret_error(( Xtrmm_batch_core<T, T_PTR>(
+                                          handle,
+                                          side, uplo, trans, diag,
+                                          m1, n,
+                                          alpha, Aoff(0, 0), lda, strideA,
+                                                 Boff(0, 0), ldb, strideB,
+                                          batchCount)) );
 
         //GEMM_BATCH
-        if(STRIDED){
-          check_error_ret (status = kblas_gemm_batch( handle,
-                                                      trans, KBLAS_NoTrans,
-                                                      m1, n, m2,
-                                                      alpha, (const T*)offA(m1, 0), lda, strideA,
-                                                             (const T*)offB(m1, 0), ldb, strideB,
-                                                      one,         (T*)offB( 0, 0), ldb, strideB,
-                                                      batchCount), status);
-        }else{
-          check_error_ret (status = kblas_gemm_batch( handle,
-                                                      trans, KBLAS_NoTrans,
-                                                      m1, n, m2,
-                                                      alpha, (const T**)Aoff(m1, 0), lda,
-                                                             (const T**)Boff(m1, 0), ldb,
-                                                      one,         (T**)Boff( 0, 0), ldb,
-                                                      batchCount), status);
-        }
+        check_ret_error( Xgemm_batch( handle,
+                                      trans, KBLAS_NoTrans,
+                                      m1, n, m2,
+                                      alpha, (T_PTR)Aoff(m1, 0), lda, strideA,
+                                             (T_PTR)Boff(m1, 0), ldb, strideB,
+                                      one,   (T_PTR)Boff( 0, 0), ldb, strideB,
+                                      batchCount) );
+
         //TRMM_BATCH
-        check_error_ret((status = Xtrmm_batch_core<T, T_PTR, STRIDED>(
-                                                  handle,
-                                                  side, uplo, trans, diag,
-                                                  m2, n,
-                                                  alpha, Aoff(m1, m1), lda, strideA,
-                                                         Boff(m1,  0), ldb, strideB,
-                                                  batchCount)), status);
+        check_ret_error(( Xtrmm_batch_core<T, T_PTR>(
+                                          handle,
+                                          side, uplo, trans, diag,
+                                          m2, n,
+                                          alpha, Aoff(m1, m1), lda, strideA,
+                                                 Boff(m1,  0), ldb, strideB,
+                                          batchCount)) );
       }
       //Left / Lower / NoTrans
       else{
         //TRMM_BATCH
-        check_error_ret((status = Xtrmm_batch_core<T, T_PTR, STRIDED>(
-                                                  handle,
-                                                  side, uplo, trans, diag,
-                                                  m2, n,
-                                                  alpha, Aoff(m1, m1), lda, strideA,
-                                                         Boff(m1,  0), ldb, strideB,
-                                                  batchCount)), status);
+        check_ret_error(( Xtrmm_batch_core<T, T_PTR>(
+                                          handle,
+                                          side, uplo, trans, diag,
+                                          m2, n,
+                                          alpha, Aoff(m1, m1), lda, strideA,
+                                                 Boff(m1,  0), ldb, strideB,
+                                          batchCount)) );
 
         //GEMM_BATCH
-        if(STRIDED){
-          check_error_ret((status = kblas_gemm_batch( handle,
-                                                      trans, KBLAS_NoTrans,
-                                                      m2, n, m1,
-                                                      alpha, (const T*)offA(m1, 0), lda, strideA,
-                                                             (const T*)offB( 0, 0), ldb, strideB,
-                                                      one,         (T*)offB(m1, 0), ldb, strideB,
-                                                      batchCount)), status);
-        }else{
-          check_error_ret((status = kblas_gemm_batch( handle,
-                                                      trans, KBLAS_NoTrans,
-                                                      m2, n, m1,
-                                                      alpha, (const T**)Aoff(m1, 0), lda,
-                                                             (const T**)Boff( 0, 0), ldb,
-                                                      one,         (T**)Boff(m1, 0), ldb,
-                                                      batchCount)), status);
-        }
+        check_ret_error( Xgemm_batch( handle,
+                                      trans, KBLAS_NoTrans,
+                                      m2, n, m1,
+                                      alpha, (T_PTR)Aoff(m1, 0), lda, strideA,
+                                             (T_PTR)Boff( 0, 0), ldb, strideB,
+                                      one,   (T_PTR)Boff(m1, 0), ldb, strideB,
+                                      batchCount) );
 
         //TRMM_BATCH
-        check_error_ret((status = Xtrmm_batch_core<T, T_PTR, STRIDED>(
-                                                  handle,
-                                                  side, uplo, trans, diag,
-                                                  m1, n,
-                                                  alpha, Aoff(0, 0), lda, strideA,
-                                                         Boff(0, 0), ldb, strideB,
-                                                  batchCount)), status);
+        check_ret_error(( Xtrmm_batch_core<T, T_PTR>(
+                                          handle,
+                                          side, uplo, trans, diag,
+                                          m1, n,
+                                          alpha, Aoff(0, 0), lda, strideA,
+                                                 Boff(0, 0), ldb, strideB,
+                                          batchCount)) );
       }
     }
   }else{

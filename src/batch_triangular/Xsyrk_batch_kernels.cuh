@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #ifndef __XSYRK_BATCH_KERNELS_H__
@@ -28,12 +28,12 @@
 //==============================================================================================
 //Naming convention <dev/kernel>_<KernelName>_<Non/Uniform><Non/Strided>_<Lower/Upper><Non/Transpose>_<variants>
 //==============================================================================================
-#ifndef SM
-#error "SM is not defined"
+#ifndef TARGET_SM
+#error "TARGET_SM is not defined"
 #endif
 
 //shuffle intrinsic is not supported before KEPLER
-#if (SM >= 30)
+#if (TARGET_SM >= 30)
 
 //==============================================================================================
 template<typename T, int B_ROWS, int A_COLS_PTY>
@@ -84,45 +84,34 @@ dev_syrk_U_LN_registers_Mfix_Nmul( const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
 __global__ void  //__launch_bounds__(256)
-kernel_syrk_US_LN_registers_Mfix_Nmul(const int m, const int n, int batchCount,
-                                      const T alpha, const T* __restrict__ A_array, int lda, long strideA,
-                                      const T beta, T* B_array, int ldb, long strideB)
+kernel_syrk_U_LN_registers_Mfix_Nmul( const int m, const int n, int batchCount,
+                                      const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
+                                      const T beta,        T_PTR              B_array, int B_row_off, int B_col_off, int ldb, long strideB)
 {
   if( m != B_ROWS ) return;//necessary condition
   if( n % A_COLS_PTY ) return;//necessary condition
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
-
-  const T *A = A_array + (blockIdx.x * blockDim.y + ty) * strideA;//, *A0;
-        T *B = B_array + (blockIdx.x * blockDim.y + ty) * strideB;
+  if(ind >= batchCount) return;
+  const T *A;
+        T *B;
+  if(STRIDED == true){
+    A = (const T*)A_array + ind * strideA;
+    B =       (T*)B_array + ind * strideB;
+  }else{
+    A = ((const T**)A_array)[ind];
+    B =       ((T**)B_array)[ind];
+    A += A_row_off + A_col_off * lda;
+    B += B_row_off + B_col_off * ldb;
+  }
   dev_syrk_U_LN_registers_Mfix_Nmul<T, B_ROWS, A_COLS_PTY>(
                                     m, n,
                                     alpha, A, lda,
                                     beta, B, ldb);
 }
-//----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
-__global__ void  //__launch_bounds__(256)
-kernel_syrk_UN_LN_registers_Mfix_Nmul(const int m, const int n, int batchCount,
-                                      const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
-                                      const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
-{
-  if( m != B_ROWS ) return;//necessary condition
-  if( n % A_COLS_PTY ) return;//necessary condition
-  //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
 
-  const T *A = A_array[blockIdx.x * blockDim.y + ty];
-        T *B = B_array[blockIdx.x * blockDim.y + ty];
-  A += A_row_off + A_col_off * lda;
-  B += B_row_off + B_col_off * ldb;
-  dev_syrk_U_LN_registers_Mfix_Nmul<T, B_ROWS, A_COLS_PTY>(
-                                    m, n,
-                                    alpha, A, lda,
-                                    beta, B, ldb);
-}
 //==============================================================================================;
 template<typename T, int B_ROWS, int A_COLS_PTY>
 __device__ inline void
@@ -194,43 +183,34 @@ dev_syrk_U_LN_registers_Mfix_Nvar(const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
 __global__ void  //__launch_bounds__(256)
-kernel_syrk_US_LN_registers_Mfix_Nvar(const int m, const int n, int batchCount,
-                                      const T alpha, const T* __restrict__ A_array, int lda, long strideA,
-                                      const T beta, T* B_array, int ldb, long strideB)
+kernel_syrk_U_LN_registers_Mfix_Nvar( const int m, const int n, int batchCount,
+                                      const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
+                                      const T beta,        T_PTR              B_array, int B_row_off, int B_col_off, int ldb, long strideB)
 {
   if( m != B_ROWS ) return;//necessary condition
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
+  if(ind >= batchCount) return;
 
-  const T *A = A_array + (blockIdx.x * blockDim.y + ty) * strideA;
-        T *B = B_array + (blockIdx.x * blockDim.y + ty) * strideB;
+  const T *A;
+        T *B;
+  if(STRIDED == true){
+    A = (const T*)A_array + ind * strideA;
+    B =       (T*)B_array + ind * strideB;
+  }else{
+    A = ((const T**)A_array)[ind];
+    B =       ((T**)B_array)[ind];
+    A += A_row_off + A_col_off * lda;
+    B += B_row_off + B_col_off * ldb;
+  }
   dev_syrk_U_LN_registers_Mfix_Nvar<T, B_ROWS, A_COLS_PTY>(
                                     m, n,
                                     alpha, A, lda,
                                     beta, B, ldb);
 }
-//----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
-__global__ void  //__launch_bounds__(256)
-kernel_syrk_UN_LN_registers_Mfix_Nvar(const int m, const int n, int batchCount,
-                                      const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
-                                      const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
-{
-  if( m != B_ROWS ) return;//necessary condition
-  //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
 
-  const T *A = A_array[blockIdx.x * blockDim.y + ty];
-        T *B = B_array[blockIdx.x * blockDim.y + ty];
-  A += A_row_off + A_col_off * lda;
-  B += B_row_off + B_col_off * ldb;
-  dev_syrk_U_LN_registers_Mfix_Nvar<T, B_ROWS, A_COLS_PTY>(
-                                    m, n,
-                                    alpha, A, lda,
-                                    beta, B, ldb);
-}
 //==============================================================================================;
 template<typename T, int B_ROWS, int A_COLS_PTY>
 __device__ inline void
@@ -317,43 +297,34 @@ dev_syrk_U_LN_registers_MNvar(const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
 __global__ void  //__launch_bounds__(256)
-kernel_syrk_US_LN_registers_MNvar( const int m, const int n, int batchCount,
-                                   const T alpha, const T* __restrict__ A_array, int lda, long strideA,
-                                   const T beta, T* B_array, int ldb, long strideB)
+kernel_syrk_U_LN_registers_MNvar( const int m, const int n, int batchCount,
+                                  const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
+                                  const T beta,        T_PTR              B_array, int B_row_off, int B_col_off, int ldb, long strideB)
 {
   if(B_ROWS < m) return;
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
+  if(ind >= batchCount) return;
 
-  const T *A = A_array + (blockIdx.x * blockDim.y + ty) * strideA;
-        T *B = B_array + (blockIdx.x * blockDim.y + ty) * strideB;
+  const T *A;
+        T *B;
+  if(STRIDED == true){
+    A = (const T*)A_array + ind * strideA;
+    B =       (T*)B_array + ind * strideB;
+  }else{
+    A = ((const T**)A_array)[ind];
+    B =       ((T**)B_array)[ind];
+    A += A_row_off + A_col_off * lda;
+    B += B_row_off + B_col_off * ldb;
+  }
   dev_syrk_U_LN_registers_MNvar<T, B_ROWS, A_COLS_PTY>(
                                 m, n,
                                 alpha, A, lda,
                                 beta, B, ldb);
 }
-//----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
-__global__ void  //__launch_bounds__(256)
-kernel_syrk_UN_LN_registers_MNvar(const int m, const int n, int batchCount,
-                                  const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
-                                  const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
-{
-  if(B_ROWS < m) return;
-  //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
 
-  const T *A = A_array[blockIdx.x * blockDim.y + ty];
-        T *B = B_array[blockIdx.x * blockDim.y + ty];
-  A += A_row_off + A_col_off * lda;
-  B += B_row_off + B_col_off * ldb;
-  dev_syrk_U_LN_registers_MNvar<T, B_ROWS, A_COLS_PTY>(
-                                m, n,
-                                alpha, A, lda,
-                                beta, B, ldb);
-}
 //==============================================================================================;
 template<typename T, int TX, int A_COLS_PTY>
 __device__ inline void
@@ -420,45 +391,34 @@ dev_syrk_U_LN_registers_Mblock2_Nmul( const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
 __global__ void
-kernel_syrk_US_LN_registers_Mblock2_Nmul( const int m, const int n, int batchCount,
-                                          const T alpha, const T* __restrict__ A_array, int lda, long strideA,
-                                          const T beta, T* B_array, int ldb, long strideB)
+kernel_syrk_U_LN_registers_Mblock2_Nmul(const int m, const int n, int batchCount,
+                                        const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
+                                        const T beta,        T_PTR              B_array, int B_row_off, int B_col_off, int ldb, long strideB)
 {
   if( m % (B_ROWS * 2) ) return;//necessary condition
   if( n % A_COLS_PTY != 0 ) return;//necessary condition
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
-
-  const T *A = A_array + (blockIdx.x * blockDim.y + ty) * strideA + blockIdx.y * 2 * B_ROWS;
-        T *B = B_array + (blockIdx.x * blockDim.y + ty) * strideB + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+  if(ind >= batchCount) return;
+  const T *A;
+        T *B;
+  if(STRIDED == true){
+    A = (const T*)A_array + (ind) * strideA + blockIdx.y * 2 * B_ROWS;
+    B =       (T*)B_array + (ind) * strideB + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+  }else{
+    A = ((const T**)A_array)[ind] + blockIdx.y * 2 * B_ROWS;
+    B =       ((T**)B_array)[ind] + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+    A += A_row_off + A_col_off * lda;
+    B += B_row_off + B_col_off * ldb;
+  }
   dev_syrk_U_LN_registers_Mblock2_Nmul<T, B_ROWS, A_COLS_PTY>(
                                         m, n,
                                         alpha, A, lda,
                                         beta, B, ldb);
 }
-//----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
-__global__ void
-kernel_syrk_UN_LN_registers_Mblock2_Nmul( const int m, const int n, int batchCount,
-                                          const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
-                                          const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
-{
-  if( m % (B_ROWS * 2) ) return;//necessary condition
-  if( n % A_COLS_PTY != 0 ) return;//necessary condition
-  //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
 
-  const T *A = A_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS;
-        T *B = B_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS * (1 + ldb);
-  A += A_row_off + A_col_off * lda;
-  B += B_row_off + B_col_off * ldb;
-  dev_syrk_U_LN_registers_Mblock2_Nmul<T, B_ROWS, A_COLS_PTY>(
-                                        m, n,
-                                        alpha, A, lda,
-                                        beta, B, ldb);
-}
 //==============================================================================================;
 template<typename T, int TX, int A_COLS_PTY>
 __device__ inline void
@@ -554,43 +514,34 @@ dev_syrk_U_LN_registers_Mblock2_Nvar( const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
 __global__ void  //__launch_bounds__(256)
-kernel_syrk_US_LN_registers_Mblock2_Nvar( const int m, const int n, int batchCount,
-                                          const T alpha, const T* __restrict__ A_array, int lda, long strideA,
-                                          const T beta, T* B_array, int ldb, long strideB)
+kernel_syrk_U_LN_registers_Mblock2_Nvar(const int m, const int n, int batchCount,
+                                        const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
+                                        const T beta,        T_PTR              B_array, int B_row_off, int B_col_off, int ldb, long strideB)
 {
   if( m % (B_ROWS * 2) ) return;//necessary condition
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
+  if(ind >= batchCount) return;
 
-  const T *A = A_array + (blockIdx.x * blockDim.y + ty) * strideA + blockIdx.y * 2 * B_ROWS;
-        T *B = B_array + (blockIdx.x * blockDim.y + ty) * strideB + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+  const T *A;
+        T *B;
+  if(STRIDED == true){
+    A = (const T*)A_array + (ind) * strideA + blockIdx.y * 2 * B_ROWS;
+    B =       (T*)B_array + (ind) * strideB + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+  }else{
+    A = ((const T**)A_array)[ind] + blockIdx.y * 2 * B_ROWS;
+    B =       ((T**)B_array)[ind] + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+    A += A_row_off + A_col_off * lda;
+    B += B_row_off + B_col_off * ldb;
+  }
   dev_syrk_U_LN_registers_Mblock2_Nvar<T, B_ROWS, A_COLS_PTY>(
                                         m, n,
                                         alpha, A, lda,
                                         beta, B, ldb);
 }
-//----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
-__global__ void  //__launch_bounds__(256)
-kernel_syrk_UN_LN_registers_Mblock2_Nvar( const int m, const int n, int batchCount,
-                                          const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
-                                          const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
-{
-  if( m % (B_ROWS * 2) ) return;//necessary condition
-  //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
 
-  const T *A = A_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS;
-        T *B = B_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS * (1 + ldb);
-  A += A_row_off + A_col_off * lda;
-  B += B_row_off + B_col_off * ldb;
-  dev_syrk_U_LN_registers_Mblock2_Nvar<T, B_ROWS, A_COLS_PTY>(
-                                        m, n,
-                                        alpha, A, lda,
-                                        beta, B, ldb);
-}
 //==============================================================================================;
 template<typename T, int TX, int A_COLS_PTY>
 __device__ inline void
@@ -755,36 +706,26 @@ dev_syrk_U_LN_registers_NMblock2var(const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
 __global__ void  //__launch_bounds__(256)
-kernel_syrk_US_LN_registers_NMblock2var(const int m, const int n, int batchCount,
-                                        const T alpha, const T* __restrict__ A_array, int lda, long strideA,
-                                        const T beta, T* B_array, int ldb, long strideB)
+kernel_syrk_U_LN_registers_NMblock2var( const int m, const int n, int batchCount,
+                                        const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
+                                        const T beta,        T_PTR              B_array, int B_row_off, int B_col_off, int ldb, long strideB)
 {
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
-
-  const T *A = A_array + (blockIdx.x * blockDim.y + ty) * strideA + blockIdx.y * 2 * B_ROWS;
-        T *B = B_array + (blockIdx.x * blockDim.y + ty) * strideB + blockIdx.y * 2 * B_ROWS * (1 + ldb);
-  dev_syrk_U_LN_registers_NMblock2var<T, B_ROWS, A_COLS_PTY>(
-                                      m, n,
-                                      alpha, A, lda,
-                                      beta, B, ldb);
-}
-//----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
-__global__ void  //__launch_bounds__(256)
-kernel_syrk_UN_LN_registers_NMblock2var(const int m, const int n, int batchCount,
-                                        const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
-                                        const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
-{
-  //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
-
-  const T *A = A_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS;
-        T *B = B_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS * (1 + ldb);
-  A += A_row_off + A_col_off * lda;
-  B += B_row_off + B_col_off * ldb;
+  if(ind >= batchCount) return;
+  const T *A;
+        T *B;
+  if(STRIDED == true){
+    A = (const T*)A_array + (ind) * strideA + blockIdx.y * 2 * B_ROWS;
+    B =       (T*)B_array + (ind) * strideB + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+  }else{
+    A = ((const T**)A_array)[ind] + blockIdx.y * 2 * B_ROWS;
+    B =       ((T**)B_array)[ind] + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+    A += A_row_off + A_col_off * lda;
+    B += B_row_off + B_col_off * ldb;
+  }
   dev_syrk_U_LN_registers_NMblock2var<T, B_ROWS, A_COLS_PTY>(
                                       m, n,
                                       alpha, A, lda,
@@ -856,45 +797,34 @@ dev_syrk_U_LT_reg_shared_Mfix_Nmul( const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, int B_ROWS, int A_ROWS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_ROWS_PTY>
 __global__ void  //__launch_bounds__(256)
-kernel_syrk_US_LT_reg_shared_Mfix_Nmul( const int m, const int n, int batchCount,
-                                        const T alpha, const T* __restrict__ A_array, int lda, long strideA,
-                                        const T beta, T* B_array, int ldb, long strideB)
+kernel_syrk_U_LT_reg_shared_Mfix_Nmul(const int m, const int n, int batchCount,
+                                      const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
+                                      const T beta,        T_PTR              B_array, int B_row_off, int B_col_off, int ldb, long strideB)
 {
   if( m != B_ROWS ) return;//necessary condition
   if( n % B_ROWS ) return;//necessary condition
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
-
-  const T *A = A_array + (blockIdx.x * blockDim.y + ty) * strideA;//, *A0;
-        T *B = B_array + (blockIdx.x * blockDim.y + ty) * strideB;
+  if(ind >= batchCount) return;
+  const T *A;
+        T *B;
+  if(STRIDED == true){
+    A = (const T*)A_array + ind * strideA;
+    B =       (T*)B_array + ind * strideB;
+  }else{
+    A = ((const T**)A_array)[ind];
+    B =       ((T**)B_array)[ind];
+    A += A_row_off + A_col_off * lda;
+    B += B_row_off + B_col_off * ldb;
+  }
   dev_syrk_U_LT_reg_shared_Mfix_Nmul<T, B_ROWS, A_ROWS_PTY>(
                                       m, n,
                                       alpha, A, lda,
                                       beta, B, ldb);
 }
-//----------------------------------------------
-template<typename T, int B_ROWS, int A_ROWS_PTY>
-__global__ void  //__launch_bounds__(256)
-kernel_syrk_UN_LT_reg_shared_Mfix_Nmul( const int m, const int n, int batchCount,
-                                        const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
-                                        const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
-{
-  if( m != B_ROWS ) return;//necessary condition
-  if( n % B_ROWS ) return;//necessary condition
-  //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
 
-  const T *A = A_array[blockIdx.x * blockDim.y + ty];
-        T *B = B_array[blockIdx.x * blockDim.y + ty];
-  A += A_row_off + A_col_off * lda;
-  B += B_row_off + B_col_off * ldb;
-  dev_syrk_U_LT_reg_shared_Mfix_Nmul<T, B_ROWS, A_ROWS_PTY>(
-                                      m, n,
-                                      alpha, A, lda,
-                                      beta, B, ldb);
-}
 //==============================================================================================;
 template<typename T, int TX, int A_ROWS_PTY>
 __device__ inline void
@@ -990,43 +920,33 @@ dev_syrk_U_LT_reg_shared_Mfix_Nvar( const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, int B_ROWS, int A_ROWS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_ROWS_PTY>
 __global__ void  //__launch_bounds__(256)
-kernel_syrk_US_LT_reg_shared_Mfix_Nvar( const int m, const int n, int batchCount,
-                                        const T alpha, const T* __restrict__ A_array, int lda, long strideA,
-                                        const T beta, T* B_array, int ldb, long strideB)
+kernel_syrk_U_LT_reg_shared_Mfix_Nvar(const int m, const int n, int batchCount,
+                                      const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
+                                      const T beta,        T_PTR              B_array, int B_row_off, int B_col_off, int ldb, long strideB)
 {
   if( m != B_ROWS ) return;//necessary condition
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
-
-  const T *A = A_array + (blockIdx.x * blockDim.y + ty) * strideA;
-        T *B = B_array + (blockIdx.x * blockDim.y + ty) * strideB;
+  if(ind >= batchCount) return;
+  const T *A;
+        T *B;
+  if(STRIDED == true){
+    A = (const T*)A_array + ind * strideA;
+    B =       (T*)B_array + ind * strideB;
+  }else{
+    A = ((const T**)A_array)[ind];
+    B =       ((T**)B_array)[ind];
+    A += A_row_off + A_col_off * lda;
+    B += B_row_off + B_col_off * ldb;
+  }
   dev_syrk_U_LT_reg_shared_Mfix_Nvar<T, B_ROWS, A_ROWS_PTY>(
                                       m, n,
                                       alpha, A, lda,
                                       beta, B, ldb);
 }
-//----------------------------------------------
-template<typename T, int B_ROWS, int A_ROWS_PTY>
-__global__ void  //__launch_bounds__(256)
-kernel_syrk_UN_LT_reg_shared_Mfix_Nvar( const int m, const int n, int batchCount,
-                                        const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
-                                        const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
-{
-  if( m != B_ROWS ) return;//necessary condition
-  //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
 
-  const T *A = A_array[blockIdx.x * blockDim.y + ty];
-        T *B = B_array[blockIdx.x * blockDim.y + ty];
-  A += A_row_off + A_col_off * lda;
-  B += B_row_off + B_col_off * ldb;
-  dev_syrk_U_LT_reg_shared_Mfix_Nvar<T, B_ROWS, A_ROWS_PTY>(
-                                      m, n,
-                                      alpha, A, lda,
-                                      beta, B, ldb);
-}
 //==============================================================================================;
 template<typename T, int TX, int A_ROWS_PTY>
 __device__ inline void
@@ -1145,43 +1065,34 @@ dev_syrk_U_LT_reg_shared_MNvar( const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, int B_ROWS, int A_ROWS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_ROWS_PTY>
 __global__ void  //__launch_bounds__(256)
-kernel_syrk_US_LT_reg_shared_MNvar( const int m, const int n, int batchCount,
-                                    const T alpha, const T* __restrict__ A_array, int lda, long strideA,
-                                    const T beta, T* B_array, int ldb, long strideB)
+kernel_syrk_U_LT_reg_shared_MNvar(const int m, const int n, int batchCount,
+                                  const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
+                                  const T beta,        T_PTR              B_array, int B_row_off, int B_col_off, int ldb, long strideB)
 {
   if(B_ROWS < m) return;
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
+  if(ind >= batchCount) return;
 
-  const T *A = A_array + (blockIdx.x * blockDim.y + ty) * strideA;
-        T *B = B_array + (blockIdx.x * blockDim.y + ty) * strideB;
+  const T *A;
+        T *B;
+  if(STRIDED == true){
+    A = (const T*)A_array + ind * strideA;
+    B =       (T*)B_array + ind * strideB;
+  }else{
+    A = ((const T**)A_array)[ind];
+    B =       ((T**)B_array)[ind];
+    A += A_row_off + A_col_off * lda;
+    B += B_row_off + B_col_off * ldb;
+  }
   dev_syrk_U_LT_reg_shared_MNvar<T, B_ROWS, A_ROWS_PTY>(
                                   m, n,
                                   alpha, A, lda,
                                   beta, B, ldb);
 }
-//----------------------------------------------
-template<typename T, int B_ROWS, int A_ROWS_PTY>
-__global__ void  //__launch_bounds__(256)
-kernel_syrk_UN_LT_reg_shared_MNvar( const int m, const int n, int batchCount,
-                                    const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
-                                    const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
-{
-  if(B_ROWS < m) return;
-  //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
 
-  const T *A = A_array[blockIdx.x * blockDim.y + ty];
-        T *B = B_array[blockIdx.x * blockDim.y + ty];
-  A += A_row_off + A_col_off * lda;
-  B += B_row_off + B_col_off * ldb;
-  dev_syrk_U_LT_reg_shared_MNvar<T, B_ROWS, A_ROWS_PTY>(
-                                  m, n,
-                                  alpha, A, lda,
-                                  beta, B, ldb);
-}
 //==============================================================================================;
 template<typename T, int TX, int A_COLS_PTY>
 __device__ inline void
@@ -1316,45 +1227,34 @@ dev_syrk_U_LT_reg_shared_Mblock2_Nmul(const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
 __global__ void  //__launch_bounds__(256)
-kernel_syrk_US_LT_reg_shared_Mblock2_Nmul(const int m, const int n, int batchCount,
-                                          const T alpha, const T* __restrict__ A_array, int lda, long strideA,
-                                          const T beta, T* B_array, int ldb, long strideB)
+kernel_syrk_U_LT_reg_shared_Mblock2_Nmul( const int m, const int n, int batchCount,
+                                          const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
+                                          const T beta,        T_PTR              B_array, int B_row_off, int B_col_off, int ldb, long strideB)
 {
   if( m % (B_ROWS * 2) ) return;//necessary condition
   if( n % B_ROWS != 0 ) return;//necessary condition
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
-
-  const T *A = A_array + (blockIdx.x * blockDim.y + ty) * strideA + blockIdx.y * 2 * B_ROWS;
-        T *B = B_array + (blockIdx.x * blockDim.y + ty) * strideB + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+  if(ind >= batchCount) return;
+  const T *A;
+        T *B;
+  if(STRIDED == true){
+    A = (const T*)A_array + (ind) * strideA + blockIdx.y * 2 * B_ROWS;
+    B =       (T*)B_array + (ind) * strideB + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+  }else{
+    A = ((const T**)A_array)[ind] + blockIdx.y * 2 * B_ROWS;
+    B =       ((T**)B_array)[ind] + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+    A += A_row_off + A_col_off * lda;
+    B += B_row_off + B_col_off * ldb;
+  }
   dev_syrk_U_LT_reg_shared_Mblock2_Nmul<T, B_ROWS, A_COLS_PTY>(
                                         m, n,
                                         alpha, A, lda,
                                         beta, B, ldb);
 }
-//----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
-__global__ void  //__launch_bounds__(256)
-kernel_syrk_UN_LT_reg_shared_Mblock2_Nmul(const int m, const int n, int batchCount,
-                                          const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
-                                          const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
-{
-  if( m % (B_ROWS * 2) ) return;//necessary condition
-  if( n % B_ROWS != 0 ) return;//necessary condition
-  //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
 
-  const T *A = A_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS;
-        T *B = B_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS * (1 + ldb);
-  A += A_row_off + A_col_off * lda;
-  B += B_row_off + B_col_off * ldb;
-  dev_syrk_U_LT_reg_shared_Mblock2_Nmul<T, B_ROWS, A_COLS_PTY>(
-                                        m, n,
-                                        alpha, A, lda,
-                                        beta, B, ldb);
-}
 //==============================================================================================;
 template<typename T, int TX, int A_COLS_PTY>
 __device__ inline void
@@ -1537,43 +1437,34 @@ dev_syrk_U_LT_reg_shared_Mblock2_Nvar(const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
 __global__ void  //__launch_bounds__(256)
-kernel_syrk_US_LT_reg_shared_Mblock2_Nvar(const int m, const int n, int batchCount,
-                                          const T alpha, const T* __restrict__ A_array, int lda, long strideA,
-                                          const T beta, T* B_array, int ldb, long strideB)
+kernel_syrk_U_LT_reg_shared_Mblock2_Nvar( const int m, const int n, int batchCount,
+                                          const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
+                                          const T beta,        T_PTR              B_array, int B_row_off, int B_col_off, int ldb, long strideB)
 {
   if( m % (B_ROWS * 2) ) return;//necessary condition
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
+  if(ind >= batchCount) return;
 
-  const T *A = A_array + (blockIdx.x * blockDim.y + ty) * strideA + blockIdx.y * 2 * B_ROWS * lda;
-        T *B = B_array + (blockIdx.x * blockDim.y + ty) * strideB + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+  const T *A;
+        T *B;
+  if(STRIDED == true){
+    A = (const T*)A_array + (ind) * strideA + blockIdx.y * 2 * B_ROWS * lda;
+    B =       (T*)B_array + (ind) * strideB + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+  }else{
+    A = ((const T**)A_array)[ind] + blockIdx.y * 2 * B_ROWS * lda;
+    B =       ((T**)B_array)[ind] + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+    A += A_row_off + A_col_off * lda;
+    B += B_row_off + B_col_off * ldb;
+  }
   dev_syrk_U_LT_reg_shared_Mblock2_Nvar<T, B_ROWS, A_COLS_PTY>(
                                         m, n,
                                         alpha, A, lda,
                                         beta, B, ldb);
 }
-//----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
-__global__ void  //__launch_bounds__(256)
-kernel_syrk_UN_LT_reg_shared_Mblock2_Nvar(const int m, const int n, int batchCount,
-                                          const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
-                                          const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
-{
-  if( m % (B_ROWS * 2) ) return;//necessary condition
-  //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
 
-  const T *A = A_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS * lda;
-        T *B = B_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS * (1 + ldb);
-  A += A_row_off + A_col_off * lda;
-  B += B_row_off + B_col_off * ldb;
-  dev_syrk_U_LT_reg_shared_Mblock2_Nvar<T, B_ROWS, A_COLS_PTY>(
-                                        m, n,
-                                        alpha, A, lda,
-                                        beta, B, ldb);
-}
 //==============================================================================================;
 template<typename T, int TX, int A_COLS_PTY>
 __device__ inline void
@@ -1933,41 +1824,33 @@ dev_syrk_U_LT_reg_shared_NMblock2var( const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
 __global__ void  //__launch_bounds__(256)
-kernel_syrk_US_LT_reg_shared_NMblock2var( const int m, const int n, int batchCount,
-                                          const T alpha, const T* __restrict__ A_array, int lda, long strideA,
-                                          const T beta, T* B_array, int ldb, long strideB)
+kernel_syrk_U_LT_reg_shared_NMblock2var(const int m, const int n, int batchCount,
+                                        const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
+                                        const T beta,        T_PTR              B_array, int B_row_off, int B_col_off, int ldb, long strideB)
 {
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
+  if(ind >= batchCount) return;
 
-  const T *A = A_array + (blockIdx.x * blockDim.y + ty) * strideA + blockIdx.y * 2 * B_ROWS * lda;
-        T *B = B_array + (blockIdx.x * blockDim.y + ty) * strideB + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+  const T *A;
+        T *B;
+  if(STRIDED == true){
+    A = (const T*)A_array + (ind) * strideA + blockIdx.y * 2 * B_ROWS * lda;
+    B =       (T*)B_array + (ind) * strideB + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+  }else{
+    A = ((const T**)A_array)[ind] + blockIdx.y * 2 * B_ROWS * lda;
+    B =       ((T**)B_array)[ind] + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+    A += A_row_off + A_col_off * lda;
+    B += B_row_off + B_col_off * ldb;
+  }
   dev_syrk_U_LT_reg_shared_NMblock2var<T, B_ROWS, A_COLS_PTY>(
                                         m, n,
                                         alpha, A, lda,
                                         beta, B, ldb);
 }
-//----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
-__global__ void  //__launch_bounds__(256)
-kernel_syrk_UN_LT_reg_shared_NMblock2var( const int m, const int n, int batchCount,
-                                          const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
-                                          const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
-{
-  //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
 
-  const T *A = A_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS * lda;
-        T *B = B_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS * (1 + ldb);
-  A += A_row_off + A_col_off * lda;
-  B += B_row_off + B_col_off * ldb;
-  dev_syrk_U_LT_reg_shared_NMblock2var<T, B_ROWS, A_COLS_PTY>(
-                                        m, n,
-                                        alpha, A, lda,
-                                        beta, B, ldb);
-}
 //==============================================================================================;
 template<typename T, int TX, int A_COLS_PTY>
 __device__ inline void
@@ -2064,43 +1947,34 @@ dev_syrk_U_LN_registers_Mfix_Nvar_DB( const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
 __global__ void  //__launch_bounds__(256)
-kernel_syrk_US_LN_registers_Mfix_Nvar_DB( const int m, const int n, int batchCount,
-                                          const T alpha, const T* __restrict__ A_array, int lda, long strideA,
-                                          const T beta, T* B_array, int ldb, long strideB)
+kernel_syrk_U_LN_registers_Mfix_Nvar_DB(const int m, const int n, int batchCount,
+                                        const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
+                                        const T beta,        T_PTR              B_array, int B_row_off, int B_col_off, int ldb, long strideB)
 {
   if( m != B_ROWS ) return;//necessary condition
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
+  if(ind >= batchCount) return;
 
-  const T *A = A_array + (blockIdx.x * blockDim.y + ty) * strideA;
-        T *B = B_array + (blockIdx.x * blockDim.y + ty) * strideB;
+  const T *A;
+        T *B;
+  if(STRIDED == true){
+    A = (const T*)A_array + ind * strideA;
+    B =       (T*)B_array + ind * strideB;
+  }else{
+    A = ((const T**)A_array)[ind];
+    B =       ((T**)B_array)[ind];
+    A += A_row_off + A_col_off * lda;
+    B += B_row_off + B_col_off * ldb;
+  }
   dev_syrk_U_LN_registers_Mfix_Nvar_DB<T, B_ROWS, A_COLS_PTY>(
                                         m, n,
                                         alpha, A, lda,
                                         beta, B, ldb);
 }
-//----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
-__global__ void  //__launch_bounds__(256)
-kernel_syrk_UN_LN_registers_Mfix_Nvar_DB( const int m, const int n, int batchCount,
-                                          const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
-                                          const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
-{
-  if( m != B_ROWS ) return;//necessary condition
-  //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
 
-  const T *A = A_array[blockIdx.x * blockDim.y + ty];
-        T *B = B_array[blockIdx.x * blockDim.y + ty];
-  A += A_row_off + A_col_off * lda;
-  B += B_row_off + B_col_off * ldb;
-  dev_syrk_U_LN_registers_Mfix_Nvar_DB<T, B_ROWS, A_COLS_PTY>(
-                                        m, n,
-                                        alpha, A, lda,
-                                        beta, B, ldb);
-}
 //==============================================================================================;
 template<typename T, int TX, int A_COLS_PTY>
 __device__ inline void
@@ -2224,44 +2098,35 @@ dev_syrk_U_LN_registers_Mblock2_Nvar_DB( const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
 __global__ void  //__launch_bounds__(256)
-kernel_syrk_US_LN_registers_Mblock2_Nvar_DB( const int m, const int n, int batchCount,
-                                             const T alpha, const T* __restrict__ A_array, int lda, long strideA,
-                                             const T beta, T* B_array, int ldb, long strideB)
+kernel_syrk_U_LN_registers_Mblock2_Nvar_DB( const int m, const int n, int batchCount,
+                                            const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
+                                            const T beta,        T_PTR              B_array, int B_row_off, int B_col_off, int ldb, long strideB)
 {
   if( m % (B_ROWS * 2) ) return;//necessary condition
-  //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
 
-  const T *A = A_array + (blockIdx.x * blockDim.y + ty) * strideA + blockIdx.y * 2 * B_ROWS;
-        T *B = B_array + (blockIdx.x * blockDim.y + ty) * strideB + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+  unsigned int ind = blockIdx.x * blockDim.y + ty;
+
+  //are we within bounds
+  if(ind >= batchCount) return;
+
+  const T *A;
+        T *B;
+  if(STRIDED == true){
+    A = (const T*)A_array + (ind) * strideA + blockIdx.y * 2 * B_ROWS;
+    B =       (T*)B_array + (ind) * strideB + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+  }else{
+    A = ((const T**)A_array)[ind] + blockIdx.y * 2 * B_ROWS;
+    B =       ((T**)B_array)[ind] + blockIdx.y * 2 * B_ROWS * (1 + ldb);
+    A += A_row_off + A_col_off * lda;
+    B += B_row_off + B_col_off * ldb;
+  }
   dev_syrk_U_LN_registers_Mblock2_Nvar_DB<T, B_ROWS, A_COLS_PTY>(
                                            m, n,
                                            alpha, A, lda,
                                            beta, B, ldb);
 }
-//----------------------------------------------
-template<typename T, int B_ROWS, int A_COLS_PTY>
-__global__ void  //__launch_bounds__(256)
-kernel_syrk_UN_LN_registers_Mblock2_Nvar_DB(const int m, const int n, int batchCount,
-                                            const T alpha, const T** __restrict__ A_array, int A_row_off, int A_col_off, int lda,
-                                            const T beta,                     T** B_array, int B_row_off, int B_col_off, int ldb)
-{
-  if( m % (B_ROWS * 2) ) return;//necessary condition
-  //are we within bounds
-  if(blockIdx.x * blockDim.y + ty >= batchCount) return;
-
-  const T *A = A_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS;
-        T *B = B_array[blockIdx.x * blockDim.y + ty] + blockIdx.y * 2 * B_ROWS * (1 + ldb);
-  A += A_row_off + A_col_off * lda;
-  B += B_row_off + B_col_off * ldb;
-  dev_syrk_U_LN_registers_Mblock2_Nvar_DB<T, B_ROWS, A_COLS_PTY>(
-                                           m, n,
-                                           alpha, A, lda,
-                                           beta, B, ldb);
-}
-
 //==============================================================================================
 #else
 #error "Pre-Kepler architechture is not supported in KBLAS batch SYRK"

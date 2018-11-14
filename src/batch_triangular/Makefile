@@ -1,8 +1,8 @@
 #WARNING: Don't invoke this file independently, must be included into parent folder makefile
 
-DEPS_BATCH=$(DEPS_COM) kblas_struct.h kblas_prec_def.h kblas_error.h $(KBLAS_BATCH_DIR)/batch_common.ch
+DEPS_BATCH=$(DEPS_COM) kblas_struct.h kblas_prec_def.h kblas_error.h workspace_queries.ch
 #batch_common.ch
-KBLAS_BATCH_SRC = batch_common.cu
+KBLAS_BATCH_SRC =
 KBLAS_BATCH_SRC+= 		 \
 			shelper_funcs.cu \
 			sgemm_batch.cu   \
@@ -59,10 +59,7 @@ KBLAS_BATCH_SRC+=      \
 ALL_OBJ+= $(patsubst %.cu,$(OBJ_DIR)/%.cu_o,$(KBLAS_BATCH_SRC))
 
 
-$(OBJ_DIR)/%_common.cu_o: $(KBLAS_BATCH_DIR)/%_common.cu $(DEPS_BATCH)
-	$(NVCC) $(NVOPTS) $(NVOPTS_3) $(INC) -c $< -o $@
-
-$(OBJ_DIR)/%helper_funcs.cu_o: $(KBLAS_BATCH_DIR)/Xhelper_funcs.cu $(DEPS_BATCH)
+$(OBJ_DIR)/%helper_funcs.cu_o: $(KBLAS_BATCH_DIR)/Xhelper_funcs.cu $(KBLAS_BATCH_DIR)/Xhelper_funcs.cuh $(DEPS_BATCH)
 	$(NVCC) $(NVOPTS) -DPREC_$* $(NVOPTS_3) $(INC) -c $< -o $@
 
 $(OBJ_DIR)/%gemm_batch.cu_o: $(KBLAS_BATCH_DIR)/Xgemm_batch.cu $(KBLAS_BATCH_DIR)/Xgemm_batch_core.cuh $(DEPS_BATCH)

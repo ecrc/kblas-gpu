@@ -11,10 +11,10 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Wajih Halim Boukaram
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #ifndef __TESTING_HELPER_H__
@@ -33,8 +33,8 @@
 #ifdef USE_MKL
 #include <mkl.h>
 #else
-// #include <cblas.h>		TODO: if MKL not set we need to use other libs
-// #include <lapacke.h>
+#include <cblas.h>		//TODO: if MKL not set we need to use other libs
+#include <lapacke.h>
 #endif
 #ifdef USE_OPENMP
 #include <omp.h>
@@ -44,6 +44,12 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+inline int iDivUp( int a, int b ) { return (a % b != 0) ? (a / b + 1) : (a / b); }
+
+#define kmin(a,b) ((a)>(b)?(b):(a))
+#define kmax(a,b) ((a)<(b)?(b):(a))
+int kblas_roundup(int x, int y);
 
 ////////////////////////////////////////////////////////////
 // Error checking
@@ -135,6 +141,7 @@ double dget_max_error_matrix(double* ref, double *res, long m, long n, long lda)
 float cget_max_error_matrix(cuFloatComplex* ref, cuFloatComplex *res, long m, long n, long lda);
 double zget_max_error_matrix(cuDoubleComplex* ref, cuDoubleComplex *res, long m, long n, long lda);
 
+double dget_max_error_matrix_uplo(double* ref, double *res, long m, long n, long lda, char uplo);
 // float sget_max_error_matrix_uplo(float* ref, float *res, long m, long n, long lda, char uplo);
 // double dget_max_error_matrix_symm(double* ref, double *res, long m, long n, long lda, char uplo);
 
@@ -177,12 +184,18 @@ typedef struct kblas_opts
 	int warmup;
 	int time;
 	int lapack;
+	int magma;
+	int svd;
+	int cuda;
+	int nonUniform;
 	//int bd[KBLAS_BACKDOORS];
 	int batchCount;
 	int strided;
 	int btest, batch[MAX_NTEST];
 	int rtest, rank[MAX_NTEST];
 	int omp_numthreads;
+  char LR;//Low rank format
+  int version;
 
 	// lapack flags
 	char uplo;
@@ -196,6 +209,98 @@ int parse_opts(int argc, char** argv, kblas_opts *opts);
 
 #ifdef __cplusplus
 }
+#endif
+
+
+#ifdef __cplusplus
+
+#define kmin(a,b) ((a)>(b)?(b):(a))
+#define kmax(a,b) ((a)<(b)?(b):(a))
+
+#include "operators.h"
+template<class T, class T_complex>
+T get_magnitude(T_complex a){ return sqrt(a.x * a.x + a.y * a.y); }
+template<class T>
+T get_magnitude(T ax, T ay){ return sqrt(ax * ax + ay * ay); }
+
+template<typename T>
+bool kblas_laisnan(T val1, T val2){
+  return val1 != val2;
+}
+
+template<typename T>
+bool kblas_isnan(T val){
+  return kblas_laisnan(val,val);
+}
+
+inline float Xabs(float a){return fabs(a);}
+inline double Xabs(double a){return fabs(a);}
+inline float Xabs(cuFloatComplex a){return get_magnitude<float,cuFloatComplex>(a);}
+inline double Xabs(cuDoubleComplex a){return get_magnitude<double,cuDoubleComplex>(a);}
+
+template<class T>
+void matrix_make_hpd(int N, T* A, int lda, T diag)
+{
+  ssize_t ldas = ssize_t(lda);
+  for(ssize_t i = 0; i < ssize_t(N); i++)
+  {
+    A[i + i * ldas] = A[i + i * ldas] + diag;
+    for(ssize_t j = 0; j < i; j++){
+      A[j + i*ldas] = A[i + j*ldas];
+    }
+  }
+}
+
+template<typename T, typename R>
+R kblas_lange(char type, int M, int N, T* arr, int lda){
+  R value = make_zero<R>();
+  R temp;
+  for(int j = 0; j < N; j++){
+    for(int i = 0; i < M; i++){
+      temp = Xabs(arr[i + j * lda]);
+      if( kblas_isnan(temp) ){
+        value = temp;
+        printf("NAN encountered (%d,%d)\n", i, j);
+        return value;
+      }
+      if( value < temp)
+        value = temp;
+    }
+  }
+  return value;
+}
+
+template<typename T>
+void kblasXaxpy (int n, T alpha, const T *x, int incx, T *y, int incy){
+  int ix = 0, iy = 0;
+  if(incx < 0) ix = 1 - n * incx;
+  if(incy < 0) iy = 1 - n * incy;
+  for(int i = 0; i < n; i++, ix+=incx, iy+=incy){
+    y[iy] += alpha * x[ix];
+  }
+}
+
+template<class T>
+void hilbertMatrix(int m, int n, T* A, int lda, T scal){
+  for(int r = 0; r < m; r++){
+    for(int c = 0; c < n; c++){
+      A[r + c*lda] = T(scal)/T(r+c+1);
+    }
+  }
+}
+
+#endif //__cplusplus
+
+#ifdef DBG_MSG
+#define ECHO_I(_val) printf("%s(%d) ", #_val, (_val));fflush( stdout )
+#define ECHO_f(_val) printf("%s(%e) ", #_val, (_val));fflush( stdout )
+#define ECHO_p(_val) printf("%s(%p) ", #_val, (_val));fflush( stdout )
+#define ECHO_LN printf("\n");fflush( stdout )
+#else
+#define ECHO_I(_val)
+#define ECHO_f(_val)
+#define ECHO_p(_val)
+#define ECHO_LN
 #endif
 
 #endif // __TESTING_HELPER_H__

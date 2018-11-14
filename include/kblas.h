@@ -11,11 +11,11 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
  * @author Wajih Halim Boukaram
  * @author Ahmad Abdelfattah
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #ifndef _KBLAS_H_
@@ -36,6 +36,9 @@
 struct KBlasHandle;
 typedef struct KBlasWorkspace *kblasWorkspace_t;
 typedef struct KBlasHandle *kblasHandle_t;
+
+struct KBlasRandState;
+typedef struct KBlasRandState* kblasRandState_t;
 
 /** @addtogroup C_API
 *  @{
@@ -60,6 +63,10 @@ void kblasTimerRecordEnd(kblasHandle_t handle);
 double kblasTimerToc(kblasHandle_t handle);
 
 /**
+ * @brief Create CUDA stream to be used internally.
+ */
+int kblasCreateStreams(kblasHandle_t handle, int nStreams);
+/**
  * @brief Retrieve the CUDA stream used in the KBLAS handle structure.
  */
 cudaStream_t kblasGetStream(kblasHandle_t handle);
@@ -74,6 +81,15 @@ void kblasSetStream(kblasHandle_t handle, cudaStream_t stream);
  */
 cublasHandle_t kblasGetCublasHandle(kblasHandle_t handle);
 
+/**
+ * @brief Enable MAGMA support.
+ */
+int kblasEnableMagma(kblasHandle_t handle);
+
+/**
+ * @brief Set MAGMA queue in KBLAS handle.
+ */
+// int kblasSetMagma(kblasHandle_t handle, magma_queue_t queue);
 const char* kblasGetErrorString(int error);
 
 /** @} */
@@ -98,7 +114,6 @@ int kblasFreeWorkspace(kblasHandle_t handle);
 //============================================================================
 #include "kblas_l2.h"
 
-
 //============================================================================
 //BLAS3 routines
 //============================================================================
@@ -110,5 +125,11 @@ int kblasFreeWorkspace(kblasHandle_t handle);
 #include "kblas_batch.h"
 #include "batch_qr.h"
 #include "batch_svd.h"
+#include "batch_rand.h"
+
+//============================================================================
+//TLR routines
+//============================================================================
+#include "kblas_tlr.h"
 
 #endif // _KBLAS_H_

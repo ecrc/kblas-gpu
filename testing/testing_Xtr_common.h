@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #ifndef _TESTING_TR_COMMON_
@@ -786,7 +786,7 @@ void printMatrix(int m, int n, T* A, int lda, FILE* out){
   fprintf(out, "\n");
 }
 
+extern "C"
 int kblas_roundup(int x, int y);
-extern bool use_magma_gemm;
-extern bool use_cublas_gemm;
+
 #endif

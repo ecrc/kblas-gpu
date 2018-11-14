@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Wajih Halim Boukaram
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #ifndef __KBLAS_GPU_UTIL_H__
@@ -31,6 +31,11 @@ inline __host__ __device__ T* getOperationPtr(T* array, int op_id, int stride) {
 template<class T>
 inline __host__ __device__ T* getOperationPtr(T** array, int op_id, int stride) { return array[op_id]; }
 
+template<class T>
+inline __host__ __device__ T getOperationVal(T val, int op_id) { return val; }
+template<class T>
+inline __host__ __device__ T getOperationVal(T* array, int op_id) { return array[op_id]; }
+
 template<class T, class T_ptr>
 inline __host__ __device__ T_ptr selectPointerData(T* strided_data, T** array_data);
 
@@ -45,8 +50,13 @@ template<>
 inline __host__ __device__ double** selectPointerData<double, double**>(double* strided_data, double** array_data) { return array_data; }
 
 template<class T> struct KBlasEpsilon;
+#if __cplusplus < 201103L
 template<> struct KBlasEpsilon<float>  {static const float  eps = 1.1920928955078125e-07; };
 template<> struct KBlasEpsilon<double> {static const double eps = 2.2204460492503131e-16; };
+#else
+template<> struct KBlasEpsilon<float>  {static constexpr float  eps = 1.1920928955078125e-07; };
+template<> struct KBlasEpsilon<double> {static constexpr double eps = 2.2204460492503131e-16; };
+#endif
 
 __device__ __host__
 inline int iDivUp( int a, int b ) { return (a % b != 0) ? (a / b + 1) : (a / b); }

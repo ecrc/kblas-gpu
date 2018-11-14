@@ -113,7 +113,7 @@ if (TEST_BATCH_SVD == 1):
     programs = ['test_dgesvj_batch', 'test_sgesvj_batch']
     ranges = ['--range 32:512:32']
     options = ''
-    batchCount = 200;
+    batchCount = defaultBatchCount;
 
     parallelTaskLaunch(variants, programs, ranges, options, batchCount)
 

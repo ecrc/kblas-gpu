@@ -11,10 +11,10 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
  * @author Ahmad Abdelfattah
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #ifndef _OPERATORS_
@@ -72,10 +72,15 @@ __device__ static __inline__ double          make_real(double x){return x;}
 __device__ static __inline__ cuFloatComplex  make_real(cuFloatComplex a){return make_cuFloatComplex(a.x, 0.0);}
 __device__ static __inline__ cuDoubleComplex make_real(cuDoubleComplex a){return make_cuDoubleComplex(a.x, 0.0);}
 
+__host__ __device__ static __inline__ float absolute(float x){return fabsf(x);}
+__host__ __device__ static __inline__ double absolute(double x){return fabs(x);}
+// TODO: absolute complex is not correct this way
+// __host__ __device__ static __inline__ cuFloatComplex absolute(cuFloatComplex x){return cuCabsf(x);}
+// __host__ __device__ static __inline__ cuDoubleComplex absolute(cuDoubleComplex x){return cuCabs(x);}
 
 //==============================================================================================
 #if defined(__CUDACC__)
-#if (SM >= 30)
+#if (TARGET_SM >= 30)
 __device__ __inline__ float shfl(float x, int lane, int ws = 32)
 {
   return __shfl(x, lane, ws);

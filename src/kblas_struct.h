@@ -11,10 +11,10 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
  * @author Wajih Halim Boukaram
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #ifndef __KBLAS_STRUCT__
@@ -24,7 +24,7 @@
 #include <cublas_v2.h>
 #ifdef USE_MAGMA
   #include "magma.h"
-  #include <cusparse.h>
+  // #include <cusparse.h>
 #endif
 
 #include <assert.h>
@@ -41,16 +41,16 @@ extern int kblas_back_door[KBLAS_BACKDOORS];
 // Structure defining the a state of the workspace, whether its allocated,
 // requested by a query routine, or consumed by a routine holding the handle
 struct KBlasWorkspaceState
-  {
-  long h_data_bytes, h_ptrs_bytes;		// host data and pointer allocations
-  long d_data_bytes, d_ptrs_bytes;		// device data and pointer allocations
+{
+  size_t h_data_bytes, h_ptrs_bytes;		// host data and pointer allocations
+  size_t d_data_bytes, d_ptrs_bytes;		// device data and pointer allocations
 
   KBlasWorkspaceState()
   {
     reset();
   }
 
-  KBlasWorkspaceState(long h_data_bytes, long h_ptrs_bytes, long d_data_bytes, long d_ptrs_bytes)
+  KBlasWorkspaceState(size_t h_data_bytes, size_t h_ptrs_bytes, size_t d_data_bytes, size_t d_ptrs_bytes)
   {
     this->h_data_bytes = h_data_bytes;
     this->h_ptrs_bytes = h_ptrs_bytes;
@@ -71,6 +71,14 @@ struct KBlasWorkspaceState
     h_ptrs_bytes = kmax(h_ptrs_bytes, wss->h_ptrs_bytes);
     d_data_bytes = kmax(d_data_bytes, wss->d_data_bytes);
     d_ptrs_bytes = kmax(d_ptrs_bytes, wss->d_ptrs_bytes);
+  }
+
+  void set(KBlasWorkspaceState* wss)
+  {
+    h_data_bytes = wss->h_data_bytes;
+    h_ptrs_bytes = wss->h_ptrs_bytes;
+    d_data_bytes = wss->d_data_bytes;
+    d_ptrs_bytes = wss->d_ptrs_bytes;
   }
 
   bool isSufficient(KBlasWorkspaceState* wss)
@@ -134,7 +142,7 @@ struct KBlasWorkspace
   // Make sure to pop after using the workspace and in a FILO way
   /////////////////////////////////////////////////////////////////////////////
   // Device workspace
-  void* push_d_data(long bytes)
+  void* push_d_data(size_t bytes)
   {
     assert(bytes + consumed_ws_state.d_data_bytes <= allocated_ws_state.d_data_bytes);
 
@@ -143,13 +151,13 @@ struct KBlasWorkspace
     return ret_ptr;
   }
 
-  void pop_d_data(long bytes)
+  void pop_d_data(size_t bytes)
   {
     assert(consumed_ws_state.d_data_bytes >= bytes);
     consumed_ws_state.d_data_bytes -= bytes;
   }
 
-  void* push_d_ptrs(long bytes)
+  void* push_d_ptrs(size_t bytes)
   {
     assert(bytes + consumed_ws_state.d_ptrs_bytes <= allocated_ws_state.d_ptrs_bytes);
 
@@ -158,14 +166,14 @@ struct KBlasWorkspace
     return ret_ptr;
   }
 
-  void pop_d_ptrs(long bytes)
+  void pop_d_ptrs(size_t bytes)
   {
     assert(consumed_ws_state.d_ptrs_bytes >= bytes);
 
     consumed_ws_state.d_ptrs_bytes -= bytes;
   }
   // Host workspace
-  void* push_h_data(long bytes)
+  void* push_h_data(size_t bytes)
   {
     assert(bytes + consumed_ws_state.h_data_bytes <= allocated_ws_state.h_data_bytes);
 
@@ -174,13 +182,13 @@ struct KBlasWorkspace
     return ret_ptr;
   }
 
-  void pop_h_data(long bytes)
+  void pop_h_data(size_t bytes)
   {
     assert(consumed_ws_state.h_data_bytes >= bytes);
     consumed_ws_state.h_data_bytes -= bytes;
   }
 
-  void* push_h_ptrs(long bytes)
+  void* push_h_ptrs(size_t bytes)
   {
     assert(bytes + consumed_ws_state.h_ptrs_bytes <= allocated_ws_state.h_ptrs_bytes);
 
@@ -189,7 +197,7 @@ struct KBlasWorkspace
     return ret_ptr;
   }
 
-  void pop_h_ptrs(long bytes)
+  void pop_h_ptrs(size_t bytes)
   {
     assert(consumed_ws_state.h_ptrs_bytes >= bytes);
     consumed_ws_state.h_ptrs_bytes -= bytes;
@@ -270,6 +278,7 @@ struct KBlasWorkspace
       check_error_ret( cudaFree(d_data), KBLAS_Error_Deallocation );
     if(d_ptrs)
       check_error_ret( cudaFree(d_ptrs), KBLAS_Error_Deallocation );
+    reset();
 
     return KBLAS_Success;
   }
@@ -280,11 +289,11 @@ struct KBlasWorkspace
   }
 };
 
-struct KBlasWorkspaceGuard 
+struct KBlasWorkspaceGuard
 {
 	KBlasWorkspaceState pushed_ws;
 	KBlasWorkspace* ws_ptr;
-	
+
 	KBlasWorkspaceGuard(KBlasWorkspaceState& pushed_ws, KBlasWorkspace& ws)
 	{
 		this->pushed_ws = pushed_ws;
@@ -296,8 +305,8 @@ struct KBlasWorkspaceGuard
 		ws_ptr->pop_d_ptrs(pushed_ws.d_ptrs_bytes);
 		ws_ptr->pop_h_data(pushed_ws.h_data_bytes);
 		ws_ptr->pop_h_ptrs(pushed_ws.h_ptrs_bytes);
-	}                             
-};                                
+	}
+};
 
 struct KBlasHandle
 {
@@ -305,8 +314,9 @@ struct KBlasHandle
 
   cublasHandle_t cublas_handle;
   cudaStream_t stream;
+  cudaStream_t streams[KBLAS_NSTREAMS];
+  int nStreams;
   #ifdef USE_MAGMA
-    cusparseHandle_t cusparse_handle;
     magma_queue_t  magma_queue;
   #endif
   int use_magma, device_id, create_cublas;
@@ -332,14 +342,12 @@ struct KBlasHandle
 
     #ifdef USE_MAGMA
     if(use_magma){
-      check_error( cusparseCreate(&cusparse_handle) );
       magma_queue_create_from_cuda(
         device_id, stream, cublas_handle,
-        cusparse_handle, &magma_queue
+        NULL, &magma_queue
       );
     }
     else
-      cusparse_handle = NULL;
     #endif
 
     timer.init();
@@ -348,6 +356,7 @@ struct KBlasHandle
 
     this->device_id = device_id;
     this->stream = stream;
+    this->nStreams = 0;
   }
   //-----------------------------------------------------------
   void tic()   		{ timer.start(stream); 		 }
@@ -360,7 +369,6 @@ struct KBlasHandle
     this->use_magma = 0;
     this->create_cublas = 0;
     #ifdef USE_MAGMA
-    cusparse_handle = NULL;
     #endif
     this->cublas_handle = cublas_handle;
     check_error( cublasGetStream(cublas_handle, &stream) );
@@ -372,17 +380,75 @@ struct KBlasHandle
     check_error( cudaGetDevice(&device_id) );
   }
 
+  //-----------------------------------------------------------
+  #ifdef USE_MAGMA
+  void EnableMagma()
+  {
+    #ifdef USE_MAGMA
+    if(use_magma == 0){
+      use_magma = 1;
+      magma_queue_create_from_cuda(
+        device_id, stream, cublas_handle,
+        NULL, &magma_queue
+      );
+    }
+    #else
+      printf("ERROR: KBLAS is compiled without magma!\n");
+    #endif
+  }
+
+  //-----------------------------------------------------------
+  void SetMagma(magma_queue_t queue)
+  {
+    #ifdef USE_MAGMA
+      magma_queue = queue;
+      if (queue != NULL)
+        use_magma = 1;
+      else
+        use_magma = 0;
+    #else
+      printf("ERROR: KBLAS is compiled without magma!\n");
+    #endif
+  }
+  #endif
+
+  //-----------------------------------------------------------
+  int SetStream(cudaStream_t stream)
+  {
+    this->stream = stream;
+    //if(cublas_handle)
+      check_error( cublasSetStream(cublas_handle, stream) );
+    #ifdef USE_MAGMA
+    // TODO need to set magma_queue stream also, is that possible?
+    #endif
+    return KBLAS_Success;
+  }
+
+  //-----------------------------------------------------------
+  int CreateStreams(int nStreams)
+  {
+    if(nStreams > KBLAS_NSTREAMS) return KBLAS_WrongConfig;
+    this->nStreams = nStreams;
+    for (int i = 0; i < nStreams; ++i)
+    {
+      check_error( cudaStreamCreateWithFlags( &(this->streams[i]), cudaStreamNonBlocking) );
+    }
+    return KBLAS_Success;
+  }
+
+  //-----------------------------------------------------------
   ~KBlasHandle()
   {
     if(cublas_handle != NULL && create_cublas)
       check_error( cublasDestroy(cublas_handle) );
-    #ifdef USE_MAGMA
-    if(cusparse_handle != NULL)
-      check_error( cusparseDestroy(cusparse_handle) );
-    #endif
     if(stream && create_cublas)
       check_error( cudaStreamDestroy(stream) );
 
+    if(nStreams > 0){
+      for (int i = 0; i < nStreams; ++i){
+        check_error( cudaStreamDestroy(streams[i]) );
+      }
+    }
     #ifdef USE_MAGMA
     if(use_magma)
       magma_queue_destroy(magma_queue);

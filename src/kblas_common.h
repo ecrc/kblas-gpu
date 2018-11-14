@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #include "kblas_error.h"
@@ -22,10 +22,33 @@
 bool REG_SIZE(int n);
 int CLOSEST_REG_SIZE(int n);
 
-//==============================================================================================
-
 #define kmin(a,b) ((a)>(b)?(b):(a))
 #define kmax(a,b) ((a)<(b)?(b):(a))
+extern "C"
+int kblas_roundup(int x, int y);
+
+
+long kblas_roundup_l(long x, long y);
+size_t kblas_roundup_s(size_t x, size_t y);
+
+//==============================================================================================
+int iset_value_1( int *output_array, int input,
+                  long batchCount, cudaStream_t cuda_stream);
+
+int iset_value_2( int *output_array1, int input1,
+                  int *output_array2, int input2,
+                  long batchCount, cudaStream_t cuda_stream);
+int iset_value_4( int *output_array1, int input1,
+                  int *output_array2, int input2,
+                  int *output_array3, int input3,
+                  int *output_array4, int input4,
+                  long batchCount, cudaStream_t cuda_stream);
+int iset_value_5( int *output_array1, int input1,
+                  int *output_array2, int input2,
+                  int *output_array3, int input3,
+                  int *output_array4, int input4,
+                  int *output_array5, int input5,
+                  long batchCount, cudaStream_t cuda_stream);
 
 //==============================================================================================
 #if 1

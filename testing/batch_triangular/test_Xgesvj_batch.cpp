@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Wajih Halim Boukaram
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #include <stdio.h>
@@ -22,11 +22,12 @@
 #include <algorithm>
 
 #include "testing_helper.h"
+#include "batch_rand.h"
 
 // The number of streams on each GPU for cusolver
 #define CUSOLVER_STREAMS 	10
 #define RSVD_RANK			64
-// #define USE_RSVD
+#define USE_RSVD
 
 
 #ifdef PREC_d
@@ -161,7 +162,8 @@ int main(int argc, char** argv)
 	cusolverDnHandle_t cusolver_handles[num_gpus][CUSOLVER_STREAMS];
 	kblasHandle_t kblas_handles[num_gpus];
 	GPU_Timer_t kblas_timers[num_gpus];
-
+	kblasRandState_t rand_state[num_gpus];
+	
 	double cpu_time[nruns], kblas_time[nruns], cusolver_time[nruns];
 
 	int cuda_version;
@@ -186,6 +188,7 @@ int main(int argc, char** argv)
 		// Init kblas handles and timers
 		kblasCreate(&kblas_handles[g]);
 		kblas_timers[g] = newGPU_Timer(kblasGetStream(kblas_handles[g]));
+		kblasInitRandState(kblas_handles[g], &rand_state[g], 16384*2, 0);
     }
 
 	printf("%-15s%-10s%-10s%-15s%-15s%-15s%-15s%-15s%-15s\n", "batchCount", "N", "K", "kblasGESVJ(s)", "cpuGESVJ(s)", "CUSOLVER(s)", "kblasErr", "CPUerr", "cusovlerErr");
@@ -243,11 +246,14 @@ int main(int argc, char** argv)
 					kblasAllocateWorkspace(kblas_handles[g]);
 
 					// Cusolver workspace
-					TESTING_MALLOC_DEV(d_info[g], int, CUSOLVER_STREAMS);
+					if(opts.cuda)
+					{
+						TESTING_MALLOC_DEV(d_info[g], int, CUSOLVER_STREAMS);
 
-					work_size = 0;
-					check_cusolver_error(cusolverDnXgesvd_bufferSize(cusolver_handles[g][0], rows, cols, &work_size));
-					TESTING_MALLOC_DEV(cusolver_ws[g], Real, CUSOLVER_STREAMS * work_size)
+						work_size = 0;
+						check_cusolver_error(cusolverDnXgesvd_bufferSize(cusolver_handles[g][0], rows, cols, &work_size));
+						TESTING_MALLOC_DEV(cusolver_ws[g], Real, CUSOLVER_STREAMS * work_size);
+					}
 				}
 
 				////////////////////////////////////////////////////////////////////////
@@ -257,9 +263,12 @@ int main(int argc, char** argv)
 				double cpu_err = 0, kblas_err = 0, cusolver_err = 0;
 				for(int i = 0; i < nruns; i++)
 				{
-					memcpy(host_A, host_A_original, sizeof(Real) * batchCount * rows * cols);
-					cpu_time[i] = batch_cpu_svd(host_A, host_S, rows, cols, batchCount, num_omp_threads);
-					cpu_err += testSValues(host_S, host_S_exact, cols, cols, batchCount);
+					if(opts.check)
+					{
+						memcpy(host_A, host_A_original, sizeof(Real) * batchCount * rows * cols);
+						cpu_time[i] = batch_cpu_svd(host_A, host_S, rows, cols, batchCount, num_omp_threads);
+						cpu_err += testSValues(host_S, host_S_exact, cols, cols, batchCount);
+					}
 
 					////////////////////////////////////////////////////////////////////////
 					// KBLAS
@@ -273,7 +282,7 @@ int main(int argc, char** argv)
 						gpuTimerTic(kblas_timers[g]);
 
 						#ifdef USE_RSVD
-						kblasXrsvd_batch(kblas_handles[g], rows, cols, rank, d_A[g], rows, rows * cols, d_S[g], cols, batchCount_gpu);
+						kblasXrsvd_batch(kblas_handles[g], rows, cols, rank, d_A[g], rows, rows * cols, d_S[g], cols, rand_state[g], batchCount_gpu);
 						#else
 						kblasXgesvj_batch(kblas_handles[g], rows, cols, d_A[g], rows, rows * cols, d_S[g], cols, batchCount_gpu);
 						#endif
@@ -294,7 +303,7 @@ int main(int argc, char** argv)
 					// CUSPARSE
 					////////////////////////////////////////////////////////////////////////
 					// Reset the GPU data and sync
-					if(cuda_version >= 8000)
+					if(opts.cuda && cuda_version >= 8000)
 					{
 						COPY_DATA_UP();
 
@@ -365,6 +374,11 @@ int main(int argc, char** argv)
 				{
 					cudaSetDevice(opts.devices[g]);
 					TESTING_FREE_DEV(d_A[g]); TESTING_FREE_DEV(d_S[g]);
+					if(opts.cuda)
+					{
+						TESTING_FREE_DEV(d_info[g]);
+						TESTING_FREE_DEV(cusolver_ws[g]);
+					}
 				}
 			}
 		}

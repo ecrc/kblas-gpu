@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 2.0.0
+ * @version 3.0.0
  * @author Ali Charara
- * @date 2017-11-13
+ * @date 2018-11-14
  **/
 
 #ifndef __XPOTI_BATCH_KERNELS_H__
@@ -28,9 +28,9 @@
 //==============================================================================================
 //Naming convention <dev/kernel>_<KernelName>_<Non/Uniform>_<Right/Left><Lower/Upper><Non/Transpose><Non/Diag>_<variants>
 //==============================================================================================
-#ifndef SM
-  #error "SM is not defined"
-#elif (SM >= 30)
+#ifndef TARGET_SM
+  #error "TARGET_SM is not defined"
+#elif (TARGET_SM >= 30)
 
 //==============================================================================================
 template<typename T, int TX>

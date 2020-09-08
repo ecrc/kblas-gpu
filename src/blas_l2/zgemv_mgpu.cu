@@ -22,7 +22,7 @@
 #include <cublas.h>
 #include "gemv_mgpu_core.cuh"
 #include "gemv_mgpu_offset_core.cuh"
-#include "defs.h"
+#include "kblas_defs.h"
 
 #if(TARGET_SM >= 30)
 

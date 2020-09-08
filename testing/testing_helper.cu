@@ -24,6 +24,8 @@
 #include <thrust/system/cuda/execution_policy.h>
 #include <thrust/system/omp/execution_policy.h>
 #include <thrust/random.h>
+#include <thrust/copy.h>
+#include <thrust/logical.h>
 
 #include <sys/time.h>
 #include <stdarg.h>
@@ -64,6 +66,39 @@ extern "C" void generateDArrayOfPointers(double* original_array, double** array_
 
 extern "C" void generateSArrayOfPointers(float* original_array, float** array_of_arrays, int stride, int num_arrays, cudaStream_t stream)
 { generateArrayOfPointersT<float>(original_array, array_of_arrays, stride, num_arrays, stream); }
+
+extern "C" void generateDArrayOfPointersHost(double* original_array, double** array_of_arrays, int stride, int num_arrays)
+{ for(int i = 0; i < num_arrays; i++) array_of_arrays[i] = original_array + i * stride; }
+
+extern "C" void generateSArrayOfPointersHost(float* original_array, float** array_of_arrays, int stride, int num_arrays)
+{ for(int i = 0; i < num_arrays; i++) array_of_arrays[i] = original_array + i * stride; }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Thrust reduction wrappers 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+template<class T>
+inline T getMaxElementT(T* a, size_t elements, cudaStream_t stream)
+{
+	return thrust::reduce(
+		thrust::cuda::par.on(stream),
+		a, a + elements, (T)0, thrust::maximum<T>()
+	);
+}
+
+template<class T>
+inline int getMinElementT(T* a, size_t elements, cudaStream_t stream)
+{
+	return thrust::reduce(
+		thrust::cuda::par.on(stream),
+		a, a + elements, (T)0, thrust::minimum<T>()
+	);
+}
+
+extern "C" int getMaxElement(int* a, size_t elements, cudaStream_t stream)
+{ return getMaxElementT<int>(a, elements, stream); }
+
+extern "C" int getMinElement(int* a, size_t elements, cudaStream_t stream)
+{ return getMinElementT<int>(a, elements, stream); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Timer helpers
@@ -400,7 +435,7 @@ template<class Real>
 void generate_randomMatrices(
 	Real* M_strided, int stride_M, Real* svals_strided, int stride_S, int rows, int cols,
 	Real cond, Real exp_decay, int seed, int num_ops, int threads
-  )
+)
 {
 	// Generate a bunch of random seeds from the master seed
 	thrust::host_vector<int> random_seeds(num_ops);
@@ -423,23 +458,72 @@ void generate_randomMatrices(
 
 		// Sanitize input
 		for(int j = 0; j < cols; j++)
-      svals[j] = 0;
+			svals[j] = 0;
 
-    for(int i = 0; i < rows; i++)
-     for(int j = 0; j < cols; j++)
-      matrix[i + j * rows] = 0;
+		for(int i = 0; i < rows; i++)
+			for(int j = 0; j < cols; j++)
+				matrix[i + j * rows] = 0;
 
-    int mode = 5;
-    if(cond == 0)
-    {
-     mode = 0;
-     for(int i = 0; i < cols; i++)
-      svals[i] = exp(-exp_decay*i);
-  }
-  info = LAPACKE_latms(LAPACK_COL_MAJOR, rows, cols, 'N', &seeds[0], 'N', svals, mode, cond, 1, rows, cols, 'N', matrix, rows);
-  if(info != 0) printf("Error generating random matrix: %d\n", info);
-  thrust::sort(svals, svals + cols, thrust::greater<Real>());
+		int mode = 5;
+		if(cond == 0)
+		{
+			mode = 0;
+			for(int i = 0; i < cols; i++)
+			svals[i] = exp(-exp_decay * i);
+		}
+		info = LAPACKE_latms(LAPACK_COL_MAJOR, rows, cols, 'N', &seeds[0], 'N', svals, mode, cond, 1, rows, cols, 'N', matrix, rows);
+		if(info != 0) printf("Error generating random matrix: %d\n", info);
+		thrust::sort(svals, svals + cols, thrust::greater<Real>());
+	}
 }
+
+template<class Real>
+void generate_randomMatricesArray(
+	Real** M_ptrs, int* ldm_array, Real** svals_ptrs, int *rows_array, int *cols_array,
+	int mode, Real cond, Real exp_decay_min, Real exp_decay_max, int seed, int num_ops, int threads
+)
+{
+	// Generate a bunch of random seeds from the master seed
+	thrust::host_vector<int> random_seeds(num_ops);
+	thrust::default_random_engine seed_rng; seed_rng.seed(seed);
+	thrust::uniform_int_distribution <int> seed_dist(0, 10000);
+	for(int i = 0; i < num_ops; i++)
+		random_seeds[i] = seed_dist(seed_rng);
+
+	#pragma omp parallel for num_threads(threads)
+	for(int op_index = 0; op_index < num_ops; op_index++)
+	{
+		thrust::default_random_engine rng; rng.seed(random_seeds[op_index]);
+		thrust::uniform_int_distribution<int> dist(0, 4095);
+		thrust::uniform_real_distribution<Real> decay_dist(exp_decay_min, exp_decay_max);
+		
+		int seeds[4] = {dist(rng), dist(rng), dist(rng), dist(rng)};
+		if(seeds[3] % 2 != 1) seeds[3]++;
+
+		int info;
+		Real* matrix = M_ptrs[op_index];
+		Real* svals  = svals_ptrs[op_index];
+		int cols = cols_array[op_index];
+		int rows = rows_array[op_index];
+		int ldm  = ldm_array[op_index];
+		
+		for(int i = 0; i < rows; i++)
+			for(int j = 0; j < cols; j++)
+				matrix[i + j * ldm] = 0;
+
+		int dlatms_mode = 0;
+		if(mode == 1) dlatms_mode = 5;
+		if(mode == 2)
+		{
+			Real exp_decay = decay_dist(rng);
+			for(int i = 0; i < cols; i++)
+				svals[i] = exp(-exp_decay * i);
+		}
+
+		info = LAPACKE_latms(LAPACK_COL_MAJOR, rows, cols, 'N', &seeds[0], 'N', svals, dlatms_mode, cond, 1, rows, cols, 'N', matrix, ldm);
+		if(info != 0) printf("Error generating random matrix: %d\n", info);
+		thrust::sort(svals, svals + cols, thrust::greater<Real>());
+	}
 }
 
 extern "C" void generateDrandomMatrices(
@@ -464,6 +548,99 @@ extern "C" void generateSrandomMatrices(
    );
 }
 
+extern "C" void generateDrandomMatricesArray(
+	double** M_ptrs, int* ldm_array, double** svals_ptrs, int *rows_array, int *cols_array,
+	int mode, double cond, double exp_decay_min, double exp_decay_max, int seed, int num_ops, int threads
+)
+{
+	generate_randomMatricesArray<double>(
+		M_ptrs, ldm_array, svals_ptrs, rows_array, cols_array,
+		mode, cond, exp_decay_min, exp_decay_max, seed, num_ops, threads
+	);
+}
+
+extern "C" void generateSrandomMatricesArray(
+	float** M_ptrs, int* ldm_array, float** svals_ptrs, int *rows_array, int *cols_array,
+	int mode, float cond, float exp_decay_min, float exp_decay_max, int seed, int num_ops, int threads
+)
+{
+	generate_randomMatricesArray<float>(
+		M_ptrs, ldm_array, svals_ptrs, rows_array, cols_array,
+		mode, cond, exp_decay_min, exp_decay_max, seed, num_ops, threads
+	);
+
+}
+
+template<class T>
+void generate_singular_values(T** svals_ptrs, int rank, T min_sval, T max_sval, int seed, int batchCount)
+{
+	thrust::default_random_engine generator;
+	generator.seed(seed);
+	thrust::uniform_real_distribution<T> distribution(min_sval, max_sval);
+
+	for(int i = 0; i < batchCount; i++)
+	{
+		T* svals = svals_ptrs[i];
+		for(int j = 0; j < rank; j++)
+			svals[j] = distribution(generator);
+		thrust::sort(svals, svals + rank, thrust::greater<T>());
+	}
+}
+
+extern "C" void generateSsingular_values(float** svals_ptrs, int rank, float min_sval, float max_sval, int seed, int batchCount)
+{
+	generate_singular_values<float>(svals_ptrs, rank, min_sval, max_sval, seed, batchCount);
+}
+
+extern "C" void generateDsingular_values(double** svals_ptrs, int rank, double min_sval, double max_sval, int seed, int batchCount)
+{
+	generate_singular_values<double>(svals_ptrs, rank, min_sval, max_sval, seed, batchCount);
+}
+
+extern "C" void generateRandDimensions(int minDim, int maxDim, int* randDims, int seed, int num_ops)
+{
+	thrust::default_random_engine rng;
+	rng.seed(seed);
+	thrust::uniform_int_distribution<int> dist(minDim, maxDim);
+	
+	for(int i = 0; i < num_ops; i++)
+		randDims[i] = dist(rng);
+}
+
+extern "C" void fillIntArray(int* array_vals, int value, int num_elements)
+{
+	for(int i = 0; i < num_elements; i++)
+		array_vals[i] = value;
+}
+
+template<class T>
+void fillArrayT(T* array, int num_entries, T val, cudaStream_t stream)
+{
+	thrust::device_ptr<T> dev_start(array);
+    thrust::device_ptr<T> dev_end(array + num_entries);
+	thrust::fill(
+		thrust::cuda::par.on(stream),
+		dev_start, dev_end, val
+	);
+	
+	check_error( cudaGetLastError() );
+}
+
+extern "C" void fillGPUIntArray(int* array_vals, int value, int num_elements, cudaStream_t stream)
+{
+	fillArrayT<int>(array_vals, num_elements, value, stream);
+}
+
+extern "C" void copyGPUPointerArray(void** originalPtrs, void** copyPtrs, int num_ptrs, cudaStream_t stream)
+{
+	thrust::copy(
+		thrust::cuda::par.on(stream),
+		copyPtrs, copyPtrs + num_ptrs,
+		originalPtrs
+	);
+	
+	check_error( cudaGetLastError() );
+}
 
 ////////////////////////////////////////////////////////////
 // Result checking

@@ -260,6 +260,26 @@ int kblasDcopy_upper_batch(kblasHandle_t handle, int m, int n, double** A_array,
  */
 int kblasScopy_upper_batch(kblasHandle_t handle, int m, int n, float** A_array, int lda, float** R_array, int ldr, int num_ops);
 
+//------------------------------------------------------------------------------
+// Array of pointers variable size interface
+/**
+ * @brief Array of pointers variable-size double precision batched domino QR decomposition of matrices A: A = Q * R
+ * 
+ * Array of pointers interface taking similar arguments to the strided interface; however, matrices and 
+ * arrays are stored in arrays of pointers instead of strided access, so A[i] = A_array[i] and tau[i] = tau_array[i]
+ * @see kblasDtsqrf_batch_strided
+ */
+int kblasDtsqrf_vbatch(kblasHandle_t handle, int* m, int* n, int max_m, int max_n, double** A_array, int* lda, double** tau_array, int num_ops);
+
+/**
+ * @brief Array of pointers variable-size single precision batched domino QR decomposition of matrices A: A = Q * R
+ * 
+ * Array of pointers interface taking similar arguments to the strided interface; however, matrices and 
+ * arrays are stored in arrays of pointers instead of strided access, so A[i] = A_array[i] and tau[i] = tau_array[i]
+ * @see kblasStsqrf_batch_strided
+ */
+int kblasStsqrf_vbatch(kblasHandle_t handle, int* m, int* n, int max_m, int max_n, float** A_array, int* lda, float** tau_array, int num_ops);
+
 //@}
 #ifdef __cplusplus
 }
@@ -360,6 +380,19 @@ inline int kblas_copy_upper_batch(kblasHandle_t handle, int m, int n, double** A
  */
 inline int kblas_copy_upper_batch(kblasHandle_t handle, int m, int n, float** A_array, int lda, float** R_array, int ldr, int num_ops)
 { return kblasScopy_upper_batch(handle, m, n, A_array, lda, R_array, ldr, num_ops); }
+
+//------------------------------------------------------------------------------
+// Array of pointers variable size interface
+/**
+ * @brief Array of pointers variable-size single precision batched domino QR decomposition of matrices A: A = Q * R
+ */
+inline int kblas_tsqrf_vbatch(kblasHandle_t handle, int* m, int* n, int max_m, int max_n, double** A_array, int* lda, double** tau_array, int num_ops)
+{ return kblasDtsqrf_vbatch(handle, m, n, max_m, max_n, A_array, lda, tau_array, num_ops); }
+/**
+ * @brief Array of pointers variable-size single precision batched domino QR decomposition of matrices A: A = Q * R
+ */
+inline int kblas_tsqrf_vbatch(kblasHandle_t handle, int* m, int* n, int max_m, int max_n, float** A_array, int* lda, float** tau_array, int num_ops)
+{ return kblasStsqrf_vbatch(handle, m, n, max_m, max_n, A_array, lda, tau_array, num_ops); }
 
 //@}
 

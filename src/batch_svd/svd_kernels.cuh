@@ -29,6 +29,15 @@
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Helper functions for the parallel one sided jacobi SVD
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+template<class T>
+__inline__ __device__
+T sign(T x)
+{
+	if(x > 0) return 1;
+	if(x < 0) return -1;
+	return 0;
+}
+
 __inline__ __device__
 void init_pairs(int* pairs_a, int* pairs_b, int total_pairs, int thread_x)
 {
@@ -126,8 +135,8 @@ void multiRowRotateColumns(T* __restrict__ matrix, int m, int n, int i, int j, T
     {
         T U_i = mi_ptr[0], U_j = mj_ptr[0];
 
-        mi_ptr[0] = c * U_i + s * U_j;
-        mj_ptr[0] = c * U_j - s * U_i;
+        mi_ptr[0] = c * U_i - s * U_j;
+        mj_ptr[0] = s * U_i + c * U_j;
 
         if(rb != rows_per_thread - 1)
         {
@@ -145,10 +154,11 @@ void parSvdJacobi(T* __restrict__ matrix, T* __restrict__ svals, int m, int n, i
     int sweep_max = 5 * n;
     if(sweep_max < 12) sweep_max = 12;
 
-	T rel_tol = KBlasEpsilon<T>::eps, rel_tol2 = rel_tol * rel_tol;
+	T rel_tol = KBlasEpsilon<T>::eps;
+	// T rel_tol2 = rel_tol * rel_tol;
 	T tolerance = rel_tol * n;
 
-	T offdiagonal_norm = 1;
+	T offdiagonal = tolerance + 1;
 #ifdef HLIB_PROFILING_ENABLED
     int rotations = 0, gram_products = 0;
 #endif
@@ -157,9 +167,9 @@ void parSvdJacobi(T* __restrict__ matrix, T* __restrict__ svals, int m, int n, i
 	if(warp_id == 0) init_pairs(pairs_a, pairs_b, total_pairs, thread_x);
 	__syncthreads();
 
-	while(offdiagonal_norm > tolerance && sweep < sweep_max)
+	while(offdiagonal > tolerance && sweep < sweep_max)
     {
-		offdiagonal_norm = 0;
+		offdiagonal = 0;
 
         for(int k = 0; k < n - 1; k++)
         {
@@ -173,32 +183,24 @@ void parSvdJacobi(T* __restrict__ matrix, T* __restrict__ svals, int m, int n, i
 			#ifdef HLIB_PROFILING_ENABLED
             gram_products++;
 			#endif
-
-            // Check if the two columns are already orthogonalized
-            T alpha = 2 * p;
-            //T a_norm = sqrt(a), b_norm = sqrt(b);
-
-			//if(abs(alpha) > rel_tol * a_norm * b_norm && a_norm != 0 && b_norm != 0)
-            if(alpha * alpha > rel_tol2 * a * b && a != 0 && b != 0)
-            {
-                // Calculate the rotation matrix
-                T beta = a - b;
-				T gamma = hypot(alpha, beta);
-				if(beta < 0) gamma *= -1;
-
-				T c = sqrt((gamma + beta) / (2 * gamma));
-				T s = alpha / (2 * gamma * c);
-
+			
+			if(a != 0 && b != 0 && p != 0)
+			{
+				T r = abs(p) / (sqrt(a) * sqrt(b));
+				if(offdiagonal < r) offdiagonal = r;
+				
+				T zeta = (b - a) / (2 * p);
+				T t = sign(zeta) / (abs(zeta) + sqrt(1 + zeta * zeta));
+				T c = (T)1 / sqrt(1 + t * t);
+				T s = c * t;
+				
 				// Rotate the two columns
-                multiRowRotateColumns<rows_per_thread>(matrix, m, n, i, j, c, s, thread_x);
+				multiRowRotateColumns<rows_per_thread>(matrix, m, n, i, j, c, s, thread_x);
 
 				#ifdef HLIB_PROFILING_ENABLED
-                rotations++;
+				rotations++;
 				#endif
-
-				// Update the offdiagonal norm of the implicit matrix A'*A
-				offdiagonal_norm += 2 * p * p / (a * b);
-            }
+			}
             // Synchronize the threads after processing their pairs of columns
             __syncthreads();
 
@@ -208,11 +210,13 @@ void parSvdJacobi(T* __restrict__ matrix, T* __restrict__ svals, int m, int n, i
         }
 
         // Accumulate the off diagonal norms from all warps - use the svals array as temporary shared memory
-        if(thread_x == 0) svals[warp_id] = offdiagonal_norm;
+        if(thread_x == 0) svals[warp_id] = offdiagonal;
         __syncthreads();
-        offdiagonal_norm = sqrt(warpAllReduceSum(thread_x < total_pairs ? svals[thread_x] : 0));
+        offdiagonal = warpAllReduceMax(thread_x < total_pairs ? svals[thread_x] : 0);
         __syncthreads();
         sweep++;
+		//if(thread_x == 0 && warp_id == 0)
+		//	printf("op %d offdiagonal = %e \n", op_id, offdiagonal);
     }
 	#ifdef HLIB_PROFILING_ENABLED
 	if(thread_x == 0) svals[warp_id] = (double)(rotations + gram_products);
@@ -223,6 +227,9 @@ void parSvdJacobi(T* __restrict__ matrix, T* __restrict__ svals, int m, int n, i
 		if(thread_x == 0) gflops[op_id] = gops * 1e-9;
 	}
 	#endif
+	
+	//if(thread_x == 0 && warp_id == 0 && sweep > 15)
+	//	printf("op %d Sweeps = %d \n", op_id, sweep);
 }
 
 template<int n, class T>
@@ -499,7 +506,7 @@ void batchNormalizeColumnsKernel(T_ptr __restrict__ M, int ldm, int stride_m, T_
 
 template<class T, class T_ptr>
 __global__
-void batchMaxOffdiagonalSumKernel(T_ptr __restrict__ M, int ldm, int stride_m, int rows, int cols, int cols_per_thread, T* offdiagonal, int num_ops)
+void batchMaxOffdiagonalKernel(T_ptr __restrict__ M, int ldm, int stride_m, int rows, int cols, int cols_per_thread, T* offdiagonal, int num_ops)
 {
     extern __shared__ char sdata[];
 
@@ -519,10 +526,10 @@ void batchMaxOffdiagonalSumKernel(T_ptr __restrict__ M, int ldm, int stride_m, i
         diag_entry += WARP_SIZE;
     }
 
-    T off_diag_sum = 0;
+    T off_diag = 0;
     for(int j = 0; j < cols; j++)
     {
-        T a = shared_diag[j];
+        T a = abs(shared_diag[j]);
         if(a == 0) continue;
 
         for(int i = 0; i < cols_per_thread; i++)
@@ -530,17 +537,20 @@ void batchMaxOffdiagonalSumKernel(T_ptr __restrict__ M, int ldm, int stride_m, i
             int row_index = WARP_SIZE * i + tid;
             if(row_index < j)
             {
-                T p = matrix[row_index + j * ldm];
-                T b = shared_diag[row_index];
+                T p = abs(matrix[row_index + j * ldm]);
+                T b = abs(shared_diag[row_index]);
                 if(b != 0)
-                    off_diag_sum += 2 * p * p / (a * b);
+				{
+					T r = p / (sqrt(a) * sqrt(b));
+                    if(off_diag < r) off_diag = r;
+				}
             }
         }
     }
-    off_diag_sum = sqrt(warpAllReduceSum(off_diag_sum));
+    off_diag = warpAllReduceMax(off_diag);
 
-    if(offdiagonal[op_id] < off_diag_sum)
-        offdiagonal[op_id] = off_diag_sum;
+    if(offdiagonal[op_id] < off_diag)
+        offdiagonal[op_id] = off_diag;
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -27,6 +27,7 @@ void inclusiveScan(int* array, int num_entries, int* result, cudaStream_t stream
 
 void fillArray(float* array, int num_entries, float val, cudaStream_t stream = 0);
 void fillArray(double* array, int num_entries, double val, cudaStream_t stream = 0);
+void fillArray(int* array, int num_entries, int val, cudaStream_t stream = 0);
 
 int getMaxElement(int* a, int elements, cudaStream_t stream = 0);
 float getMaxElement(float* a, int elements, cudaStream_t stream = 0);

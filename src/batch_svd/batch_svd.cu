@@ -15,7 +15,7 @@
  * @author Wajih Halim Boukaram
  * @date 2018-11-14
  **/
-
+ 
 #include <curand.h>
 #include <cublas_v2.h>
 #include <vector>
@@ -162,7 +162,7 @@ int batchSortSingularValues_small(T_ptr M, int ldm, int stride_m, T_ptr S, int s
 	dim3 dimGrid(num_ops, 1);
 
 	size_t smem_needed = (rows * cols) * sizeof(T) + cols * sizeof(int);
-
+	
 	switch(block_size)
 	{
 		case  32: batchSortSingularValuesSmallKernel<32, T, T_ptr><<< dimGrid, dimBlock, smem_needed, handle->stream >>>(M, ldm, stride_m, S, stride_s, rows, cols, num_ops); break;
@@ -199,7 +199,9 @@ int batch_svd_small(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int r
 		case 2: blockSVDKernel<2, T, T_ptr><<< dimGrid, dimBlock, smem_needed, handle->stream >>>(M, ldm, stride_m, S, stride_s, rows, cols, normalize_cols, num_ops, svd_gflops); break;
 		default: printf("batch_svd: Invalid rows_per_thread %d\n", rows_per_thread); return -1;
 	}
-	batchSortSingularValues_small<T, T_ptr>(M, ldm, stride_m, S, stride_s, rows, cols, num_ops, handle);
+	int sort_ret = batchSortSingularValues_small<T, T_ptr>(M, ldm, stride_m, S, stride_s, rows, cols, num_ops, handle);
+	if(sort_ret != KBLAS_Success) return sort_ret;
+	
 	check_error_ret( cudaGetLastError(), KBLAS_UnknownError );
 
 	#ifdef HLIB_PROFILING_ENABLED
@@ -239,7 +241,7 @@ int batchNormalizeColumns(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s,
 }
 
 template<class T, class T_ptr>
-int batchMaxOffdiagonalSum(T_ptr M, int ldm, int stride_m, int rows, int cols, T* offdiagonal, int num_ops, kblasHandle_t handle)
+int batchMaxOffdiagonal(T_ptr M, int ldm, int stride_m, int rows, int cols, T* offdiagonal, int num_ops, kblasHandle_t handle)
 {
     int ops_per_block = std::min(16, num_ops);
     int cols_per_thread = iDivUp(cols, WARP_SIZE);
@@ -249,7 +251,7 @@ int batchMaxOffdiagonalSum(T_ptr M, int ldm, int stride_m, int rows, int cols, T
 	dim3 dimGrid(blocks, 1);
 
     int smem_needed = ops_per_block * cols * sizeof(T);
-    batchMaxOffdiagonalSumKernel<T, T_ptr>
+    batchMaxOffdiagonalKernel<T, T_ptr>
 		<<< dimGrid, dimBlock, smem_needed, handle->stream >>>(M, ldm, stride_m, rows, cols, cols_per_thread, offdiagonal, num_ops);
 
 	check_error_ret( cudaGetLastError(), KBLAS_UnknownError );
@@ -341,8 +343,7 @@ int batch_svd_osbj(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int ro
 	if(cols <= SHARED_SVD_DIM_LIMIT && rows <= SHARED_SVD_DIM_LIMIT)
 		return batch_svd_small<T, T_ptr>(M, ldm, stride_m, S, stride_s, rows, cols, num_ops, handle);
 
-    // T tolerance = OSBJ_BS * KBlasEpsilon<T>::eps * cols * cols;
-	T tolerance = OSBJ_BS * KBlasEpsilon<T>::eps * cols;
+    T tolerance = KBlasEpsilon<T>::eps * 10;
 	int block_cols = iDivUp(cols, OSBJ_BS);
 
 	KBlasWorkspaceState ws_per_op, local_ws_per_op;
@@ -435,7 +436,7 @@ int batch_svd_osbj(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int ro
 						) );
 
 						// Get the sum of the offdiagonal terms of G
-						check_error_forward(( batchMaxOffdiagonalSum<T, T*>(
+						check_error_forward(( batchMaxOffdiagonal<T, T*>(
 							gram_strided, 2 * OSBJ_BS, 4 * OSBJ_BS * OSBJ_BS, Aij_cols, Aij_cols, offdiagonal, batch_size, handle
 						) ));
 
@@ -455,7 +456,7 @@ int batch_svd_osbj(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int ro
 						) );
 
 						// Get the sum of the offdiagonal terms of G
-						check_error_forward(( batchMaxOffdiagonalSum<T, T*>(
+						check_error_forward(( batchMaxOffdiagonal<T, T*>(
 							gram_strided, 2 * OSBJ_BS, 4 * OSBJ_BS * OSBJ_BS, Aij_cols, Aij_cols, offdiagonal, batch_size, handle
 						) ));
 
@@ -497,11 +498,11 @@ int batch_svd_osbj(T_ptr M, int ldm, int stride_m, T_ptr S, int stride_s, int ro
 				}
 			}
 			T max_off_diag = getMaxElement(offdiagonal, batch_size, handle->stream);
-			//printf("Max off diag = %e\n", max_off_diag);
+			// printf("Max off diag = %e\n", max_off_diag);
 			if(max_off_diag < tolerance) converged = 1;
 			sweeps++;
 		}
-
+		
 		// Normalize the columns of the matrix and compute the singular values
 		check_error_forward(( batchNormalizeColumns<T, T_ptr>(
 			M_batch, ldm, stride_m, S_batch, stride_s, rows, cols, batch_size, handle

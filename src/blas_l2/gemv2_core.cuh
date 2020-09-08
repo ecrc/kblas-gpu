@@ -19,7 +19,7 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <cublas.h>
-#include "operators.h"
+#include "kblas_operators.h"
 #include <stdio.h>
 
 template <class T, int nb, int tcol, int ept, int width, int ept_>

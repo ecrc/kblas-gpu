@@ -21,7 +21,7 @@
 #include <set>
 #include <cublas_v2.h>
 #include "kblas.h"
-#include "operators.h"
+#include "kblas_operators.h"
 
 #include "Xblas_core.ch"
 #include "Xhelper_funcs.ch"

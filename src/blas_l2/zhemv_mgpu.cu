@@ -18,7 +18,7 @@
 
 #include "syhemv_mgpu_core.cuh"
 #include "syhemv_mgpu_offset_core.cuh"
-#include "defs.h"
+#include "kblas_defs.h"
 
 #if(TARGET_SM >= 30)
 

@@ -24,7 +24,7 @@
 #include "cublas_v2.h"
 #include "kblas.h"
 #include "kblas_common.h"
-#include "operators.h"
+#include "kblas_operators.h"
 #include "omp.h"
 
 //==============================================================================================

@@ -21,6 +21,10 @@ KBLAS provides highly optimized routines from various levels of BLAS and LAPACK,
 6. Batch General: (⎐⇟ ⚭ ⚬= ✼) GESVJ, GERSVD, GEQRF.
 7. Batch Tile low-rank GEMM (⎏ ⎐ ⇞ ⚬ =).
 8. GPU-Resident POTRF kernel (⎐ ⇞ ⚬).
+9. Batch Tall-and-Skinny QR (⇞ ⎐ ⚬ = | ✼) TSQR.
+10. Batch Adaptive Randomized Approximation (⇞ ⎐ ⚬ |) ARA.
+11. Batch column pivoted QR (⇞ ⎏ ⚬ = ✼) GEQP2.
+12. Batch small pivoted Cholesky (⇞ ⎏ ⚬ = ✼) PSTRF.
 
 ⇟ Standard precisions: s/d/c/z.
 ⇞ Real precisions: s/d.
@@ -29,6 +33,7 @@ KBLAS provides highly optimized routines from various levels of BLAS and LAPACK,
 ⚬ Single-GPU support.
 ⚭ Multi-GPU support.
 = Uniform batch sizes.
+| Non-uniform batch sizes.
 ✼ Non-strided and strided variants.
 
 
@@ -63,10 +68,6 @@ To build KBLAS, please follow these instructions:
 4.  Build KBLAS
 
         make
-
-5.  Build local documentation (optional)
-
-        make docs
 
 
 Testing
@@ -106,6 +107,7 @@ International Euro-Par Conference on Parallel and Distributed Computing*, 2013.
 9. A. Abdelfattah, J. Dongarra, D. Keyes, and H. Ltaief, Optimizing Memory-Bound SyMV Kernel on GPU Hardware Accelerators, *10th 
 International Conference High Performance Computing for Computational Science - VECPAR*, DOI: http://dx.doi.org/10.1007/978-3-642-38718-0_10, 2012.
 
+10. W. H. Boukaram, G. Turkiyyah, H. Ltaief, D. Keyes, Batched QR and SVD algorithms on GPUs with applications in hierarchical matrix compression, *Parallel Computing*, 74:19-33, 2018.
 
 Handout
 =======

@@ -87,15 +87,23 @@ void avg_and_stdev(double* values, int num_vals, double* avg, double* std_dev, i
 ////////////////////////////////////////////////////////////
 void generateDArrayOfPointers(double* original_array, double** array_of_arrays, int stride, int num_arrays, cudaStream_t stream);
 void generateSArrayOfPointers(float* original_array, float** array_of_arrays, int stride, int num_arrays, cudaStream_t stream);
+void generateDArrayOfPointersHost(double* original_array, double** array_of_arrays, int stride, int num_arrays);
+void generateSArrayOfPointersHost(float* original_array, float** array_of_arrays, int stride, int num_arrays);
+
+// Reductions 
+int getMaxElement(int* a, size_t elements, cudaStream_t stream);
+int getMinElement(int* a, size_t elements, cudaStream_t stream);
 
 ////////////////////////////////////////////////////////////
 // Allocations
 ////////////////////////////////////////////////////////////
 #define TESTING_MALLOC_CPU( ptr, T, size)                       \
+{			\
   if ( (ptr = (T*) malloc( (size)*sizeof( T ) ) ) == NULL) {    \
     fprintf( stderr, "!!!! malloc_cpu failed for: %s\n", #ptr ); \
     exit(-1);                                                   \
-  }
+  } \
+}
 #define TESTING_MALLOC_DEV( ptr, T, size) check_error( cudaMalloc( (void**)&ptr, (size)*sizeof(T) ) )
 #define TESTING_MALLOC_PIN( ptr, T, size) check_error( cudaHostAlloc ( (void**)&ptr, (size)*sizeof( T ), cudaHostAllocPortable  ))
 
@@ -117,6 +125,12 @@ void dmatrix_make_hpd(int N, double* A, int lda);
 void cmatrix_make_hpd(int N, cuFloatComplex* A, int lda);
 void zmatrix_make_hpd(int N, cuDoubleComplex* A, int lda);
 
+void generateRandDimensions(int minDim, int maxDim, int* randDims, int seed, int num_ops);
+void fillIntArray(int* array_vals, int value, int num_elements);
+
+void fillGPUIntArray(int* array_vals, int value, int num_elements, cudaStream_t stream);
+void copyGPUPointerArray(void** originalPtrs, void** copyPtrs, int num_ptrs, cudaStream_t stream);
+
 // set cond = 0 to use exp decay
 void generateDrandomMatrices(
 	double* M_strided, int stride_M, double* svals_strided, int stride_S, int rows, int cols,
@@ -126,6 +140,22 @@ void generateSrandomMatrices(
 	float* M_strided, int stride_M, float* svals_strided, int stride_S, int rows, int cols,
 	float cond, float exp_decay, int seed, int num_ops, int threads
 );
+
+// Mode = 0: use provided singualr values
+// Mode = 1: sets singular values to random numbers in the range (1/cond, 1) 
+// Mode = 2: generate singular values such that S(i) = exp(-exp_decay * i); 
+//	     	 where exp_decay is a random value between exp_decay_min and exp_decay_max
+void generateDrandomMatricesArray(
+	double** M_ptrs, int* ldm_array, double** svals_ptrs, int *rows_array, int *cols_array,
+	int mode, double cond, double exp_decay_min, double exp_decay_max, int seed, int num_ops, int threads
+);
+void generateSrandomMatricesArray(
+	float** M_ptrs, int* ldm_array, float** svals_ptrs, int *rows_array, int *cols_array,
+	int mode, float cond, float exp_decay_min, float exp_decay_max, int seed, int num_ops, int threads
+);
+
+void generateSsingular_values(float** svals_ptrs, int rank, float min_sval, float max_sval, int seed, int batchCount);
+void generateDsingular_values(double** svals_ptrs, int rank, double min_sval, double max_sval, int seed, int batchCount);
 
 ////////////////////////////////////////////////////////////
 // Result checking
@@ -148,7 +178,7 @@ double dget_max_error_matrix_uplo(double* ref, double *res, long m, long n, long
 #define printMatrix(m, n, A, lda, out) { \
   for(int r = 0; r < (m); r++){ \
     for(int c = 0; c < (n); c++){ \
-      fprintf((out), "%.4e  ", (A)[r + c * (lda)]); \
+      fprintf((out), "%.7e  ", (A)[r + c * (lda)]); \
     } \
     fprintf((out), "\n"); \
   } \
@@ -217,7 +247,7 @@ int parse_opts(int argc, char** argv, kblas_opts *opts);
 #define kmin(a,b) ((a)>(b)?(b):(a))
 #define kmax(a,b) ((a)<(b)?(b):(a))
 
-#include "operators.h"
+#include "kblas_operators.h"
 template<class T, class T_complex>
 T get_magnitude(T_complex a){ return sqrt(a.x * a.x + a.y * a.y); }
 template<class T>

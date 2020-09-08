@@ -32,7 +32,7 @@
 #include <stdio.h>
 #include <cublas_v2.h>
 
-#include "defs.h"
+#include "kblas_defs.h"
 #include "kblas.h"
 #include "kblas_struct.h"
 

@@ -38,7 +38,7 @@
 #endif
 
 #include "Xhelper_funcs.ch" // TODO: need Xset_pointer_2 from this
-#include "operators.h" // TODO: this has templates and C++ host/device functions (make_one and make_zero)
+#include "kblas_operators.h" // TODO: this has templates and C++ host/device functions (make_one and make_zero)
 #include "kblas_common.h" // TODO: this has templates and C++ host/device functions
 
 #include "Xblas_core.ch"

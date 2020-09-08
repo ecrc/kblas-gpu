@@ -39,7 +39,7 @@
 #endif
 
 #include "Xhelper_funcs.ch"
-#include "operators.h"
+#include "kblas_operators.h"
 #include "kblas_common.h"
 
 #include "Xblas_core.ch"

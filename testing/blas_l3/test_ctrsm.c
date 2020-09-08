@@ -30,7 +30,7 @@
 
 #include "kblas.h"
 #include "testing_utils.h"
-#include "operators.h"
+#include "kblas_operators.h"
 #define kblasXtrsm kblasCtrsm
 #include "test_trsm.ch"
 

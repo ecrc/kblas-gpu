@@ -22,7 +22,7 @@
 
 #include "flops.h"
 #include "testing_utils.h"
-#include "operators.h"
+#include "kblas_operators.h"
 
 template<typename T>
 void kblasXaxpy (int n, T alpha, const T *x, int incx, T *y, int incy){

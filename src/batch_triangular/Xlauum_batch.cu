@@ -26,8 +26,8 @@
 
 #include "kblas.h"
 #include "kblas_struct.h"
-#include "operators.h"
-#include "defs.h"
+#include "kblas_operators.h"
+#include "kblas_defs.h"
 #include "kblas_common.h"
 #include "workspace_queries.ch"
 

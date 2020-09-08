@@ -22,7 +22,7 @@
 #include <set>
 #include <cublas_v2.h>
 #include "kblas.h"
-#include "operators.h"
+#include "kblas_operators.h"
 #include "kblas_common.h"
 #include "kblas_struct.h"
 
@@ -75,9 +75,9 @@ int kblasSetMagma(kblasHandle_t handle, magma_queue_t queue){
  * Destroys a KBLAS handle and frees internal structures including: cuda stream, cublas handle, magma handle, workspace buffers.
  */
 int kblasDestroy(kblasHandle_t *handle){
-
-  free((*handle));
-
+  delete *handle;
+  *handle = NULL;
+  
   return KBLAS_Success;
 }
 

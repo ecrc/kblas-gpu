@@ -27,7 +27,7 @@
 // The number of streams on each GPU for cusolver
 #define CUSOLVER_STREAMS 	10
 #define RSVD_RANK			64
-#define USE_RSVD
+//#define USE_RSVD
 
 
 #ifdef PREC_d

@@ -387,7 +387,7 @@ int Xgemm_LR_core( kblasHandle_t handle,
                                          cuda_stream[2]), KBLAS_CUDA_Error );
         cudaStreamSynchronize( cuda_stream[2] );
         finalrank = (int)dfinal[1];
-        T finalacc = dfinal[0];
+        //T finalacc = dfinal[0];
       }else{
         finalrank = kmin(max_rk, CUV_ncols);
       }

@@ -20,7 +20,7 @@
 #include <cuda_runtime_api.h>
 #include <cublas.h>
 #include <stdio.h>
-#include "defs.h"
+#include "kblas_defs.h"
 
 #ifndef MGPU_CONTROL
 #define MGPU_CONTROL

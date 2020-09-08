@@ -5,7 +5,7 @@
 
 
 /**
- * @file src/batch_svd/batch_block_copy.h
+ * @file include/batch_block_copy.h
 
  * KBLAS is a high performance CUDA library for subset of BLAS
  *    and LAPACK routines optimized for NVIDIA GPUs.
@@ -47,6 +47,18 @@ int kblasScopyBlock_batch(
 	float** dest_array, int row_offset_dest, int col_offset_dest, int ld_dest,
 	float** src_array, int row_offset_src, int col_offset_src, int ld_src, int ops
 );
+
+// Variable batch interface 
+int kblasScopyBlock_vbatch(
+	kblasHandle_t handle, int* rows_batch, int* cols_batch, int max_rows, int max_cols,
+	float** dest_array, int* ld_dest, float** src_array, int* ld_src, int ops
+);
+
+int kblasDcopyBlock_vbatch(
+	kblasHandle_t handle, int* rows_batch, int* cols_batch, int max_rows, int max_cols,
+	double** dest_array, int* ld_dest, double** src_array, int* ld_src, int ops
+);
+
 #ifdef __cplusplus
 }
 #endif
@@ -65,6 +77,7 @@ inline int kblas_copyBlock_batch(
 		src_array, row_offset_src, col_offset_src, ld_src, stride_src, ops
 	);
 }
+
 inline int kblas_copyBlock_batch(
 	kblasHandle_t handle, int rows, int cols,
 	float* dest_array, int row_offset_dest, int col_offset_dest, int ld_dest, int stride_dest,
@@ -102,6 +115,29 @@ inline int kblas_copyBlock_batch(
 		handle, rows, cols,
 		dest_array, row_offset_dest, col_offset_dest, ld_dest,
 		src_array, row_offset_src, col_offset_src, ld_src, ops
+	);
+}
+
+// Variable batch interface 
+inline int kblas_copyBlock_vbatch(
+	kblasHandle_t handle, int* rows_batch, int* cols_batch, int max_rows, int max_cols,
+	float** dest_array, int* ld_dest, float** src_array, int* ld_src, int ops
+)
+{
+	return kblasScopyBlock_vbatch(
+		handle, rows_batch, cols_batch, max_rows, max_cols,
+		dest_array, ld_dest, src_array, ld_src, ops
+	);
+}
+
+inline int kblas_copyBlock_vbatch(
+	kblasHandle_t handle, int* rows_batch, int* cols_batch, int max_rows, int max_cols,
+	double** dest_array, int* ld_dest, double** src_array, int* ld_src, int ops
+)
+{
+	return kblasDcopyBlock_vbatch(
+		handle, rows_batch, cols_batch, max_rows, max_cols,
+		dest_array, ld_dest, src_array, ld_src, ops
 	);
 }
 

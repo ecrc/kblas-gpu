@@ -5,7 +5,7 @@
 
 
 /**
- * @file include/operators.h
+ * @file include/kblas_operators.h
 
  * KBLAS is a high performance CUDA library for subset of BLAS
  *    and LAPACK routines optimized for NVIDIA GPUs.
@@ -17,8 +17,8 @@
  * @date 2018-11-14
  **/
 
-#ifndef _OPERATORS_
-#define _OPERATORS_
+#ifndef _KBLAS_OPERATORS_
+#define _KBLAS_OPERATORS_
 
 /*************************************************************
 /**
@@ -83,21 +83,21 @@ __host__ __device__ static __inline__ double absolute(double x){return fabs(x);}
 #if (TARGET_SM >= 30)
 __device__ __inline__ float shfl(float x, int lane, int ws = 32)
 {
-  return __shfl(x, lane, ws);
+  return __shfl_sync(0xFFFFFFFF, x, lane, ws);
 }
 __device__ __inline__ double shfl(double x, int lane, int ws = 32)
 {
   // Split the double number into 2 32b registers.
   int lo = __double2loint(x), hi = __double2hiint(x);
   // Shuffle the two 32b registers.
-  lo = __shfl(lo, lane, ws);
-  hi = __shfl(hi, lane, ws);
+  lo = __shfl_sync(0xFFFFFFFF, lo, lane, ws);
+  hi = __shfl_sync(0xFFFFFFFF, hi, lane, ws);
   // Recreate the 64b number.
   return __hiloint2double(hi,lo);
 }
 __device__ __inline__ cuComplex shfl(cuComplex x, int lane, int ws = 32)
 {
-  return make_cuFloatComplex( __shfl(x.x, lane, ws), __shfl(x.y, lane, ws) );
+  return make_cuFloatComplex( __shfl_sync(0xFFFFFFFF, x.x, lane, ws), __shfl_sync(0xFFFFFFFF, x.y, lane, ws) );
 }
 __device__ __inline__ cuDoubleComplex shfl(cuDoubleComplex x, int lane, int ws = 32)
 {
@@ -393,6 +393,4 @@ operator/=(cuFloatComplex a, const cuFloatComplex b)
   a.y = (a.y*b.x - a.x*b.y) / d;
 }
 
-#endif  // _OPERATORS_
-
-
+#endif  // _KBLAS_OPERATORS_

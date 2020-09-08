@@ -19,7 +19,7 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <cublas.h>
-#include "operators.h"
+#include "kblas_operators.h"
 #include <stdio.h>
 
 /*int gpu_gid, int ngpus,*/

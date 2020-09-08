@@ -34,7 +34,7 @@
 #include "flops.h"
 
 #include "Xhelper_funcs.ch" // TODO: need Xset_pointer_1 from this
-#include "operators.h" // TODO: this has templates and C++ host/device functions
+#include "kblas_operators.h" // TODO: this has templates and C++ host/device functions
 
 //==============================================================================================
 // #define DEBUG_DUMP

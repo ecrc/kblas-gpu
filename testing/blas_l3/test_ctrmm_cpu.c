@@ -30,7 +30,7 @@
 
 #include "kblas.h"
 #include "testing_utils.h"
-#include "operators.h"
+#include "kblas_operators.h"
 #include "test_trmm_cpu.ch"
 
 

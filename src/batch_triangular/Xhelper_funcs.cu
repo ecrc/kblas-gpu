@@ -22,7 +22,7 @@
 #include <sys/time.h>
 #include <cublas_v2.h>
 #include "kblas.h"
-#include "operators.h"
+#include "kblas_operators.h"
 // #include "Xtr_common.ch"
 
 #include "kblas_error.h"

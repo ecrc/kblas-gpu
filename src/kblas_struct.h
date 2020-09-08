@@ -441,9 +441,7 @@ struct KBlasHandle
   {
     if(cublas_handle != NULL && create_cublas)
       check_error( cublasDestroy(cublas_handle) );
-    if(stream && create_cublas)
-      check_error( cudaStreamDestroy(stream) );
-
+    
     if(nStreams > 0){
       for (int i = 0; i < nStreams; ++i){
         check_error( cudaStreamDestroy(streams[i]) );

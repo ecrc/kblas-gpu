@@ -75,12 +75,13 @@ typedef int*	IntArray;
 double batch_qr_cpu(Real* m, Real* tau, int rows, int cols, int num_ops, int num_threads)
 {
 	double total_time = gettime();
-
+	int rank = (rows < cols ? rows : cols);
+	
 	#pragma omp parallel for num_threads(num_threads)
     for(int i = 0; i < num_ops; i++)
     {
         Real* m_op = m + i * rows * cols;
-        Real* tau_op = tau + i * cols;
+        Real* tau_op = tau + i * rank;
 
 		LAPACKE_Xgeqrf(LAPACK_COL_MAJOR, rows, cols, m_op, rows, tau_op);
     }
@@ -97,7 +98,7 @@ Real compare_results_R(Real* m1, Real* m2, int rows, int cols, int num_ops)
         Real* m1_op = m1 + op * rows * cols;
         Real* m2_op = m2 + op * rows * cols;
         Real err_op = 0, norm_f_op = 0;
-	    for(int i = 0; i < cols; i++)
+	    for(int i = 0; i < rows; i++)
         {
             for(int j = i; j < cols; j++)
             {
@@ -125,7 +126,7 @@ int main(int argc, char** argv)
 	kblas_opts opts;
 	int num_gpus, warmup, nruns, num_omp_threads, info;
 	int batchCount, batchCount_gpu;
-	int rows, cols;
+	int rows, cols, rank;
 
 	double max_time, hh_ops;
 	double avg_cpu_time, sdev_cpu_time;
@@ -162,7 +163,7 @@ int main(int argc, char** argv)
 	{
 		cudaSetDevice(opts.devices[g]);
 
-		#ifdef DOUBLE_PRECISION
+		#ifdef PREC_d
 		cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
 		#endif
 
@@ -199,7 +200,8 @@ int main(int argc, char** argv)
 
 				rows = opts.msize[itest];
 				cols = opts.nsize[itest];
-
+				rank = (rows < cols ? rows : cols);
+				
 				hh_ops = (double)(2.0 * rows * cols * cols - (2.0 / 3.0) * cols * cols * cols) * batchCount * 1e-9;
 
 				////////////////////////////////////////////////////////////////////////
@@ -207,7 +209,7 @@ int main(int argc, char** argv)
 				////////////////////////////////////////////////////////////////////////
 				TESTING_MALLOC_CPU(m, Real, batchCount * rows * cols);
 				TESTING_MALLOC_CPU(m_original, Real, batchCount * rows * cols);
-				TESTING_MALLOC_CPU(tau, Real, batchCount * cols);
+				TESTING_MALLOC_CPU(tau, Real, batchCount * rank);
 				TESTING_MALLOC_CPU(gpu_results, Real, batchCount * rows * cols);
 				for(int i = 0; i < batchCount * rows * cols; i++)
 					m[i] = m_original[i] = (Real)rand() / RAND_MAX;
@@ -218,7 +220,7 @@ int main(int argc, char** argv)
 					cudaSetDevice(opts.devices[g]);
 
 					TESTING_MALLOC_DEV(d_m[g], Real, batchCount_gpu * rows * cols);
-					TESTING_MALLOC_DEV(d_tau[g], Real, batchCount_gpu * cols);
+					TESTING_MALLOC_DEV(d_tau[g], Real, batchCount_gpu * rank);
 
 					// Generate array of pointers for the cublas and magma routines
 					TESTING_MALLOC_DEV(d_m_ptrs[g], Real*, batchCount_gpu);
@@ -226,7 +228,7 @@ int main(int argc, char** argv)
 					TESTING_MALLOC_DEV(d_info[g], int, batchCount_gpu);
 
 					generateArrayOfPointers(d_m[g], d_m_ptrs[g], rows * cols, batchCount_gpu, 0);
-					generateArrayOfPointers(d_tau[g], d_tau_ptrs[g], cols, batchCount_gpu, 0);
+					generateArrayOfPointers(d_tau[g], d_tau_ptrs[g], rank, batchCount_gpu, 0);
 				}
 
 				////////////////////////////////////////////////////////////////////////
@@ -250,10 +252,16 @@ int main(int argc, char** argv)
 					{
 						cudaSetDevice(opts.devices[g]);
 						gpuTimerTic(kblas_timers[g]);
-						// kblasXgeqrf_batched(kblas_handles[g], rows, cols, d_m[g], rows, rows * cols, d_tau[g], cols, batchCount_gpu);
+						/*
+						check_kblas_error( 
+							kblasXgeqrf_batched(kblas_handles[g], rows, cols, d_m[g], rows, rows * cols, d_tau[g], cols, batchCount_gpu)
+						);
+						*/
+						
 						check_kblas_error( kblasXtsqrf_batched(
-							kblas_handles[g], rows, cols, d_m[g], rows, rows * cols, d_tau[g], cols, batchCount_gpu
+							kblas_handles[g], rows, cols, d_m[g], rows, rows * cols, d_tau[g], rank, batchCount_gpu
 						) );
+						
 						gpuTimerRecordEnd(kblas_timers[g]);
 					}
 					// The time all gpus finish at is the max of all the individual timers

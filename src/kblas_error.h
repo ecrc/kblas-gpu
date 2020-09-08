@@ -19,7 +19,7 @@
 #ifndef __KBLAS_ERR_CHECK_H__
 #define __KBLAS_ERR_CHECK_H__
 
-#include "defs.h"
+#include "kblas_defs.h"
 // ----------------------------------------
 // C++ function is overloaded for different error types,
 // which depends on error types being enums to be differentiable.

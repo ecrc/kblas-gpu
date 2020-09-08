@@ -36,6 +36,11 @@ inline __host__ __device__ T getOperationVal(T val, int op_id) { return val; }
 template<class T>
 inline __host__ __device__ T getOperationVal(T* array, int op_id) { return array[op_id]; }
 
+inline __host__ __device__ int getOperationDim(int* dim_array, int op_id) { return dim_array[op_id]; }
+inline __host__ __device__ int getOperationDim(int dim, int op_id) { return dim; }
+inline __host__ __device__ int* advanceOperationDim(int* dim_array, int op_id) { return dim_array + op_id; }
+inline __host__ __device__ int advanceOperationDim(int dim, int op_id) { return dim; }
+
 template<class T, class T_ptr>
 inline __host__ __device__ T_ptr selectPointerData(T* strided_data, T** array_data);
 
@@ -70,7 +75,7 @@ T blockAllReduceSum(T val, int warp_id, int warp_tid, T* temp_storage, int block
     // First do a reduction within each warp
     #pragma unroll
     for (int mask = WARP_SIZE / 2; mask > 0; mask /= 2)
-        val += __shfl_xor(val, mask);
+        val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
 
     if(warps > 1)
     {
@@ -101,7 +106,7 @@ T blockAllReduceSum(T val, int warp_tid, int warp_id, volatile T* temp_storage)
     // First do a reduction within each warp
     #pragma unroll
     for (int mask = WARP_SIZE / 2; mask > 0; mask /= 2)
-        val += __shfl_xor(val, mask);
+        val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
 
     if(warps > 1)
     {
@@ -129,7 +134,7 @@ T warpReduceSum(T val)
 {
     #pragma unroll
     for (int offset = WARP_SIZE / 2; offset > 0; offset /= 2)
-        val += __shfl_down(val, offset);
+        val += __shfl_down_sync(0xFFFFFFFF, val, offset);
     return val;
 }
 
@@ -139,7 +144,20 @@ T warpAllReduceSum(T val)
 {
     #pragma unroll
     for (int mask = WARP_SIZE / 2; mask > 0; mask /= 2)
-        val += __shfl_xor(val, mask);
+        val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
+    return val;
+}
+
+template<class T>
+__inline__ __device__
+T warpAllReduceMax(T val)
+{
+    #pragma unroll
+    for (int mask = WARP_SIZE / 2; mask > 0; mask /= 2)
+	{
+		T t = __shfl_xor_sync(0xFFFFFFFF, val, mask);
+        if(val < t) val = t;
+	}
     return val;
 }
 

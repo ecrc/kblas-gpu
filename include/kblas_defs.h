@@ -5,7 +5,7 @@
 
 
 /**
- * @file include/defs.h
+ * @file include/kblas_defs.h
 
  * KBLAS is a high performance CUDA library for subset of BLAS
  *    and LAPACK routines optimized for NVIDIA GPUs.

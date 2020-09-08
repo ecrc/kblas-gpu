@@ -21,7 +21,7 @@
 #include <cublas.h>
 #include <stdio.h>
 #include "gemm_aux.cuh"
-#include "operators.h"
+#include "kblas_operators.h"
 
 
 #define ZGEMM_MAX_TILE	(2048)

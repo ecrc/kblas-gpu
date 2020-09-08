@@ -30,8 +30,7 @@
 /** @defgroup WSQUERY KBLAS workspace helper routines routines
  */
 
-//TODO is this include necessary here?
-#include "defs.h"
+#include "kblas_defs.h"
 
 struct KBlasHandle;
 typedef struct KBlasWorkspace *kblasWorkspace_t;
@@ -126,6 +125,11 @@ int kblasFreeWorkspace(kblasHandle_t handle);
 #include "batch_qr.h"
 #include "batch_svd.h"
 #include "batch_rand.h"
+#include "batch_geqp.h"
+#include "batch_ara.h"
+#include "batch_pstrf.h"
+#include "batch_block_copy.h"
+#include "batch_transpose.h"
 
 //============================================================================
 //TLR routines

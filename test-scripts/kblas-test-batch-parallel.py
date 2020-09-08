@@ -45,6 +45,8 @@ check = ' -c'
 defaultBatchCount = 100
 TEST_BATCH_SVD = 1
 TEST_BATCH_QR = 1
+TEST_BATCH_QR_V = 1
+TEST_BATCH_GEQP = 1
 TEST_BATCH_TRSM = 1
 TEST_BATCH_TRMM = 1
 TEST_BATCH_GEMM = 1
@@ -56,6 +58,7 @@ TEST_BATCH_POTRS = 1
 TEST_BATCH_POTRI = 1
 TEST_BATCH_POTI = 1
 TEST_BATCH_POSV = 1
+TEST_BATCH_ARA = 1
 
 #--------------------------------
 def task1(pVariants, pRanges, pExec, pOptions, pBatchCount, pDev, pOutfile):
@@ -122,6 +125,36 @@ if (TEST_BATCH_QR == 1):
     variants = ['']
     programs = ['test_dgeqrf_batch', 'test_sgeqrf_batch']
     ranges = ['--range 32:512:32']
+    batchCount = defaultBatchCount;
+    options = ''
+
+    parallelTaskLaunch(variants, programs, ranges, options, batchCount)
+
+############### BATCH_QR_V
+if (TEST_BATCH_QR_V == 1):
+    variants = ['']
+    programs = ['test_dtsqrt_vbatch', 'test_stsqrt_vbatch']
+    ranges = ['--range 32:256:32']
+    batchCount = defaultBatchCount;
+    options = ''
+
+    parallelTaskLaunch(variants, programs, ranges, options, batchCount)
+	
+############### BATCH_GEQP
+if (TEST_BATCH_GEQP == 1):
+    variants = ['']
+    programs = ['test_dgeqp2_batch', 'test_sgeqp2_batch']
+    ranges = ['--range 32:256:32']
+    batchCount = defaultBatchCount;
+    options = ''
+
+    parallelTaskLaunch(variants, programs, ranges, options, batchCount)
+
+############### BATCH_ARA
+if (TEST_BATCH_ARA == 1):
+    variants = ['']
+    programs = ['test_dara_batch', 'test_sara_batch']
+    ranges = ['--range 64:256:32']
     batchCount = defaultBatchCount;
     options = ''
 

@@ -1,8 +1,12 @@
-.PHONY: all clean
+.PHONY: all testing lib clean
 
-all:
-	(cd src && make -j)
-	(cd testing && make -j)
+all: lib
+
+tests:
+	(cd testing && make -j$(KBLAS_MAKE_NP))
+
+lib:
+	(cd src && make -j$(KBLAS_MAKE_NP))
 
 clean:
 	rm -f -v ./lib/*.a

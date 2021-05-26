@@ -360,8 +360,9 @@ __global__ void ara_16x16_trsm_kernel(
 	int cols = cols_batch[op_id];
 	int lda  = lda_batch[op_id];
 	int ldb  = ldb_batch[op_id];
-	
-	if(offset >= cols) return;
+	int trailing_cols = cols - offset;
+    
+	if(trailing_cols < 0) return;
 	
 	T* A = A_batch[op_id];
 	T* B = B_batch[op_id];
@@ -375,11 +376,12 @@ __global__ void ara_16x16_trsm_kernel(
 	extern __shared__ char sdata[];
 	T* A_shared = (T*)sdata + threadIdx.y * BS * BS;
 	
-	if(tid < BS)
+    int col_bs = (BS < trailing_cols ? BS : trailing_cols);
+    
+	if(tid < col_bs)
 	{
-		#pragma unroll 
-		for(int i = 0; i < BS; i++)
-			A_shared[tid + i * BS] = A[tid + i * lda];
+		for(int i = 0; i < col_bs; i++)
+            A_shared[tid + i * BS] = A[tid + i * lda];
 	}
 	__syncthreads();
 	
@@ -387,13 +389,13 @@ __global__ void ara_16x16_trsm_kernel(
 	
 	#pragma unroll 
 	for(int i = 0; i < BS; i++)
-		B_reg[i] = (offset + i < cols ? B[row_index + i * ldb] : 0);
+		B_reg[i] = (i < trailing_cols ? B[row_index + i * ldb] : 0);
 	
 	// Now do the triangular solve
 	#pragma unroll 
 	for(int j = 0; j < BS; j++)
 	{
-		if(offset + j >= cols) continue;
+		if(j >= trailing_cols) continue;
 		#pragma unroll
 		for(int k = 0; k < j; k++)
 			B_reg[j] -= A_shared[k + j * BS] * B_reg[k];
@@ -403,7 +405,7 @@ __global__ void ara_16x16_trsm_kernel(
 	// Flush data back to global memory
 	#pragma unroll 
 	for(int i = 0; i < BS; i++)
-		if(offset + i < cols)
+		if(i < trailing_cols)
 			B[row_index + i * ldb] = B_reg[i];
 }
 
@@ -507,6 +509,9 @@ int kblas_ara_16x16_trsm(
 	const int max_block_threads = 128;
 	const int BS = 16;
 	
+    if(max_rows <= 0) 
+        return KBLAS_Success;
+        
 	int block_thread_x = max_block_threads;
 	int block_thread_y = 1;
 	
@@ -514,8 +519,17 @@ int kblas_ara_16x16_trsm(
 	{
 		block_thread_x = max_rows;
 		block_thread_y = max_block_threads / max_rows;
+        
+        // Don't go overboard with the number of ops per block
+        // Since we might not have enough shared memory
+        if (block_thread_y > 16)
+            block_thread_y = 16;
 	}
-	
+    
+    // Make sure we have enough threads to load the triangular block
+    if (block_thread_x < BS)
+        block_thread_x = BS;
+        
 	int grid_x = iDivUp(max_rows, block_thread_x);
 	int grid_y = iDivUp(num_ops , block_thread_y);
 	

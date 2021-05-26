@@ -77,18 +77,26 @@ include $(KBLAS_BATCH_DIR)/Makefile
 endif
 
 ifdef _SUPPORT_TLR_
-	KBLAS_TLR_DIR=blas_tlr
-	include $(KBLAS_TLR_DIR)/Makefile
+KBLAS_TLR_DIR=blas_tlr
+include $(KBLAS_TLR_DIR)/Makefile
+endif
+
+ifdef _SUPPORT_LAPACK_
+KBLAS_LAP_DIR=./lapack
+include $(KBLAS_LAP_DIR)/Makefile
 endif
 
 # C_OBJ= $(patsubst %.c,$(OBJ_DIR)/%.o,$(C_SRC))
 # EXE= $(patsubst %.c,$(BIN_DIR)/%,$(C_SRC))
 
-all: $(EXE_L2) $(EXE_L3) $(EXE_BATCH) $(EXE_TLR)
+all: $(EXE_L2) $(EXE_L3) $(EXE_BATCH) $(EXE_TLR) $(EXE_LAP)
 
 $(OBJ_DIR)/testing_helper.o: testing_helper.cu
 	$(NVCC) $(NVOPTS) $(NVOPTS_3) $(INCLUDES) $(NVCCFLAGS) -c $< -o $@
 
+$(EXE_LAP): $(BIN_DIR)/%: $(OBJ_DIR)/%.o $(KBLAS_LIB) $(OBJ_DIR)/testing_helper.o
+	$(CC) $(COPTS) $(OBJ_DIR)/testing_helper.o $< -o $@ $(LIB_PATH) $(LIB)
+    
 $(EXE_TLR): $(BIN_DIR)/%: $(OBJ_DIR)/%.o $(KBLAS_LIB) $(OBJ_DIR)/testing_helper.o
 	$(CC) $(COPTS) $(OBJ_DIR)/testing_helper.o $< -o $@ $(LIB_PATH) $(LIB)
 

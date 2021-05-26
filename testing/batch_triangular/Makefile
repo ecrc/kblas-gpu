@@ -57,6 +57,10 @@ C_SRC_BATCH+= test_dgesvj_batch.c test_sgesvj_batch.c
 $(OBJ_DIR)/test_%gesvj_batch.o: $(KBLAS_BATCH_DIR)/test_Xgesvj_batch.cpp $(BATCH_INC_DEP)
 	$(CXX) $(COPTS) -DPREC_$* $(INCLUDES) -c $< -o $@
 
+C_SRC_BATCH+= test_daca_batch.c test_saca_batch.c
+$(OBJ_DIR)/test_%aca_batch.o: $(KBLAS_BATCH_DIR)/test_Xaca_batch.cpp $(BATCH_INC_DEP)
+	$(CXX) $(COPTS) -DPREC_$* $(INCLUDES) -c $< -o $@
+
 C_SRC_BATCH+= \
 	test_dgeqrf_batch.c test_sgeqrf_batch.c \
 	test_sara_batch.c test_dara_batch.c \

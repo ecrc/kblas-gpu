@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 3.0.0
+ * @version 4.0.0
  * @author Ali Charara
- * @date 2018-11-14
+ * @date 2020-12-10
  **/
 
 #include <stdlib.h>
@@ -197,20 +197,10 @@ int ACAf( int m, int n,
     k = k+1;
 
     // acc=max(max(abs(R)));
-    if (maxrk > 0){
-      if (k >= maxrk){
+    if(maxacc > 0 && absolute(maxVal) < maxacc)
         converged = true;
-      }
-    }else
-    if (maxacc > 0){
-      if (absolute(maxVal) < maxacc){
-        converged = true;
-      }
-    }
-    else{
-      printf("wrong configuration, either of maxacc(%f) or maxrk(%d) should be positive!\n", maxacc, maxrk);
-      return 0;
-    }
+    if(maxrk > 0 && k >= maxrk)
+        converged = true;    
 
     //find index of maximum value of A
     // getMax( m, n,
@@ -298,21 +288,11 @@ int ACAf1( int m, int n,
     #endif
     k = k+1;
 
-    if (maxrk > 0){
-      if (k >= maxrk){
+    if(maxacc > 0 && absolute(maxVal) < maxacc)
         converged = true;
-      }
-    }else
-    if (maxacc > 0){
-      if (absolute(maxVal) < maxacc){
-        converged = true;
-      }
-    }
-    else{
-      printf("wrong configuration, either of maxacc(%f) or maxrk(%d) should be positive!\n", maxacc, maxrk);
-      return 0;
-    }
-
+    if(maxrk > 0 && k >= maxrk)
+        converged = true; 
+        
     // printf("Line %d\n", __LINE__);fflush( stdout );
     if( k >= kmin(m,n) )
       break;
@@ -457,20 +437,10 @@ void kernel_ACAf( int m, int n,
     k = k+1;
 
     // acc=max(max(abs(R)));
-    if (maxacc > 0){
-      if (absolute(maxVal) < maxacc){
+    if(maxacc > 0 && absolute(maxVal) < maxacc)
         converged = true;
-      }
-    }
-    else
-    if (maxrk > 0){
-      if (k >= maxrk){
-        converged = true;
-      }
-    }else{
-      printf("wrong configuration, either of maxacc(%f) or maxrk(%d) should be positive!\n", maxacc, maxrk);
-      return;
-    }
+    if(maxrk > 0 && k >= maxrk)
+        converged = true; 
 
     //find index of maximum value of A
     // getMax( m, n,
@@ -553,20 +523,10 @@ void dev_ACAf_batch(int m, int n,
     k = k+1;
 
     // acc=max(max(abs(R)));
-    if (maxacc > 0){
-      if (absolute(maxVal) < maxacc){
+    if(maxacc > 0 && absolute(maxVal) < maxacc)
         converged = true;
-      }
-    }else
-    if (maxrk > 0){
-      if (k >= maxrk){
-        converged = true;
-      }
-    }else
-    {
-      printf("wrong configuration, either of maxacc(%f) or maxrk(%d) should be positive!\n", maxacc, maxrk);
-      return;
-    }
+    if(maxrk > 0 && k >= maxrk)
+        converged = true; 
 
     //find index of maximum value of A
     // getMax( m, n,

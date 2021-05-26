@@ -11,11 +11,11 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 3.0.0
+ * @version 4.0.0
  * @author Ali Charara
  * @author Wajih Halim Boukaram
  * @author Ahmad Abdelfattah
- * @date 2018-11-14
+ * @date 2020-12-10
  **/
 
 #ifndef _KBLAS_H_
@@ -31,6 +31,12 @@
  */
 
 #include "kblas_defs.h"
+
+// Extern to make it work with C
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 struct KBlasHandle;
 typedef struct KBlasWorkspace *kblasWorkspace_t;
@@ -107,6 +113,10 @@ int kblasAllocateWorkspace(kblasHandle_t handle);
  */
 int kblasFreeWorkspace(kblasHandle_t handle);
 
+// End of extern "C"
+#ifdef __cplusplus
+}
+#endif
 
 //============================================================================
 //BLAS2 routines

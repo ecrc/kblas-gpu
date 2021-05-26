@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 3.0.0
+ * @version 4.0.0
  * @author Ali Charara
- * @date 2018-11-14
+ * @date 2020-12-10
  **/
 
 #include <stdlib.h>
@@ -1381,7 +1381,7 @@ cublasStatus_t kblasXtrmm_cpu_m(cublasHandle_t handle,
                             alpha, h_A, ldA, d_A[g], lddA,
                                    h_B+g*(left ? Bn_gpu*ldB : Bm_gpu), ldB, d_B[g], lddB,
                             false, DO_INLINE_BOUT[g], false);
-      //TODO check this status for error
+      check_error(status[g]);
 
       //sync streams
       if(DO_INLINE_BOUT[g]){
@@ -1391,6 +1391,7 @@ cublasStatus_t kblasXtrmm_cpu_m(cublasHandle_t handle,
         cublasGetStream_v2(cub_handle[g], &compStream);
         cudaStreamSynchronize( compStream );
         status[g] = cublasGetMatrixAsync( Bm_gpu, Bn_gpu, sizeof(T), d_B[g], lddB, h_B+g*(left ? Bn_gpu*ldB : Bm_gpu), ldB, inStream[g]);
+        check_error(status[g]);
         cudaStreamSynchronize( inStream[g] );
       }
     }

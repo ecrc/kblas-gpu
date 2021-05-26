@@ -20,7 +20,9 @@ typedef double Real;
 #define generate_randomMatricesArray	generateDrandomMatricesArray
 #define ara_sampler						dara_sampler
 #define generate_singular_values		generateDsingular_values
-#define ARA_TOLERANCE					1e-6
+#define ARA_TOLERANCE					1e-10
+#define cublasXcopy                             cublasDcopy
+#define kblasXgemm_batch_strided                kblasDgemm_batch_strided
 #else
 typedef float Real;
 #define get_max_error					sget_max_error
@@ -29,7 +31,9 @@ typedef float Real;
 #define generate_randomMatricesArray	generateSrandomMatricesArray
 #define ara_sampler						sara_sampler
 #define generate_singular_values		generateSsingular_values
-#define ARA_TOLERANCE					1e-5
+#define ARA_TOLERANCE					1e-10
+#define cublasXcopy                             cublasScopy
+#define kblasXgemm_batch_strided                kblasSgemm_batch_strided
 #endif
 
 #define FLOPS_ARA(m, n, k, r)  (2 * (m) * (n) * ((r) + (k)) + (m) * (k) * (3 + 4 * (r) + 4 * (k)))
@@ -297,11 +301,11 @@ int main(int argc, char** argv)
 	const Real ARA_DECAY_MIN = 0.3, ARA_DECAY_MAX = 0.31;
 	const Real ARA_DECAY_INCREMENT = 0.025;
 	
-	const int ARA_MIN_RANK = 16, ARA_MAX_RANK = 64;
+	const int ARA_MIN_RANK = 16, ARA_MAX_RANK =128;
 	const int ARA_RANK_INCREMENT = 4;
 	
 	// GPU stuff
-	RealArray d_M[num_gpus], d_A[num_gpus], d_B[num_gpus];
+	RealArray d_M[num_gpus], d_A[num_gpus], d_B[num_gpus], d_U[num_gpus], d_V[num_gpus], d_M_Acpy[num_gpus];
 	RealArray d_A2[num_gpus], d_B2[num_gpus], d_workspace[num_gpus], d_svals[num_gpus];
 	RealPtrArray d_M_ptrs[num_gpus], d_A_ptrs[num_gpus], d_B_ptrs[num_gpus];
 	RealPtrArray d_A2_ptrs[num_gpus], d_B2_ptrs[num_gpus], d_workspace_ptrs[num_gpus];
@@ -415,6 +419,9 @@ int main(int argc, char** argv)
 						cudaSetDevice(opts.devices[g]);
 						
 						TESTING_MALLOC_DEV(d_M[g], Real, batchCount_gpu * max_rows * max_cols);
+                                                TESTING_MALLOC_DEV(d_M_Acpy[g], Real, batchCount_gpu * max_rows * max_cols);
+                                                TESTING_MALLOC_DEV(d_U[g], Real, batchCount_gpu * max_rows * max_cols);
+                                                TESTING_MALLOC_DEV(d_V[g], Real, batchCount_gpu * max_rows * max_cols);
 						TESTING_MALLOC_DEV(d_A[g], Real, batchCount_gpu * max_rows * max_rank);
 						TESTING_MALLOC_DEV(d_B[g], Real, batchCount_gpu * max_cols * max_rank);
 						TESTING_MALLOC_DEV(d_A2[g], Real, batchCount_gpu * max_rows * max_rank);
@@ -523,11 +530,17 @@ int main(int argc, char** argv)
 									d_svals[g], max_cols, batchCount_gpu
 							) );
 							*/
+                                                cublasXcopy(kblasGetCublasHandle(kblas_handles[g]), max_rows * max_cols, d_M[g], 1, d_M_Acpy[g], 1);
 							check_kblas_error( kblas_rsvd_batch( 
 								kblas_handles[g], max_rows, max_cols, ARA_MAX_RANK, 
 								d_M[g], max_rows, max_rows * max_cols, 
 								d_svals[g], max_cols, rand_state[g], batchCount_gpu
 							) );
+                                                cublasXcopy(kblasGetCublasHandle(kblas_handles[g]), max_rows*ARA_MAX_RANK, d_M[g], 1, d_U[g], 1);
+                                                kblasXgemm_batch_strided(kblas_handles[g], KBLAS_Trans, KBLAS_NoTrans, max_cols, ARA_MAX_RANK,
+                                                max_rows, 1.0, d_M_Acpy[g], max_rows, max_cols, d_U[g], max_rows, ARA_MAX_RANK, 0.0, d_V[g], max_cols,
+                                                ARA_MAX_RANK, batchCount_gpu);
+
 							gpuTimerRecordEnd(kblas_timers[g]);
 						}
 						SYNC_TIMERS(kblas_timers, kblas_svd_time);
@@ -591,7 +604,10 @@ int main(int argc, char** argv)
 					for(int g = 0; g < num_gpus; g++)
 					{
 						cudaSetDevice(opts.devices[g]);
-						TESTING_FREE_DEV(d_M[g]); 
+						TESTING_FREE_DEV(d_M[g]);
+                                                TESTING_FREE_DEV(d_U[g]);
+                                                TESTING_FREE_DEV(d_V[g]);
+                                                TESTING_FREE_DEV(d_M_Acpy[g]); 
 						TESTING_FREE_DEV(d_A[g]); 
 						TESTING_FREE_DEV(d_B[g]); 
 						TESTING_FREE_DEV(d_A2[g]); 

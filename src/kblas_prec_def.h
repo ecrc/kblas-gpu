@@ -11,9 +11,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 3.0.0
+ * @version 4.0.0
  * @author Ali Charara
- * @date 2018-11-14
+ * @date 2020-12-10
  **/
 
 #ifndef __KBLAS_PREC_DEF__
@@ -21,7 +21,9 @@
 
 #if defined   PREC_s
   #define TYPE float
-
+  
+  #define kblasXpotrf               kblasSpotrf
+  
   #define kblasXtrsm                kblasStrsm
   #define kblasXtrmm                kblasStrmm
 
@@ -106,7 +108,9 @@
 
 #elif defined PREC_d
   #define TYPE double
-
+  
+  #define kblasXpotrf               kblasDpotrf
+  
   #define kblasXtrsm                kblasDtrsm
   #define kblasXtrmm                kblasDtrmm
 

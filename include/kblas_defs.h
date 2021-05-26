@@ -11,10 +11,10 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 3.0.0
+ * @version 4.0.0
  * @author Ali Charara
  * @author Ahmad Abdelfattah
- * @date 2018-11-14
+ * @date 2020-12-10
  **/
 
 
@@ -54,7 +54,7 @@
 #define MAX_STREAMS	(1)
 #define KBLAS_NSTREAMS	10
 
-const int gpu_lid[MAX_NGPUS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-const int gpu_gid[MAX_NGPUS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+static const int gpu_lid[MAX_NGPUS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+static const int gpu_gid[MAX_NGPUS] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
 
 #endif	// _KBLAS_DEFS_

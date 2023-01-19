@@ -84,7 +84,7 @@ Related Publications
 *24th International Conference on Parallel and Distributed Computing, Turin, Italy, August 27 - 31, 2018, Proceedings*, http://hdl.handle.net/10754/627402, 2018.
 
 2. A. Charara, D. Keyes, and H. Ltaief, Batched Triangular Dense Linear Algebra Kernels for Very Small Matrix Sizes on GPUs
-*ACM Trans. Math. Software (accepted)*, http://hdl.handle.net/10754/622077, 2018.
+*ACM Trans. Math. Software (accepted)*, http://hdl.handle.net/10754/622975, 2018.
 
 3. W. H. Boukaram, G. Turkiyyah, H. Ltaief, and D. Keyes, Batched QR and SVD algorithms on GPUs with applications in hierarchical matrix 
 compression, *J. Parallel Comput.*, Special Edition, 2017.

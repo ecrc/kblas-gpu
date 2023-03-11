@@ -434,15 +434,12 @@ int Xgemm_batch_nonuniform_core(kblasHandle_t handle,
       }
       magmablas_Xgemm_vbatched_core((magma_trans_t)(MagmaNoTrans + (transA == KBLAS_Trans)),
                                     (magma_trans_t)(MagmaNoTrans + (transB == KBLAS_Trans)),
-                                    (magma_int_t*)m, (magma_int_t*)n, (magma_int_t*)k,
-                                    alpha, A, lda,
-                                           B, ldb,
-                                    beta,  C, ldc,
                                     h_max_mnk[0], h_max_mnk[1], h_max_mnk[2],
-                                    A_row_off, A_col_off,
-                                    B_row_off, B_col_off,
-                                    C_row_off, C_col_off,
-                                    0, 0, 0,
+                                    (magma_int_t*)m, (magma_int_t*)n, (magma_int_t*)k,
+                                    alpha, A, A_row_off, A_col_off, lda,
+                                           B, B_row_off, B_col_off, ldb,
+                                    beta,  C, C_row_off, C_col_off, ldc,
+                                    // 0, 0, 0,
                                     batch_size, handle->magma_queue);
 
       A += batch_size;

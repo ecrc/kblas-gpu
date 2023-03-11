@@ -323,11 +323,11 @@ int Xtrsm_batch_nonuniform_core(kblasHandle_t handle,
                   (magma_uplo_t)(uplo == KBLAS_Lower ? MagmaLower : MagmaUpper),
                   (magma_trans_t)(trans == KBLAS_Trans ? MagmaTrans : MagmaNoTrans),
                   (magma_diag_t)(diag == KBLAS_NonUnit? MagmaNonUnit : MagmaUnit),
-                  m, n, alpha,
+                  h_max_mn[0], h_max_mn[1], m, n, alpha,
                   A, lda,
                   B, ldb,
                   batch_size,
-                  h_max_mn[0], h_max_mn[1], handle->magma_queue);
+                  handle->magma_queue);
 
       A += batch_size;
       B += batch_size;

@@ -432,7 +432,7 @@ int Xgemm_batch_nonuniform_core(kblasHandle_t handle,
         check_error_ret( cublasGetVectorAsync( 3, sizeof(int), d_max_mnk, 1, h_max_mnk, 1, handle->stream ), KBLAS_cuBLAS_Error);
         check_error_ret( cudaStreamSynchronize(handle->stream), KBLAS_CUDA_Error );
       }
-#if (MAGMA_VERSION_MAJOR > 2 || (MAGMA_VERSION_MAJOR == 2 && MAGMA_VERSION_MINOR > 6))
+#if (MAGMA_VERSION_MAJOR > 2 || (MAGMA_VERSION_MAJOR == 2 && MAGMA_VERSION_MINOR > 6) || (MAGMA_VERSION_MAJOR == 2 && MAGMA_VERSION_MINOR == 6 && MAGMA_VERSION_MICRO > 1))
       magmablas_Xgemm_vbatched_core((magma_trans_t)(MagmaNoTrans + (transA == KBLAS_Trans)),
                                     (magma_trans_t)(MagmaNoTrans + (transB == KBLAS_Trans)),
                                     h_max_mnk[0], h_max_mnk[1], h_max_mnk[2],

@@ -318,7 +318,7 @@ int Xtrsm_batch_nonuniform_core(kblasHandle_t handle,
         check_error_ret( cublasGetVectorAsync( 2, sizeof(int), d_max_mn, 1, h_max_mn, 1, handle->stream ), KBLAS_cuBLAS_Error);
         check_error_ret( cudaStreamSynchronize(handle->stream), KBLAS_CUDA_Error );
       }
-#if (MAGMA_VERSION_MAJOR > 2 || (MAGMA_VERSION_MAJOR == 2 && MAGMA_VERSION_MINOR > 6))
+#if (MAGMA_VERSION_MAJOR > 2 || (MAGMA_VERSION_MAJOR == 2 && MAGMA_VERSION_MINOR > 6) || (MAGMA_VERSION_MAJOR == 2 && MAGMA_VERSION_MINOR == 6 && MAGMA_VERSION_MICRO > 1))
       magmablas_Xtrsm_vbatched_max_nocheck(
                   (magma_side_t)(side == KBLAS_Left ? MagmaLeft : MagmaRight),
                   (magma_uplo_t)(uplo == KBLAS_Lower ? MagmaLower : MagmaUpper),

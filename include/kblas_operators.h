@@ -125,12 +125,17 @@ __device__ static __inline__ double atomicAdd(double* address, double val)
 #endif//__CUDACC_VER_MAJOR__
 /**
 Atomic add for float complex ('C' precision)
+CUDA >= 12.1 already declares float2 atomicAdd(float2*, float2) for the host pass and for sm_90+,
+and cuFloatComplex is float2: define our version only where CUDA does not provide one.
 **/
+#if !((__CUDACC_VER_MAJOR__ > 12 || (__CUDACC_VER_MAJOR__ == 12 && __CUDACC_VER_MINOR__ >= 1)) && \
+      (!defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 900))
 __device__ static __inline__ void atomicAdd(cuFloatComplex* address, cuFloatComplex val)
 {
   atomicAdd( (float*) (&(*address).x) ,val.x);
   atomicAdd( (float*) (&(*address).y) ,val.y);
 }
+#endif
 
 /**
 Atomic add for double complex ('Z' precision)

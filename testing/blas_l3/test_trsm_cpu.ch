@@ -106,7 +106,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
 
   cublasSideMode_t  side  = (opts.side   == KBLAS_Left  ? CUBLAS_SIDE_LEFT : CUBLAS_SIDE_RIGHT);
   cublasFillMode_t  uplo  = (opts.uplo   == KBLAS_Lower ? CUBLAS_FILL_MODE_LOWER : CUBLAS_FILL_MODE_UPPER);
-  cublasOperation_t trans = (opts.transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);
+  cublasOperation_t trans = (opts.transA == KBLAS_Trans ? CUBLAS_OP_T : (opts.transA == KBLAS_ConjTrans ? CUBLAS_OP_C : CUBLAS_OP_N));
   cublasDiagType_t  diag  = (opts.diag   == KBLAS_Unit  ? CUBLAS_DIAG_UNIT : CUBLAS_DIAG_NON_UNIT);
 
   printf("    M     N   kblasTRSM CPU GF/s (ms) kblasTRSM GPU GF/s (ms)   cublasTRSM GPU GF/s (ms)  SP_CPU  SP_GPU   Error\n");
@@ -326,6 +326,7 @@ int test_trsm(kblas_opts& opts, T alpha, cublasHandle_t cublas_handle){
   check_error( cudaEventDestroy(start) );
   check_error( cudaEventDestroy(stop) );
   check_error( cudaGetLastError() );
+  return 0;
 }
 
 

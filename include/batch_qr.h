@@ -280,6 +280,42 @@ int kblasDtsqrf_vbatch(kblasHandle_t handle, int* m, int* n, int max_m, int max_
  */
 int kblasStsqrf_vbatch(kblasHandle_t handle, int* m, int* n, int max_m, int max_n, float** A_array, int* lda, float** tau_array, int num_ops);
 
+/**
+ * @brief Array of pointers variable-size double precision batched generation of the orthogonal factor Q of the QR decomposition formed by GEQRF
+ * 
+ * Array of pointers interface taking similar arguments to the strided interface; however, matrices and 
+ * arrays are stored in arrays of pointers instead of strided access, so A[i] = A_array[i] and tau[i] = tau_array[i]
+ * @see kblasDorgqr_batch_strided
+ */
+int kblasDorgqr_vbatch(kblasHandle_t handle, int *m, int *n, int max_m, int max_n, double** A_array, int *lda, double** tau_array, int num_ops);
+
+/**
+ * @brief Array of pointers variable-size single precision batched generation of the orthogonal factor Q of the QR decomposition formed by GEQRF
+ * 
+ * Array of pointers interface taking similar arguments to the strided interface; however, matrices and 
+ * arrays are stored in arrays of pointers instead of strided access, so A[i] = A_array[i] and tau[i] = tau_array[i]
+ * @see kblasSorgqr_batch_strided
+ */
+int kblasSorgqr_vbatch(kblasHandle_t handle, int *m, int *n, int max_m, int max_n, float** A_array, int *lda, float** tau_array, int num_ops);
+
+/**
+ * @brief Array of pointers variable-size double precision batched QR decomposition of matrices A: A = Q * R
+ * 
+ * Array of pointers interface taking similar arguments to the strided interface; however, matrices and 
+ * arrays are stored in arrays of pointers instead of strided access, so A[i] = A_array[i] and tau[i] = tau_array[i]
+ * @see kblasDgeqrf_batch_strided
+ */
+int kblasDgeqrf_vbatch(kblasHandle_t handle, int *m, int *n, int max_m, int max_n, double** A_array, int *lda, double** tau_array, int num_ops);
+
+/**
+ * @brief Array of pointers variable-size single precision batched QR decomposition of matrices A: A = Q * R
+ * 
+ * Array of pointers interface taking similar arguments to the strided interface; however, matrices and 
+ * arrays are stored in arrays of pointers instead of strided access, so A[i] = A_array[i] and tau[i] = tau_array[i]
+ * @see kblasSgeqrf_batch_strided
+ */
+int kblasSgeqrf_vbatch(kblasHandle_t handle, int *m, int *n, int max_m, int max_n, float** A_array, int *lda, float** tau_array, int num_ops);
+
 //@}
 #ifdef __cplusplus
 }
@@ -393,6 +429,30 @@ inline int kblas_tsqrf_vbatch(kblasHandle_t handle, int* m, int* n, int max_m, i
  */
 inline int kblas_tsqrf_vbatch(kblasHandle_t handle, int* m, int* n, int max_m, int max_n, float** A_array, int* lda, float** tau_array, int num_ops)
 { return kblasStsqrf_vbatch(handle, m, n, max_m, max_n, A_array, lda, tau_array, num_ops); }
+
+/**
+ * @brief Array of pointers variable-size double precision batched generation of the orthogonal factor Q of the QR decomposition formed by GEQRF
+ */
+inline int kblas_orgqr_vbatch(kblasHandle_t handle, int *m, int *n, int max_m, int max_n, double** A_array, int *lda, double** tau_array, int num_ops)
+{ return kblasDorgqr_vbatch(handle, m, n, max_m, max_n, A_array, lda, tau_array, num_ops); }
+
+/**
+ * @brief Array of pointers variable-size single precision batched generation of the orthogonal factor Q of the QR decomposition formed by GEQRF
+ */
+inline int kblas_orgqr_vbatch(kblasHandle_t handle, int *m, int *n, int max_m, int max_n, float** A_array, int *lda, float** tau_array, int num_ops)
+{ return kblasSorgqr_vbatch(handle, m, n, max_m, max_n, A_array, lda, tau_array, num_ops); }
+
+/**
+ * @brief Array of pointers variable-size single precision batched QR decomposition of matrices A: A = Q * R
+ */
+inline int kblas_geqrf_vbatch(kblasHandle_t handle, int *m, int *n, int max_m, int max_n, double** A_array, int *lda, double** tau_array, int num_ops)
+{ return kblasDgeqrf_vbatch(handle, m, n, max_m, max_n, A_array, lda, tau_array, num_ops); }
+
+/**
+ * @brief Array of pointers variable-size double precision batched QR decomposition of matrices A: A = Q * R
+ */
+inline int kblas_geqrf_vbatch(kblasHandle_t handle, int *m, int *n, int max_m, int max_n, float** A_array, int *lda, float** tau_array, int num_ops)
+{ return kblasSgeqrf_vbatch(handle, m, n, max_m, max_n, A_array, lda, tau_array, num_ops); }
 
 //@}
 

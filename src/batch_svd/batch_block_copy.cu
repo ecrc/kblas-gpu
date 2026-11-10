@@ -52,11 +52,14 @@ void batchCopyMatrixBlockKernel(
 	int ld_dest = getOperationDim(ld_dest_batch, op_id);
 	int ld_src  = getOperationDim(ld_src_batch, op_id);
 
-    T* dest_block = getOperationPtr<T>(dest_array, op_id, stride_dest) + row_offset_dest + col_offset_dest * ld_dest;
-	T* src_block = getOperationPtr<T>(src_array, op_id, stride_src) + row_offset_src + col_offset_src * ld_src;
+    T* dest_block = getOperationPtr<T>(dest_array, op_id, stride_dest);
+	T* src_block = getOperationPtr<T>(src_array, op_id, stride_src);
 	
-	dest_block += row_index + col_index * ld_dest;
-	src_block  += row_index + col_index * ld_src;
+    if(!dest_block || !src_block)
+        return;
+
+	dest_block += row_offset_dest + col_offset_dest * ld_dest + row_index + col_index * ld_dest;
+	src_block  += row_offset_src + col_offset_src * ld_src + row_index + col_index * ld_src;
 
 	T reg_buffer[COLS_PER_THREAD];
 	
@@ -103,7 +106,7 @@ int batchCopyMatrixBlock(
 		dim3 dimBlock(thread_x, thread_y, 1);		
 		dim3 dimGrid(grid_x, grid_y, batch_size);
 		
-		batchCopyMatrixBlockKernel<T, T_ptr><<< dimGrid, dimBlock, 0, handle->stream >>> (
+		batchCopyMatrixBlockKernel<T, T_ptr, Dim_Type><<< dimGrid, dimBlock, 0, handle->stream >>> (
 			rows_batch, cols_batch, dest_batch, row_offset_dest, col_offset_dest, ld_dest_batch, stride_dest,
 			src_batch, row_offset_src, col_offset_src, ld_src_batch, stride_src,
 			batch_size	

@@ -14,13 +14,18 @@ target_sources(kblasgpu
   batch_ara.cu
   batch_block_copy.cu
   batch_geqp.cu
+  batch_getrf.cu
+  batch_lapmt.cu
   batch_pstrf.cu
   batch_qr.cu
   batch_rand.cu
   batch_svd.cu
   batch_transpose.cu
+  getrf_functors.h
+  getrf_kernels.cuh
   perf_counter.h
   qr_kernels.cuh
   svd_kernels.cuh
   thrust_wrappers.cu
-  thrust_wrappers.h)
+  thrust_wrappers.h
+  vbatch_thrust_util.cuh)

@@ -525,6 +525,8 @@ void batchMaxOffdiagonalKernel(T_ptr __restrict__ M, int ldm, int stride_m, int 
         shared_diag[diag_entry] = matrix[diag_entry + diag_entry * ldm];
         diag_entry += WARP_SIZE;
     }
+    
+    kblas_sync_warp();
 
     T off_diag = 0;
     for(int j = 0; j < cols; j++)

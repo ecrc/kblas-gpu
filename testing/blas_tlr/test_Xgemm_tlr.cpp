@@ -24,10 +24,7 @@
 #include <math.h>
 #include <sys/time.h>
 #include <unistd.h>
-#ifdef USE_MKL
-#include <mkl_lapack.h>
-#include <mkl_lapacke.h>
-#else
+#ifndef USE_MKL
 #include <lapacke_utils.h>
 #endif
 
@@ -685,6 +682,7 @@ int test_Xgemm_tlr(kblas_opts& opts, T alpha, T beta)
     }
   #endif
   printf( "\n" );
+  return 0;
 }
 
 //==============================================================================================

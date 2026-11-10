@@ -40,54 +40,10 @@ inline __device__ void larfg(
 	beta = sqrt( blockAllReduceSum<T, BLOCK_SIZE>(
 		col_entry * col_entry, warp_tid, warp_id, temp_storage
 	) );
-	
+	kblas_sync_threads<BLOCK_SIZE>();
 	if(alpha >= 0) beta *= -1;
 	tau = (beta != 0 ? (beta - alpha) / beta : 0);
 	v   = (alpha - beta != 0 ? col_entry / (alpha - beta) : 0);
-}
-
-template<class T, int BLOCK_SIZE, int PANEL_WIDTH>
-inline __device__ void multreduction_gemv2(T matrix_panel[PANEL_WIDTH], T v, int threadId, int warp_tid, int warp_id, volatile T* smem)
-{
-    int thread_smem_offset = threadId * PANEL_WIDTH + (threadId * PANEL_WIDTH) / WARP_SIZE;
-    volatile T* smem_w = smem + threadId + warp_id;
-    const int warps = BLOCK_SIZE / WARP_SIZE;
-
-    // Fill in shared memory
-    #pragma unroll
-    for(int j = 0; j < PANEL_WIDTH; j++)
-        smem[j + thread_smem_offset] = v * matrix_panel[j];
-
-    if(warps != 1) __syncthreads();
-
-    // Now do the partial reduction starting with the serial part
-    #pragma unroll
-    for(int j = 1; j < PANEL_WIDTH; j++)
-        smem_w[0] += smem_w[warps * (WARP_SIZE + 1) * j];
-
-	// Pad with zeros if the block size is not a power of two
-	if(warps != 1 && warps != 2 && warps != 4 && warps != 8 && warps != 16 && warps != 32)
-		smem_w[warps * (WARP_SIZE + 1)] = 0;
-
-    if(warps != 1) __syncthreads();
-
-    // Now the tree partial reduction
-	if(BLOCK_SIZE >= 544) { if(threadId < 512) smem_w[0] += smem_w[16 * (WARP_SIZE + 1)]; __syncthreads(); }
-	if(BLOCK_SIZE >= 288) { if(threadId < 256) smem_w[0] += smem_w[ 8 * (WARP_SIZE + 1)]; __syncthreads(); }
-	if(BLOCK_SIZE >= 160) { if(threadId < 128) smem_w[0] += smem_w[ 4 * (WARP_SIZE + 1)]; __syncthreads(); }
-    if(BLOCK_SIZE >= 96 ) { if(threadId < 64 ) smem_w[0] += smem_w[ 2 * (WARP_SIZE + 1)]; __syncthreads(); }
-    if(threadId < 32)
-    {
-        if(BLOCK_SIZE >= 64) 					  smem_w[0] += smem_w[WARP_SIZE + 1];
-        if(BLOCK_SIZE >= 32 && PANEL_WIDTH <= 16) smem_w[0] += smem_w[16];
-        if(BLOCK_SIZE >= 16 && PANEL_WIDTH <= 8 ) smem_w[0] += smem_w[8 ];
-        if(BLOCK_SIZE >=  8 && PANEL_WIDTH <= 4 ) smem_w[0] += smem_w[4 ];
-        if(BLOCK_SIZE >=  4 && PANEL_WIDTH <= 2 ) smem_w[0] += smem_w[2 ];
-        if(BLOCK_SIZE >=  2 && PANEL_WIDTH <= 1 ) smem_w[0] += smem_w[1 ];
-    }
-
-    // Synch to make sure all threads have access to the reductions
-    if(warps != 1) __syncthreads();
 }
 
 template<class Key, class Value>
@@ -166,11 +122,11 @@ void argMaxColNorm(int tid, int k, volatile T* scol_norms, int cols, int& index)
 //Main Kernel 
 ////////////////////////////////////////////////////////////
 
-template<class T, class T_ptr, class I_ptr, int BLOCK_SIZE, int PANEL_WIDTH>
+template<class T, class T_ptr, class I_ptr, class Dim_Type, int BLOCK_SIZE, int PANEL_WIDTH>
 __global__ 
 void batch_geqp2_kernel(
-	int m, int n, T_ptr __restrict__ M_batch, int ldm, int stride, 
-	T_ptr tau_batch, int stride_tau, I_ptr piv_batch, int stride_piv, 
+	Dim_Type m_batch, Dim_Type n_batch, T_ptr __restrict__ A_batch, Dim_Type lda_batch, 
+    int stride, T_ptr tau_batch, int stride_tau, I_ptr piv_batch, int stride_piv, 
 	int* ranks, T tol, int num_ops
 ) 
 {   
@@ -186,32 +142,49 @@ void batch_geqp2_kernel(
     
     if(op_id >= num_ops) return;
     
+    int m = getOperationDim(m_batch, op_id);
+    int n = getOperationDim(n_batch, op_id);
+    int lda = getOperationDim(lda_batch, op_id);
+
+    if(m <= 0 || n <= 0)
+        return;
+
 	// Column norms in shared memory 
     T* scol_norms = (T*)sdata;
 	T* pivot_row  = scol_norms + n;
 	T* mv_smem_ws = pivot_row + n;
 	
 	// Global memory matrix data
-    T* g_M   = getOperationPtr<T>(M_batch, op_id, stride);
+    T* g_A   = getOperationPtr<T>(A_batch, op_id, stride);
     T* g_tau = getOperationPtr<T>(tau_batch, op_id, stride_tau);
     int* g_piv = (piv_batch ? getOperationPtr<int>(piv_batch, op_id, stride_piv) : NULL);
 	
+    if(!g_A || ! g_tau)
+        return;
+
 	int mn = (m < n ? m : n);
-	
+ 
 	// Compute the column norms 
 	for(int j = 0; j < n; j++)
 	{
-		T col_entry = (tid < m ? g_M[tid + j * ldm] : 0);
+		T col_entry = (tid < m ? g_A[tid + j * lda] : 0);
 		T val = blockAllReduceSum<T, BLOCK_SIZE>(col_entry * col_entry, warp_tid, warp_id, temp_storage);
+        kblas_sync_threads<BLOCK_SIZE>();
 		if(tid == 0) scol_norms[j] = sqrt(val);
 	}
-	
+
 	// Initialize the pivot array 
-	if(g_piv && tid < n)
-		g_piv[tid] = tid;
+	if(g_piv)
+    {
+        int piv_index = tid;
+        while(piv_index < n)
+		{
+            g_piv[piv_index] = piv_index + 1;
+            piv_index += blockDim.x;
+        }
+    }
 	
-	__syncthreads();
-	
+	kblas_sync_threads<BLOCK_SIZE>();
 	T matrix_panel[PANEL_WIDTH];
 	
 	// Main loop 
@@ -222,33 +195,36 @@ void batch_geqp2_kernel(
 		// Find pivot column having largest norm 
 		////////////////////////////////////////////////
 		argMaxColNorm<T, BLOCK_SIZE>(tid, k, scol_norms, n, pivot_index);
-		__syncthreads();
+		kblas_sync_threads<BLOCK_SIZE>();
 
 		// Check for convergence 
 		if(scol_norms[pivot_index] * sqrt((float)(n - k)) < tol)
 			break;
-		
+        
 		// swap columns and column norm 
 		if(pivot_index != k)
 		{
-			if(tid < m ) d_swap(g_M[tid + pivot_index * ldm], g_M[tid + k * ldm]);
-			if(tid == 0) d_swap(scol_norms[k], scol_norms[pivot_index]);
-			if(g_piv && tid == 0) d_swap(g_piv[k], g_piv[pivot_index]);
+            // Make sure to sync before swapping the column norms so there's no conflict 
+            // with the convergence check
+            kblas_sync_threads<BLOCK_SIZE>();
+			if(tid < m ) d_swap(g_A[tid + pivot_index * lda], g_A[tid + k * lda]);
+			if(g_piv && tid == 0) { d_swap(g_piv[k], g_piv[pivot_index]); }
+            if(tid == 0) scol_norms[pivot_index] = scol_norms[k];
 		}
-		__syncthreads();
+		kblas_sync_threads<BLOCK_SIZE>();
 		
 		////////////////////////////////////////////////
 		// Now eliminate the column
 		////////////////////////////////////////////////
-		T x = (tid < k || tid >= m ? 0 : g_M[tid + k * ldm]);
+		T x = (tid < k || tid >= m ? 0 : g_A[tid + k * lda]);
 		if(tid == k) alpha = x;
-		__syncthreads();
+		kblas_sync_threads<BLOCK_SIZE>();
 		
 		// Generate and save the reflector 
 		T v, tau, beta;
 		larfg<T, BLOCK_SIZE>(x, alpha, v, tau, beta, warp_tid, warp_id, temp_storage);
 		if(tid == k) v = 1;
-		if(tid >= k && tid < m ) g_M[tid + k * ldm] = (tid == k ? beta : v);
+		if(tid >= k && tid < m ) g_A[tid + k * lda] = (tid == k ? beta : v);
 		
 		// Apply the reflector to the trailing submatrix
 		if(tau != 0 && k < n)
@@ -262,11 +238,12 @@ void batch_geqp2_kernel(
 				// first store a panel of the global matrix in registers 
 				#pragma unroll
 				for(int i = 0; i < PANEL_WIDTH; i++)
-					matrix_panel[i] = (panel_start + i < n && tid < m ? g_M[tid + (panel_start + i) * ldm] : 0);
+					matrix_panel[i] = (panel_start + i < n && tid < m ? g_A[tid + (panel_start + i) * lda] : 0);
 				
 				// Now update the panel using the reflector v: 
 				// First compute w in shared memory as: w = A(k1:k2,k1:k2)' * v
-				multreduction_gemv2<T, BLOCK_SIZE, PANEL_WIDTH>(matrix_panel, v, tid, warp_tid, warp_id, mv_smem_ws);
+				multreduction_gemv<T, PANEL_WIDTH, 0, BLOCK_SIZE, PANEL_WIDTH>(matrix_panel, v, tid, warp_tid, warp_id, mv_smem_ws);
+                
 				// Now shared memory has the vector w in the first PANEL_WIDTH entries
 				// so we can apply the rank 1 update: A(k1:k2, k1:k2) = A(k1:k2, k1:k2) - tau * v * w;
 				T tv = tau * v;
@@ -282,29 +259,33 @@ void batch_geqp2_kernel(
 					{
 						if(panel_start + i < n)
 						{
-							g_M[tid + (panel_start + i) * ldm] = matrix_panel[i];
+							g_A[tid + (panel_start + i) * lda] = matrix_panel[i];
 							
 							// Save the pivot row data so we don't have to reload it from global memory 
 							if(tid == k) pivot_row[panel_start + i] = matrix_panel[i];
 						}
 					}
 				}
-				__syncthreads();
+				kblas_sync_threads<BLOCK_SIZE>();
 				
 				panel_start += PANEL_WIDTH;
 			}
 			
 			// Update column norms 
-			if(tid > k && tid < n)
-				scol_norms[tid] = sqrt(scol_norms[tid] * scol_norms[tid] - pivot_row[tid] * pivot_row[tid]);
+            int norm_index = tid + k + 1;
+			while(norm_index < n)
+            {
+				T t = scol_norms[norm_index] * scol_norms[norm_index] - pivot_row[norm_index] * pivot_row[norm_index];
+				scol_norms[norm_index] = (t <= 0 ? 0 : sqrt(t));
+                norm_index += blockDim.x;
+            }
+            kblas_sync_threads<BLOCK_SIZE>();
 		}
 		
 		// Save tau for this column 
 		if(tid == 0) g_tau[k] = tau;
-		
-		__syncthreads();
 	}
-	
+
 	ranks[op_id] = k;
 }
 
@@ -312,14 +293,14 @@ void batch_geqp2_kernel(
 // Template Driver routines
 ////////////////////////////////////////////////////////////
 
-template<class T, class T_ptr, class I_ptr>
+template<class T, class T_ptr, class I_ptr, class Dim_Type>
 int batch_geqp2_template(
-	kblasHandle_t handle, int m, int n, T_ptr M_batch, int ldm, int stride, 
-	T_ptr tau_batch, int stride_tau, I_ptr piv_batch, int stride_piv, 
+	kblasHandle_t handle, Dim_Type m, Dim_Type n, int max_m, int max_n, T_ptr A_batch, Dim_Type lda, 
+    int stride, T_ptr tau_batch, int stride_tau, I_ptr piv_batch, int stride_piv, 
 	int* ranks, T tol, int num_ops
 ) 
 {
-	int warps = iDivUp(m, WARP_SIZE);
+	int warps = iDivUp(max_m, WARP_SIZE);
 	int threads = warps * WARP_SIZE;
 	const int PANEL_WIDTH = 8;
 	
@@ -327,30 +308,30 @@ int batch_geqp2_template(
     dim3 dimGrid(num_ops, 1);
 	
 	int smem_reduction = warps * WARP_SIZE * PANEL_WIDTH + warps * PANEL_WIDTH;
-	int smem_col_norms = n, smem_pivot_row = n;
+	int smem_col_norms = max_n, smem_pivot_row = max_n;
     size_t smem = sizeof(T) * (smem_reduction + smem_col_norms + smem_pivot_row);
     
 	cudaStream_t stream = kblasGetStream(handle);
 	
 	switch(threads)
 	{
-		case  32: batch_geqp2_kernel<T, T_ptr, I_ptr,  32, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, M_batch, ldm, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
-		case  64: batch_geqp2_kernel<T, T_ptr, I_ptr,  64, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, M_batch, ldm, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
-		case  96: batch_geqp2_kernel<T, T_ptr, I_ptr,  96, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, M_batch, ldm, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
-		case 128: batch_geqp2_kernel<T, T_ptr, I_ptr, 128, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, M_batch, ldm, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
-		case 160: batch_geqp2_kernel<T, T_ptr, I_ptr, 160, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, M_batch, ldm, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
-		case 192: batch_geqp2_kernel<T, T_ptr, I_ptr, 192, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, M_batch, ldm, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
-		case 224: batch_geqp2_kernel<T, T_ptr, I_ptr, 224, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, M_batch, ldm, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
-		case 256: batch_geqp2_kernel<T, T_ptr, I_ptr, 256, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, M_batch, ldm, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
-		case 288: batch_geqp2_kernel<T, T_ptr, I_ptr, 288, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, M_batch, ldm, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
-		case 320: batch_geqp2_kernel<T, T_ptr, I_ptr, 320, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, M_batch, ldm, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
-		case 352: batch_geqp2_kernel<T, T_ptr, I_ptr, 352, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, M_batch, ldm, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
-		case 384: batch_geqp2_kernel<T, T_ptr, I_ptr, 384, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, M_batch, ldm, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
-		case 416: batch_geqp2_kernel<T, T_ptr, I_ptr, 416, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, M_batch, ldm, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
-		case 448: batch_geqp2_kernel<T, T_ptr, I_ptr, 448, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, M_batch, ldm, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
-		case 480: batch_geqp2_kernel<T, T_ptr, I_ptr, 480, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, M_batch, ldm, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
-		case 512: batch_geqp2_kernel<T, T_ptr, I_ptr, 512, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, M_batch, ldm, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;		
-		default: printf("Unsupported matrix dimension (%d x %d)\n", m, n); { return KBLAS_UnknownError; }
+		case  32: batch_geqp2_kernel<T, T_ptr, I_ptr, Dim_Type,  32, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, A_batch, lda, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
+		case  64: batch_geqp2_kernel<T, T_ptr, I_ptr, Dim_Type,  64, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, A_batch, lda, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
+		case  96: batch_geqp2_kernel<T, T_ptr, I_ptr, Dim_Type,  96, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, A_batch, lda, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
+		case 128: batch_geqp2_kernel<T, T_ptr, I_ptr, Dim_Type, 128, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, A_batch, lda, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
+		case 160: batch_geqp2_kernel<T, T_ptr, I_ptr, Dim_Type, 160, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, A_batch, lda, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
+		case 192: batch_geqp2_kernel<T, T_ptr, I_ptr, Dim_Type, 192, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, A_batch, lda, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
+		case 224: batch_geqp2_kernel<T, T_ptr, I_ptr, Dim_Type, 224, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, A_batch, lda, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
+		case 256: batch_geqp2_kernel<T, T_ptr, I_ptr, Dim_Type, 256, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, A_batch, lda, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
+		case 288: batch_geqp2_kernel<T, T_ptr, I_ptr, Dim_Type, 288, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, A_batch, lda, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
+		case 320: batch_geqp2_kernel<T, T_ptr, I_ptr, Dim_Type, 320, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, A_batch, lda, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
+		case 352: batch_geqp2_kernel<T, T_ptr, I_ptr, Dim_Type, 352, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, A_batch, lda, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
+		case 384: batch_geqp2_kernel<T, T_ptr, I_ptr, Dim_Type, 384, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, A_batch, lda, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
+		case 416: batch_geqp2_kernel<T, T_ptr, I_ptr, Dim_Type, 416, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, A_batch, lda, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
+		case 448: batch_geqp2_kernel<T, T_ptr, I_ptr, Dim_Type, 448, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, A_batch, lda, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
+		case 480: batch_geqp2_kernel<T, T_ptr, I_ptr, Dim_Type, 480, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, A_batch, lda, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;
+		case 512: batch_geqp2_kernel<T, T_ptr, I_ptr, Dim_Type, 512, PANEL_WIDTH><<<dimGrid, dimBlock, smem, stream>>>(m, n, A_batch, lda, stride, tau_batch, stride_tau, piv_batch, stride_piv, ranks, tol, num_ops); break;		
+		default: printf("Unsupported matrix dimension (%d x %d)\n", max_m, max_n); { return KBLAS_UnknownError; }
 	}
     
 	check_error_ret( cudaGetLastError(), KBLAS_UnknownError );
@@ -369,8 +350,8 @@ extern "C" int kblasDgeqp2_batch_strided(
 	if(lda < m)
 		return KBLAS_Error_WrongInput;
 	
-	return batch_geqp2_template<double, double*, int*>(
-		handle, m, n, A_strided, lda, stride_a, tau_strided, stride_tau, 
+	return batch_geqp2_template<double, double*, int*, int>(
+		handle, m, n, m, n, A_strided, lda, stride_a, tau_strided, stride_tau, 
 		piv_strided, stride_piv, ranks, tol, num_ops
 	);
 }
@@ -384,8 +365,8 @@ extern "C" int kblasSgeqp2_batch_strided(
 	if(lda < m)
 		return KBLAS_Error_WrongInput;
 	
-	return batch_geqp2_template<float, float*, int*>(
-		handle, m, n, A_strided, lda, stride_a, tau_strided, stride_tau, 
+	return batch_geqp2_template<float, float*, int*, int>(
+		handle, m, n, m, n, A_strided, lda, stride_a, tau_strided, stride_tau, 
 		piv_strided, stride_piv, ranks, tol, num_ops
 	);
 }
@@ -401,8 +382,8 @@ extern "C" int kblasDgeqp2_batch(
 	if(lda < m)
 		return KBLAS_Error_WrongInput;
 	
-	return batch_geqp2_template<double, double**, int**>(
-		handle, m, n, A_array, lda, 0, tau_ptrs, 0, 
+	return batch_geqp2_template<double, double**, int**, int>(
+		handle, m, n, m, n, A_array, lda, 0, tau_ptrs, 0, 
 		piv_ptrs, 0, ranks, tol, num_ops
 	);
 }
@@ -415,8 +396,30 @@ extern "C" int kblasSgeqp2_batch(
 	if(lda < m)
 		return KBLAS_Error_WrongInput;
 	
-	return batch_geqp2_template<float, float**, int**>(
-		handle, m, n, A_array, lda, 0, tau_ptrs, 0, 
+	return batch_geqp2_template<float, float**, int**, int>(
+		handle, m, n, m, n, A_array, lda, 0, tau_ptrs, 0, 
+		piv_ptrs, 0, ranks, tol, num_ops
+	);
+}
+
+extern "C" int kblasDgeqp2_vbatch(
+	kblasHandle_t handle, int* m, int* n, int max_m, int max_n, double** A_array, int *lda, 
+	double** tau_ptrs, int** piv_ptrs, int* ranks, double tol, int num_ops
+) 
+{
+	return batch_geqp2_template<double, double**, int**, int*>(
+		handle, m, n, max_m, max_n, A_array, lda, 0, tau_ptrs, 0, 
+		piv_ptrs, 0, ranks, tol, num_ops
+	);
+}
+
+extern "C" int kblasSgeqp2_vbatch(
+	kblasHandle_t handle, int* m, int* n, int max_m, int max_n, float** A_array, int *lda, 
+	float** tau_ptrs, int** piv_ptrs, int* ranks, float tol, int num_ops
+) 
+{
+	return batch_geqp2_template<float, float**, int**, int*>(
+		handle, m, n, max_m, max_n, A_array, lda, 0, tau_ptrs, 0, 
 		piv_ptrs, 0, ranks, tol, num_ops
 	);
 }

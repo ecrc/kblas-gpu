@@ -25,16 +25,6 @@
   #define cublasXtrsm_batched cublasStrsmBatched
   #define LAPACK_GEMM cblas_sgemm
   #define LAPACK_GEMM_BATCH sgemm_batch
-  #define LAPACK_SYRK ssyrk
-  #define LAPACK_AXPY saxpy
-  #define LAPACK_LANSY slansy
-  #define LAPACK_LANGE slange
-  #define LAPACK_TRSM strsm
-  #define LAPACK_TRMM strmm
-  #define LAPACK_POTRF spotrf
-  #define LAPACK_LAUUM slauum
-  #define LAPACK_TRTRI strtri
-  #define LAPACK_POTRI spotri
   #ifdef USE_MKL
   #define LAPACK_GESVD sgesvd
   #define LAPACK_LACPY slacpy
@@ -54,16 +44,6 @@
   #define cublasXtrsm_batched cublasDtrsmBatched
   #define LAPACK_GEMM cblas_dgemm
   #define LAPACK_GEMM_BATCH dgemm_batch
-  #define LAPACK_SYRK dsyrk
-  #define LAPACK_AXPY daxpy
-  #define LAPACK_LANSY dlansy
-  #define LAPACK_LANGE dlange
-  #define LAPACK_TRSM dtrsm
-  #define LAPACK_TRMM dtrmm
-  #define LAPACK_POTRF dpotrf
-  #define LAPACK_LAUUM dlauum
-  #define LAPACK_TRTRI dtrtri
-  #define LAPACK_POTRI dpotri
   #ifdef USE_MKL
   #define LAPACK_GESVD dgesvd
   #define LAPACK_LACPY dlacpy
@@ -84,16 +64,6 @@
   #define cublasXtrsm_batched cublasCtrsmBatched
   #define LAPACK_GEMM cblas_cgemm
   #define LAPACK_GEMM_BATCH cgemm_batch
-  #define LAPACK_SYRK csyrk
-  #define LAPACK_AXPY caxpy
-  #define LAPACK_LANSY clansy
-  #define LAPACK_LANGE clange
-  #define LAPACK_TRSM ctrsm
-  #define LAPACK_TRMM ctrmm
-  #define LAPACK_POTRF cpotrf
-  #define LAPACK_LAUUM clauum
-  #define LAPACK_TRTRI ctrtri
-  #define LAPACK_POTRI cpotri
   #ifdef USE_MKL
   #define LAPACK_GESVD cgesvd
   #define LAPACK_LACPY clacpy
@@ -116,16 +86,6 @@
   #define cublasXtrsm_batched cublasZtrsmBatched
   #define LAPACK_GEMM cblas_zgemm
   #define LAPACK_GEMM_BATCH zgemm_batch
-  #define LAPACK_SYRK zsyrk
-  #define LAPACK_AXPY zaxpy
-  #define LAPACK_LANSY zlansy
-  #define LAPACK_LANGE zlange
-  #define LAPACK_TRSM ztrsm
-  #define LAPACK_TRMM ztrmm
-  #define LAPACK_POTRF zpotrf
-  #define LAPACK_LAUUM zlauum
-  #define LAPACK_TRTRI ztrtri
-  #define LAPACK_POTRI zpotri
   #ifdef USE_MKL
   #define LAPACK_GESVD zgesvd
   #define LAPACK_LACPY zlacpy

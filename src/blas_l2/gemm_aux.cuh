@@ -25,8 +25,9 @@
 #define MAX_NGPUS	(16)
 #define MAX_EVENTS	(100)
 
-#define max(a, b)	( (a) > (b)? (a) : (b) )
-#define min(a, b)	( (a) < (b)? (a) : (b) )
+#include "kblas_common.h"
+// #define max(a, b)	( (a) > (b)? (a) : (b) )
+// #define min(a, b)	( (a) < (b)? (a) : (b) )
 
 // recommend a tile
 long recommend_tile(long m, long n, long k, long ngpus, long max_good_tile)

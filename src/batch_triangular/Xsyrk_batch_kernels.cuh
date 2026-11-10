@@ -35,8 +35,11 @@
 //shuffle intrinsic is not supported before KEPLER
 #if (TARGET_SM >= 30)
 
+// CONJ conjugates the second factor of each product, so the kernels compute the Hermitian
+// update A A^H (no transpose) or A^H A (transpose) instead of the symmetric one
+
 //==============================================================================================
-template<typename T, int B_ROWS, int A_COLS_PTY>
+template<typename T, int B_ROWS, int A_COLS_PTY, bool CONJ>
 __device__ inline void
 dev_syrk_U_LN_registers_Mfix_Nmul( const int m, const int n,
                                    const T alpha, const T* __restrict__ A, int lda,
@@ -69,7 +72,7 @@ dev_syrk_U_LN_registers_Mfix_Nmul( const int m, const int n,
         s = zero;
         #pragma unroll
         for(int i = 0; i < A_COLS_PTY; i++){
-          s = FMA(rA0[i], shfl(rA0[i], j, B_ROWS), s);
+          s = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, B_ROWS)), s);
         }
         rB0[j] = FMA( alpha, s, rB0[j] );
       }
@@ -84,7 +87,7 @@ dev_syrk_U_LN_registers_Mfix_Nmul( const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY, bool CONJ>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_U_LN_registers_Mfix_Nmul( const int m, const int n, int batchCount,
                                       const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
@@ -106,14 +109,14 @@ kernel_syrk_U_LN_registers_Mfix_Nmul( const int m, const int n, int batchCount,
     A += A_row_off + A_col_off * lda;
     B += B_row_off + B_col_off * ldb;
   }
-  dev_syrk_U_LN_registers_Mfix_Nmul<T, B_ROWS, A_COLS_PTY>(
+  dev_syrk_U_LN_registers_Mfix_Nmul<T, B_ROWS, A_COLS_PTY, CONJ>(
                                     m, n,
                                     alpha, A, lda,
                                     beta, B, ldb);
 }
 
 //==============================================================================================;
-template<typename T, int B_ROWS, int A_COLS_PTY>
+template<typename T, int B_ROWS, int A_COLS_PTY, bool CONJ>
 __device__ inline void
 dev_syrk_U_LN_registers_Mfix_Nvar(const int m, const int n,
                                   const T alpha, const T* __restrict__ A, int lda,
@@ -143,7 +146,7 @@ dev_syrk_U_LN_registers_Mfix_Nvar(const int m, const int n,
         s = make_zero<T>();
         #pragma unroll
         for(int i = 0; i < A_COLS_PTY; i++){
-          s = FMA(rA0[i], shfl(rA0[i], j, B_ROWS), s);
+          s = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, B_ROWS)), s);
         }
         rB0[j] = FMA( alpha, s, rB0[j] );
       }
@@ -167,7 +170,7 @@ dev_syrk_U_LN_registers_Mfix_Nvar(const int m, const int n,
         #pragma unroll
         for(int i = 0; i < A_COLS_PTY; i++){
           if(i < acols)
-            s = FMA(rA0[i], shfl(rA0[i], j, B_ROWS), s);
+            s = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, B_ROWS)), s);
         }
         rB0[j] = FMA( alpha, s, rB0[j] );
       }
@@ -183,7 +186,7 @@ dev_syrk_U_LN_registers_Mfix_Nvar(const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY, bool CONJ>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_U_LN_registers_Mfix_Nvar( const int m, const int n, int batchCount,
                                       const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
@@ -205,14 +208,14 @@ kernel_syrk_U_LN_registers_Mfix_Nvar( const int m, const int n, int batchCount,
     A += A_row_off + A_col_off * lda;
     B += B_row_off + B_col_off * ldb;
   }
-  dev_syrk_U_LN_registers_Mfix_Nvar<T, B_ROWS, A_COLS_PTY>(
+  dev_syrk_U_LN_registers_Mfix_Nvar<T, B_ROWS, A_COLS_PTY, CONJ>(
                                     m, n,
                                     alpha, A, lda,
                                     beta, B, ldb);
 }
 
 //==============================================================================================;
-template<typename T, int B_ROWS, int A_COLS_PTY>
+template<typename T, int B_ROWS, int A_COLS_PTY, bool CONJ>
 __device__ inline void
 dev_syrk_U_LN_registers_MNvar(const int m, const int n,
                               const T alpha, const T* __restrict__ A, int lda,
@@ -253,7 +256,7 @@ dev_syrk_U_LN_registers_MNvar(const int m, const int n,
         s = make_zero<T>();
         #pragma unroll
         for(int i = 0; i < A_COLS_PTY; i++){
-          s = FMA(rA0[i], shfl(rA0[i], j, B_ROWS), s);
+          s = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, B_ROWS)), s);
         }
         rB0[j] = FMA( alpha, s, rB0[j] );
       }
@@ -279,7 +282,7 @@ dev_syrk_U_LN_registers_MNvar(const int m, const int n,
         #pragma unroll
         for(int i = 0; i < A_COLS_PTY; i++){
           if(i < acols)
-            s = FMA(rA0[i], shfl(rA0[i], j, B_ROWS), s);
+            s = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, B_ROWS)), s);
         }
         rB0[j] = FMA( alpha, s, rB0[j] );
       }
@@ -297,7 +300,7 @@ dev_syrk_U_LN_registers_MNvar(const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY, bool CONJ>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_U_LN_registers_MNvar( const int m, const int n, int batchCount,
                                   const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
@@ -319,14 +322,14 @@ kernel_syrk_U_LN_registers_MNvar( const int m, const int n, int batchCount,
     A += A_row_off + A_col_off * lda;
     B += B_row_off + B_col_off * ldb;
   }
-  dev_syrk_U_LN_registers_MNvar<T, B_ROWS, A_COLS_PTY>(
+  dev_syrk_U_LN_registers_MNvar<T, B_ROWS, A_COLS_PTY, CONJ>(
                                 m, n,
                                 alpha, A, lda,
                                 beta, B, ldb);
 }
 
 //==============================================================================================;
-template<typename T, int TX, int A_COLS_PTY>
+template<typename T, int TX, int A_COLS_PTY, bool CONJ>
 __device__ inline void
 dev_syrk_U_LN_registers_Mblock2_Nmul( const int m, const int n,
                                       const T alpha, const T* __restrict__ A, int lda,
@@ -364,9 +367,9 @@ dev_syrk_U_LN_registers_Mblock2_Nmul( const int m, const int n,
         s0 = s1 = s2 = make_zero<T>();
         #pragma unroll
         for(int i = 0; i < A_COLS_PTY; i++){
-          s0 = FMA(rA0[i], shfl(rA0[i], j, TX), s0);
-          s1 = FMA(rA1[i], shfl(rA0[i], j, TX), s1);
-          s2 = FMA(rA1[i], shfl(rA1[i], j, TX), s2);
+          s0 = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s0);
+          s1 = FMA(rA1[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s1);
+          s2 = FMA(rA1[i], conj_if(CONJ, shfl(rA1[i], j, TX)), s2);
         }
         rB00[j] = FMA( alpha, s0, rB00[j] );
         rB10[j] = FMA( alpha, s1, rB10[j] );
@@ -391,7 +394,7 @@ dev_syrk_U_LN_registers_Mblock2_Nmul( const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY, bool CONJ>
 __global__ void
 kernel_syrk_U_LN_registers_Mblock2_Nmul(const int m, const int n, int batchCount,
                                         const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
@@ -413,14 +416,14 @@ kernel_syrk_U_LN_registers_Mblock2_Nmul(const int m, const int n, int batchCount
     A += A_row_off + A_col_off * lda;
     B += B_row_off + B_col_off * ldb;
   }
-  dev_syrk_U_LN_registers_Mblock2_Nmul<T, B_ROWS, A_COLS_PTY>(
+  dev_syrk_U_LN_registers_Mblock2_Nmul<T, B_ROWS, A_COLS_PTY, CONJ>(
                                         m, n,
                                         alpha, A, lda,
                                         beta, B, ldb);
 }
 
 //==============================================================================================;
-template<typename T, int TX, int A_COLS_PTY>
+template<typename T, int TX, int A_COLS_PTY, bool CONJ>
 __device__ inline void
 dev_syrk_U_LN_registers_Mblock2_Nvar( const int m, const int n,
                                       const T alpha, const T* __restrict__ A, int lda,
@@ -457,9 +460,9 @@ dev_syrk_U_LN_registers_Mblock2_Nvar( const int m, const int n,
         s0 = s1 = s2 = make_zero<T>();
         #pragma unroll
         for(int i = 0; i < A_COLS_PTY; i++){
-          s0 = FMA(rA0[i], shfl(rA0[i], j, TX), s0);
-          s1 = FMA(rA1[i], shfl(rA0[i], j, TX), s1);
-          s2 = FMA(rA1[i], shfl(rA1[i], j, TX), s2);
+          s0 = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s0);
+          s1 = FMA(rA1[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s1);
+          s2 = FMA(rA1[i], conj_if(CONJ, shfl(rA1[i], j, TX)), s2);
         }
         rB00[j] = FMA( alpha, s0, rB00[j] );
         rB10[j] = FMA( alpha, s1, rB10[j] );
@@ -487,9 +490,9 @@ dev_syrk_U_LN_registers_Mblock2_Nvar( const int m, const int n,
         #pragma unroll
         for(int i = 0; i < A_COLS_PTY; i++){
           if( i < acols ){
-            s0 = FMA(rA0[i], shfl(rA0[i], j, TX), s0);
-            s1 = FMA(rA1[i], shfl(rA0[i], j, TX), s1);
-            s2 = FMA(rA1[i], shfl(rA1[i], j, TX), s2);
+            s0 = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s0);
+            s1 = FMA(rA1[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s1);
+            s2 = FMA(rA1[i], conj_if(CONJ, shfl(rA1[i], j, TX)), s2);
           }
         }
         rB00[j] = FMA( alpha, s0, rB00[j] );
@@ -514,7 +517,7 @@ dev_syrk_U_LN_registers_Mblock2_Nvar( const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY, bool CONJ>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_U_LN_registers_Mblock2_Nvar(const int m, const int n, int batchCount,
                                         const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
@@ -536,14 +539,14 @@ kernel_syrk_U_LN_registers_Mblock2_Nvar(const int m, const int n, int batchCount
     A += A_row_off + A_col_off * lda;
     B += B_row_off + B_col_off * ldb;
   }
-  dev_syrk_U_LN_registers_Mblock2_Nvar<T, B_ROWS, A_COLS_PTY>(
+  dev_syrk_U_LN_registers_Mblock2_Nvar<T, B_ROWS, A_COLS_PTY, CONJ>(
                                         m, n,
                                         alpha, A, lda,
                                         beta, B, ldb);
 }
 
 //==============================================================================================;
-template<typename T, int TX, int A_COLS_PTY>
+template<typename T, int TX, int A_COLS_PTY, bool CONJ>
 __device__ inline void
 dev_syrk_U_LN_registers_NMblock2var(const int m, const int n,
                                     const T alpha, const T* __restrict__ A, int lda,
@@ -618,9 +621,9 @@ dev_syrk_U_LN_registers_NMblock2var(const int m, const int n,
         s0 = s1 = s2 = make_zero<T>();
         #pragma unroll
         for(int i = 0; i < A_COLS_PTY; i++){
-          s0 = FMA(rA0[i], shfl(rA0[i], j, TX), s0);
-          s1 = FMA(rA1[i], shfl(rA0[i], j, TX), s1);
-          s2 = FMA(rA1[i], shfl(rA1[i], j, TX), s2);
+          s0 = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s0);
+          s1 = FMA(rA1[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s1);
+          s2 = FMA(rA1[i], conj_if(CONJ, shfl(rA1[i], j, TX)), s2);
         }
         rB00[j] = FMA( alpha, s0, rB00[j] );
         rB10[j] = FMA( alpha, s1, rB10[j] );
@@ -660,9 +663,9 @@ dev_syrk_U_LN_registers_NMblock2var(const int m, const int n,
         #pragma unroll
         for(int i = 0; i < A_COLS_PTY; i++){
           if( i < acols ){
-            s0 = FMA(rA0[i], shfl(rA0[i], j, TX), s0);
-            s1 = FMA(rA1[i], shfl(rA0[i], j, TX), s1);
-            s2 = FMA(rA1[i], shfl(rA1[i], j, TX), s2);
+            s0 = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s0);
+            s1 = FMA(rA1[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s1);
+            s2 = FMA(rA1[i], conj_if(CONJ, shfl(rA1[i], j, TX)), s2);
           }
         }
         rB00[j] = FMA( alpha, s0, rB00[j] );
@@ -706,7 +709,7 @@ dev_syrk_U_LN_registers_NMblock2var(const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY, bool CONJ>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_U_LN_registers_NMblock2var( const int m, const int n, int batchCount,
                                         const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
@@ -726,13 +729,13 @@ kernel_syrk_U_LN_registers_NMblock2var( const int m, const int n, int batchCount
     A += A_row_off + A_col_off * lda;
     B += B_row_off + B_col_off * ldb;
   }
-  dev_syrk_U_LN_registers_NMblock2var<T, B_ROWS, A_COLS_PTY>(
+  dev_syrk_U_LN_registers_NMblock2var<T, B_ROWS, A_COLS_PTY, CONJ>(
                                       m, n,
                                       alpha, A, lda,
                                       beta, B, ldb);
 }
 //==============================================================================================;
-template<typename T, int TX, int A_ROWS_PTY>
+template<typename T, int TX, int A_ROWS_PTY, bool CONJ>
 __device__ inline void
 dev_syrk_U_LT_reg_shared_Mfix_Nmul( const int m, const int n,
                                     const T alpha, const T* __restrict__ A, int lda,
@@ -777,7 +780,7 @@ dev_syrk_U_LT_reg_shared_Mfix_Nmul( const int m, const int n,
       s = zero;
       #pragma unroll
       for(int i = 0; i < TX; i++){
-        s = FMA(rA0[i], shfl(rA0[i], j, TX), s);
+        s = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s);
       }
       rB0[j] = FMA( alpha, s, rB0[j] );
     }
@@ -797,7 +800,7 @@ dev_syrk_U_LT_reg_shared_Mfix_Nmul( const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_ROWS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_ROWS_PTY, bool CONJ>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_U_LT_reg_shared_Mfix_Nmul(const int m, const int n, int batchCount,
                                       const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
@@ -819,14 +822,14 @@ kernel_syrk_U_LT_reg_shared_Mfix_Nmul(const int m, const int n, int batchCount,
     A += A_row_off + A_col_off * lda;
     B += B_row_off + B_col_off * ldb;
   }
-  dev_syrk_U_LT_reg_shared_Mfix_Nmul<T, B_ROWS, A_ROWS_PTY>(
+  dev_syrk_U_LT_reg_shared_Mfix_Nmul<T, B_ROWS, A_ROWS_PTY, CONJ>(
                                       m, n,
                                       alpha, A, lda,
                                       beta, B, ldb);
 }
 
 //==============================================================================================;
-template<typename T, int TX, int A_ROWS_PTY>
+template<typename T, int TX, int A_ROWS_PTY, bool CONJ>
 __device__ inline void
 dev_syrk_U_LT_reg_shared_Mfix_Nvar( const int m, const int n,
                                     const T alpha, const T* __restrict__ A, int lda,
@@ -871,7 +874,7 @@ dev_syrk_U_LT_reg_shared_Mfix_Nvar( const int m, const int n,
       s = zero;
       #pragma unroll
       for(int i = 0; i < TX; i++){
-        s = FMA(rA0[i], shfl(rA0[i], j, TX), s);
+        s = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s);
       }
       rB0[j] = FMA( alpha, s, rB0[j] );
     }
@@ -900,7 +903,7 @@ dev_syrk_U_LT_reg_shared_Mfix_Nvar( const int m, const int n,
       #pragma unroll
       for(int i = 0; i < TX; i++){
         if(i < arows)
-          s = FMA(rA0[i], shfl(rA0[i], j, TX), s);
+          s = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s);
       }
       rB0[j] = FMA( alpha, s, rB0[j] );
     }
@@ -920,7 +923,7 @@ dev_syrk_U_LT_reg_shared_Mfix_Nvar( const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_ROWS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_ROWS_PTY, bool CONJ>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_U_LT_reg_shared_Mfix_Nvar(const int m, const int n, int batchCount,
                                       const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
@@ -941,14 +944,14 @@ kernel_syrk_U_LT_reg_shared_Mfix_Nvar(const int m, const int n, int batchCount,
     A += A_row_off + A_col_off * lda;
     B += B_row_off + B_col_off * ldb;
   }
-  dev_syrk_U_LT_reg_shared_Mfix_Nvar<T, B_ROWS, A_ROWS_PTY>(
+  dev_syrk_U_LT_reg_shared_Mfix_Nvar<T, B_ROWS, A_ROWS_PTY, CONJ>(
                                       m, n,
                                       alpha, A, lda,
                                       beta, B, ldb);
 }
 
 //==============================================================================================;
-template<typename T, int TX, int A_ROWS_PTY>
+template<typename T, int TX, int A_ROWS_PTY, bool CONJ>
 __device__ inline void
 dev_syrk_U_LT_reg_shared_MNvar( const int m, const int n,
                                 const T alpha, const T* __restrict__ A, int lda,
@@ -1007,7 +1010,7 @@ dev_syrk_U_LT_reg_shared_MNvar( const int m, const int n,
         s = zero;
         #pragma unroll
         for(int i = 0; i < TX; i++){
-          s = FMA(rA0[i], shfl(rA0[i], j, TX), s);
+          s = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s);
         }
         rB0[j] = FMA( alpha, s, rB0[j] );
       }
@@ -1040,7 +1043,7 @@ dev_syrk_U_LT_reg_shared_MNvar( const int m, const int n,
         #pragma unroll
         for(int i = 0; i < TX; i++){
           if(i < arows)
-            s = FMA(rA0[i], shfl(rA0[i], j, TX), s);
+            s = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s);
         }
         rB0[j] = FMA( alpha, s, rB0[j] );
       }
@@ -1065,7 +1068,7 @@ dev_syrk_U_LT_reg_shared_MNvar( const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_ROWS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_ROWS_PTY, bool CONJ>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_U_LT_reg_shared_MNvar(const int m, const int n, int batchCount,
                                   const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
@@ -1087,14 +1090,14 @@ kernel_syrk_U_LT_reg_shared_MNvar(const int m, const int n, int batchCount,
     A += A_row_off + A_col_off * lda;
     B += B_row_off + B_col_off * ldb;
   }
-  dev_syrk_U_LT_reg_shared_MNvar<T, B_ROWS, A_ROWS_PTY>(
+  dev_syrk_U_LT_reg_shared_MNvar<T, B_ROWS, A_ROWS_PTY, CONJ>(
                                   m, n,
                                   alpha, A, lda,
                                   beta, B, ldb);
 }
 
 //==============================================================================================;
-template<typename T, int TX, int A_COLS_PTY>
+template<typename T, int TX, int A_COLS_PTY, bool CONJ>
 __device__ inline void
 dev_syrk_U_LT_reg_shared_Mblock2_Nmul(const int m, const int n,
                                       const T alpha, const T* __restrict__ A, int lda,
@@ -1176,9 +1179,9 @@ dev_syrk_U_LT_reg_shared_Mblock2_Nmul(const int m, const int n,
       s2 = zero;
       #pragma unroll
       for(int i = 0; i < TX; i++){
-        s0 = FMA(rA0[i], shfl(rA0[i], j, TX), s0);
-        s1 = FMA(rA0[i], shfl(rA1[i], j, TX), s1);
-        s2 = FMA(rA1[i], shfl(rA1[i], j, TX), s2);
+        s0 = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s0);
+        s1 = FMA(rA0[i], conj_if(CONJ, shfl(rA1[i], j, TX)), s1);
+        s2 = FMA(rA1[i], conj_if(CONJ, shfl(rA1[i], j, TX)), s2);
       }
       rB00[j] = FMA( alpha, s0, rB00[j] );
       rB10[j] = FMA( alpha, s1, rB10[j] );
@@ -1227,7 +1230,7 @@ dev_syrk_U_LT_reg_shared_Mblock2_Nmul(const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY, bool CONJ>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_U_LT_reg_shared_Mblock2_Nmul( const int m, const int n, int batchCount,
                                           const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
@@ -1249,14 +1252,14 @@ kernel_syrk_U_LT_reg_shared_Mblock2_Nmul( const int m, const int n, int batchCou
     A += A_row_off + A_col_off * lda;
     B += B_row_off + B_col_off * ldb;
   }
-  dev_syrk_U_LT_reg_shared_Mblock2_Nmul<T, B_ROWS, A_COLS_PTY>(
+  dev_syrk_U_LT_reg_shared_Mblock2_Nmul<T, B_ROWS, A_COLS_PTY, CONJ>(
                                         m, n,
                                         alpha, A, lda,
                                         beta, B, ldb);
 }
 
 //==============================================================================================;
-template<typename T, int TX, int A_COLS_PTY>
+template<typename T, int TX, int A_COLS_PTY, bool CONJ>
 __device__ inline void
 dev_syrk_U_LT_reg_shared_Mblock2_Nvar(const int m, const int n,
                                       const T alpha, const T* __restrict__ A, int lda,
@@ -1337,9 +1340,9 @@ dev_syrk_U_LT_reg_shared_Mblock2_Nvar(const int m, const int n,
       s2 = zero;
       #pragma unroll
       for(int i = 0; i < TX; i++){
-        s0 = FMA(rA0[i], shfl(rA0[i], j, TX), s0);
-        s1 = FMA(rA0[i], shfl(rA1[i], j, TX), s1);
-        s2 = FMA(rA1[i], shfl(rA1[i], j, TX), s2);
+        s0 = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s0);
+        s1 = FMA(rA0[i], conj_if(CONJ, shfl(rA1[i], j, TX)), s1);
+        s2 = FMA(rA1[i], conj_if(CONJ, shfl(rA1[i], j, TX)), s2);
       }
       rB00[j] = FMA( alpha, s0, rB00[j] );
       rB10[j] = FMA( alpha, s1, rB10[j] );
@@ -1386,9 +1389,9 @@ dev_syrk_U_LT_reg_shared_Mblock2_Nvar(const int m, const int n,
       #pragma unroll
       for(int i = 0; i < TX; i++){
         if( i < arows ){
-          s0 = FMA(rA0[i], shfl(rA0[i], j, TX), s0);
-          s1 = FMA(rA0[i], shfl(rA1[i], j, TX), s1);
-          s2 = FMA(rA1[i], shfl(rA1[i], j, TX), s2);
+          s0 = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s0);
+          s1 = FMA(rA0[i], conj_if(CONJ, shfl(rA1[i], j, TX)), s1);
+          s2 = FMA(rA1[i], conj_if(CONJ, shfl(rA1[i], j, TX)), s2);
         }
       }
       rB00[j] = FMA( alpha, s0, rB00[j] );
@@ -1437,7 +1440,7 @@ dev_syrk_U_LT_reg_shared_Mblock2_Nvar(const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY, bool CONJ>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_U_LT_reg_shared_Mblock2_Nvar( const int m, const int n, int batchCount,
                                           const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
@@ -1459,14 +1462,14 @@ kernel_syrk_U_LT_reg_shared_Mblock2_Nvar( const int m, const int n, int batchCou
     A += A_row_off + A_col_off * lda;
     B += B_row_off + B_col_off * ldb;
   }
-  dev_syrk_U_LT_reg_shared_Mblock2_Nvar<T, B_ROWS, A_COLS_PTY>(
+  dev_syrk_U_LT_reg_shared_Mblock2_Nvar<T, B_ROWS, A_COLS_PTY, CONJ>(
                                         m, n,
                                         alpha, A, lda,
                                         beta, B, ldb);
 }
 
 //==============================================================================================;
-template<typename T, int TX, int A_COLS_PTY>
+template<typename T, int TX, int A_COLS_PTY, bool CONJ>
 __device__ inline void
 dev_syrk_U_LT_reg_shared_NMblock2var( const int m, const int n,
                                       const T alpha, const T* __restrict__ A, int lda,
@@ -1644,9 +1647,9 @@ dev_syrk_U_LT_reg_shared_NMblock2var( const int m, const int n,
       s2 = zero;
       #pragma unroll
       for(int i = 0; i < TX; i++){
-        s0 = FMA(rA0[i], shfl(rA0[i], j, TX), s0);
-        s1 = FMA(rA0[i], shfl(rA1[i], j, TX), s1);
-        s2 = FMA(rA1[i], shfl(rA1[i], j, TX), s2);
+        s0 = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s0);
+        s1 = FMA(rA0[i], conj_if(CONJ, shfl(rA1[i], j, TX)), s1);
+        s2 = FMA(rA1[i], conj_if(CONJ, shfl(rA1[i], j, TX)), s2);
       }
       rB00[j] = FMA( alpha, s0, rB00[j] );
       rB10[j] = FMA( alpha, s1, rB10[j] );
@@ -1724,9 +1727,9 @@ dev_syrk_U_LT_reg_shared_NMblock2var( const int m, const int n,
       #pragma unroll
       for(int i = 0; i < TX; i++){
         if( i < arows ){
-          s0 = FMA(rA0[i], shfl(rA0[i], j, TX), s0);
-          s1 = FMA(rA0[i], shfl(rA1[i], j, TX), s1);
-          s2 = FMA(rA1[i], shfl(rA1[i], j, TX), s2);
+          s0 = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s0);
+          s1 = FMA(rA0[i], conj_if(CONJ, shfl(rA1[i], j, TX)), s1);
+          s2 = FMA(rA1[i], conj_if(CONJ, shfl(rA1[i], j, TX)), s2);
         }
       }
       rB00[j] = FMA( alpha, s0, rB00[j] );
@@ -1824,7 +1827,7 @@ dev_syrk_U_LT_reg_shared_NMblock2var( const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY, bool CONJ>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_U_LT_reg_shared_NMblock2var(const int m, const int n, int batchCount,
                                         const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
@@ -1845,14 +1848,14 @@ kernel_syrk_U_LT_reg_shared_NMblock2var(const int m, const int n, int batchCount
     A += A_row_off + A_col_off * lda;
     B += B_row_off + B_col_off * ldb;
   }
-  dev_syrk_U_LT_reg_shared_NMblock2var<T, B_ROWS, A_COLS_PTY>(
+  dev_syrk_U_LT_reg_shared_NMblock2var<T, B_ROWS, A_COLS_PTY, CONJ>(
                                         m, n,
                                         alpha, A, lda,
                                         beta, B, ldb);
 }
 
 //==============================================================================================;
-template<typename T, int TX, int A_COLS_PTY>
+template<typename T, int TX, int A_COLS_PTY, bool CONJ>
 __device__ inline void
 dev_syrk_U_LN_registers_Mfix_Nvar_DB( const int m, const int n,
                                       const T alpha, const T* __restrict__ A, int lda,
@@ -1899,7 +1902,7 @@ dev_syrk_U_LN_registers_Mfix_Nvar_DB( const int m, const int n,
         s = make_zero<T>();
         #pragma unroll
         for(int i = 0; i < A_COLS_PTY; i++){
-          s = FMA(rA0[i], shfl(rA0[i], j, TX), s);
+          s = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s);
         }
         rB0[j] = FMA( alpha, s, rB0[j] );
       }
@@ -1931,7 +1934,7 @@ dev_syrk_U_LN_registers_Mfix_Nvar_DB( const int m, const int n,
         #pragma unroll
         for(int i = 0; i < A_COLS_PTY; i++){
           if(i < acols)
-            s = FMA(rA0[i], shfl(rA0[i], j, TX), s);
+            s = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s);
         }
         rB0[j] = FMA( alpha, s, rB0[j] );
       }
@@ -1947,7 +1950,7 @@ dev_syrk_U_LN_registers_Mfix_Nvar_DB( const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY, bool CONJ>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_U_LN_registers_Mfix_Nvar_DB(const int m, const int n, int batchCount,
                                         const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
@@ -1969,14 +1972,14 @@ kernel_syrk_U_LN_registers_Mfix_Nvar_DB(const int m, const int n, int batchCount
     A += A_row_off + A_col_off * lda;
     B += B_row_off + B_col_off * ldb;
   }
-  dev_syrk_U_LN_registers_Mfix_Nvar_DB<T, B_ROWS, A_COLS_PTY>(
+  dev_syrk_U_LN_registers_Mfix_Nvar_DB<T, B_ROWS, A_COLS_PTY, CONJ>(
                                         m, n,
                                         alpha, A, lda,
                                         beta, B, ldb);
 }
 
 //==============================================================================================;
-template<typename T, int TX, int A_COLS_PTY>
+template<typename T, int TX, int A_COLS_PTY, bool CONJ>
 __device__ inline void
 dev_syrk_U_LN_registers_Mblock2_Nvar_DB( const int m, const int n,
                                          const T alpha, const T* __restrict__ A, int lda,
@@ -2033,9 +2036,9 @@ dev_syrk_U_LN_registers_Mblock2_Nvar_DB( const int m, const int n,
       s0 = s1 = s2 = make_zero<T>();
       #pragma unroll
       for(int i = 0; i < A_COLS_PTY; i++){
-        s0 = FMA(rA0[i], shfl(rA0[i], j, TX), s0);
-        s1 = FMA(rA1[i], shfl(rA0[i], j, TX), s1);
-        s2 = FMA(rA1[i], shfl(rA1[i], j, TX), s2);
+        s0 = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s0);
+        s1 = FMA(rA1[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s1);
+        s2 = FMA(rA1[i], conj_if(CONJ, shfl(rA1[i], j, TX)), s2);
       }
       rB00[j] = FMA( alpha, s0, rB00[j] );
       rB10[j] = FMA( alpha, s1, rB10[j] );
@@ -2071,9 +2074,9 @@ dev_syrk_U_LN_registers_Mblock2_Nvar_DB( const int m, const int n,
         #pragma unroll
         for(int i = 0; i < A_COLS_PTY; i++){
           if( i < acols ){
-            s0 = FMA(rA0[i], shfl(rA0[i], j, TX), s0);
-            s1 = FMA(rA1[i], shfl(rA0[i], j, TX), s1);
-            s2 = FMA(rA1[i], shfl(rA1[i], j, TX), s2);
+            s0 = FMA(rA0[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s0);
+            s1 = FMA(rA1[i], conj_if(CONJ, shfl(rA0[i], j, TX)), s1);
+            s2 = FMA(rA1[i], conj_if(CONJ, shfl(rA1[i], j, TX)), s2);
           }
         }
         rB00[j] = FMA( alpha, s0, rB00[j] );
@@ -2098,7 +2101,7 @@ dev_syrk_U_LN_registers_Mblock2_Nvar_DB( const int m, const int n,
   }
 }
 //----------------------------------------------
-template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY>
+template<typename T, typename T_PTR, bool STRIDED, int B_ROWS, int A_COLS_PTY, bool CONJ>
 __global__ void  //__launch_bounds__(256)
 kernel_syrk_U_LN_registers_Mblock2_Nvar_DB( const int m, const int n, int batchCount,
                                             const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
@@ -2122,7 +2125,7 @@ kernel_syrk_U_LN_registers_Mblock2_Nvar_DB( const int m, const int n, int batchC
     A += A_row_off + A_col_off * lda;
     B += B_row_off + B_col_off * ldb;
   }
-  dev_syrk_U_LN_registers_Mblock2_Nvar_DB<T, B_ROWS, A_COLS_PTY>(
+  dev_syrk_U_LN_registers_Mblock2_Nvar_DB<T, B_ROWS, A_COLS_PTY, CONJ>(
                                            m, n,
                                            alpha, A, lda,
                                            beta, B, ldb);

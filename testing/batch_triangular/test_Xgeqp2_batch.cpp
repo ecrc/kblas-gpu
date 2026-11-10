@@ -274,6 +274,7 @@ int main(int argc, char** argv)
 					
 					// Expand the reflectors into the orthogonal factor so we can verify the error 
 					// Determine the max rank, since orgqr currently does not have a non-uniform version
+                    max_rank = 0;
 					for(int g = 0; g < num_gpus; g++)
 					{
 						cudaStream_t stream = kblasGetStream(kblas_handles[g]);

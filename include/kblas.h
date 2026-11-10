@@ -32,6 +32,12 @@
 
 #include "kblas_defs.h"
 
+// Extern to make it work with C
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 struct KBlasHandle;
 typedef struct KBlasWorkspace *kblasWorkspace_t;
 typedef struct KBlasHandle *kblasHandle_t;
@@ -107,6 +113,10 @@ int kblasAllocateWorkspace(kblasHandle_t handle);
  */
 int kblasFreeWorkspace(kblasHandle_t handle);
 
+// End of extern "C"
+#ifdef __cplusplus
+}
+#endif
 
 //============================================================================
 //BLAS2 routines

@@ -33,6 +33,8 @@
 #elif (TARGET_SM >= 30)
 
 //==============================================================================================
+// Factors A = L L^H, inverts L, then forms L^-H L^-1; the factorization and the final product
+// conjugate, and conjugate is the identity for real types
 template<typename T, int TX>
 __device__ inline void
 dev_poti_U_L_reg_shared_Nfix(int n, T* A, int lda)
@@ -63,7 +65,7 @@ dev_poti_U_L_reg_shared_Nfix(int n, T* A, int lda)
 
     #pragma unroll
     for(int i = 0; i < TX; i++){
-      s = -shfl(rA[j], i, TX);
+      s = -conjugate(shfl(rA[j], i, TX));
       if(j < i && i <= tx)
         rA[i] = FMA( rA[j], s, rA[i]);
         //rA[i] -= rA[j] * s;
@@ -104,7 +106,7 @@ dev_poti_U_L_reg_shared_Nfix(int n, T* A, int lda)
     s = zero;
     #pragma unroll
     for(int i = 0; i < TX; i++){
-      a = shfl(rA[i], j, TX);
+      a = conjugate(shfl(rA[i], j, TX));
       if(j <= i && j >= tx)
         s = FMA( rA[i], a, s);
     }
@@ -180,7 +182,7 @@ dev_poti_U_L_reg_shared_Nvar(int n, T* A, int lda)
 
     #pragma unroll
     for(int i = 0; i < TX; i++){
-      s = -shfl(rA[j], i, TX);
+      s = -conjugate(shfl(rA[j], i, TX));
       if(j < i && i <= tx)
         rA[i] = FMA( rA[j], s, rA[i]);
         //rA[i] -= rA[j] * s;
@@ -221,7 +223,7 @@ dev_poti_U_L_reg_shared_Nvar(int n, T* A, int lda)
     s = zero;
     #pragma unroll
     for(int i = 0; i < TX; i++){
-      a = shfl(rA[i], j, TX);
+      a = conjugate(shfl(rA[i], j, TX));
       if(j <= i && j >= tx)
         s = FMA( rA[i], a, s);
     }

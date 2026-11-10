@@ -619,6 +619,7 @@ int test_Xgemm_lr(kblas_opts& opts, T alpha, T beta){
       magma_finalize();
     }
   #endif
+  return 0;
 }
 
 //==============================================================================================

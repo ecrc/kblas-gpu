@@ -52,17 +52,29 @@ C_SRC_BATCH+=         \
 	test_zposv_batch.c
 
 ifdef _SUPPORT_SVD_
+C_SRC_BATCH+= test_ara_tolerances_batch.c
+$(OBJ_DIR)/test_ara_tolerances_batch.o: $(KBLAS_BATCH_DIR)/test_ara_tolerances.cpp $(BATCH_INC_DEP)
+	$(CXX) $(COPTS) -std=c++11 $(INCLUDES) -c $< -o $@
+
 C_SRC_BATCH+= test_dgesvj_batch.c test_sgesvj_batch.c
 
 $(OBJ_DIR)/test_%gesvj_batch.o: $(KBLAS_BATCH_DIR)/test_Xgesvj_batch.cpp $(BATCH_INC_DEP)
 	$(CXX) $(COPTS) -DPREC_$* $(INCLUDES) -c $< -o $@
 
+C_SRC_BATCH+= test_daca_batch.c test_saca_batch.c
+$(OBJ_DIR)/test_%aca_batch.o: $(KBLAS_BATCH_DIR)/test_Xaca_batch.cpp $(BATCH_INC_DEP)
+	$(CXX) $(COPTS) -DPREC_$* $(INCLUDES) -c $< -o $@
+
 C_SRC_BATCH+= \
 	test_dgeqrf_batch.c test_sgeqrf_batch.c \
-	test_sara_batch.c test_dara_batch.c \
+	test_sara_batch.c test_dara_batch.c test_cara_batch.c test_zara_batch.c \
 	test_sgeqp2_batch.c test_dgeqp2_batch.c \
-	test_dtsqrt_vbatch.c test_stsqrt_vbatch.c
+	test_dtsqrt_vbatch.c test_stsqrt_vbatch.c \
+	test_zgetrf_vbatch.c test_cgetrf_vbatch.c test_dgetrf_vbatch.c test_sgetrf_vbatch.c 
 
+$(OBJ_DIR)/test_%getrf_vbatch.o: $(KBLAS_BATCH_DIR)/test_Xgetrf_vbatch.cpp $(BATCH_INC_DEP)
+	$(CXX) $(COPTS) -DPREC_$* $(INCLUDES) -c $< -o $@
+	
 $(OBJ_DIR)/test_%geqrf_batch.o: $(KBLAS_BATCH_DIR)/test_Xgeqrf_batch.cpp $(BATCH_INC_DEP)
 	$(CXX) $(COPTS) -DPREC_$* $(INCLUDES) -c $< -o $@
 	

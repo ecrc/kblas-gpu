@@ -190,6 +190,20 @@ int Xsyrk_batch(kblasHandle_t handle,
                 TYPE beta,  TYPE** B, int* ldb,
                 int batchCount);
 
+// Hermitian rank-k update, trans KBLAS_NoTrans or KBLAS_ConjTrans; the symmetric update for real types
+int Xherk_batch(kblasHandle_t handle,
+                char uplo, char trans,
+                int m, int n,
+                TYPE alpha, TYPE** A, int A_row_off, int A_col_off, int lda, long strideA,
+                TYPE beta,  TYPE** B, int B_row_off, int B_col_off, int ldb, long strideB,
+                int batchCount);
+int Xherk_batch(kblasHandle_t handle,
+                char uplo, char trans,
+                int m, int n,
+                TYPE alpha, TYPE* A, int A_row_off, int A_col_off, int lda, long strideA,
+                TYPE beta,  TYPE* B, int B_row_off, int B_col_off, int ldb, long strideB,
+                int batchCount);
+
 //==============================================================================================
 int Xtrsm_batch(kblasHandle_t handle,
                 char side, char uplo, char trans, char diag,

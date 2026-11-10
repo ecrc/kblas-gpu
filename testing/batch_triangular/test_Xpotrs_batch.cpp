@@ -24,13 +24,9 @@
 #include <math.h>
 #include <sys/time.h>
 
-#if ((defined PREC_c) || (defined PREC_z)) && (defined USE_MKL)
-//TODO need to handle MKL types properly
-#undef USE_MKL
-#endif
-
 #include "testing_helper.h"
 #include "testing_prec_def.h"
+#include "testing_reference.h"
 #include "flops.h"
 
 #include "Xhelper_funcs.ch" // TODO: need Xset_pointer_2 from this
@@ -57,7 +53,6 @@ int test_Xpotrs_batch(kblas_opts& opts)
   int Am, An, Cm, Cn;
   int sizeA, sizeC;
   int lda, ldc, ldda, lddc;
-  int ione     = 1;
   int ISEED[4] = {0,0,0,1};
   kblasHandle_t kblas_handle[ngpu];
 
@@ -69,7 +64,6 @@ int test_Xpotrs_batch(kblas_opts& opts)
   double Cnorm;
   T c_one = make_one<T>(),
     c_neg_one = make_zero<T>()-make_one<T>();
-  T work[1];
   #ifdef DEBUG_DUMP
   FILE *outK, *outL, *outO;
   #endif
@@ -212,7 +206,7 @@ int test_Xpotrs_batch(kblas_opts& opts)
         }
 
         if(opts.warmup){
-          #if (defined USE_OPENMP) && (defined USE_MKL)
+          #ifdef USE_OPENMP
           if(opts.time){
             //memcpy(h_R, h_B, sizeB * batchCount * sizeof(T));
             omp_set_num_threads(NUM_THREADS);
@@ -222,11 +216,8 @@ int test_Xpotrs_batch(kblas_opts& opts)
               #pragma omp for //schedule(guided,10)
               for (int s=0; s < batchCount; s++)
               {
-                LAPACK_TRSM( (( opts.side == KBLAS_Right ) ? "Right" : "Left"),
-                             (( opts.uplo == KBLAS_Lower ) ? "Lower" : "Upper"),
-                             (( opts.transA == KBLAS_NoTrans ) ? "No Transpose" : "Transpose"),
-                             "Non-unit",
-                             &Cm, &Cn, &alpha, h_A + s * lda * An, &lda, h_R + s * ldc * Cn, &ldc );
+                ref_trsm( opts.side, opts.uplo, opts.transA, 'N', Cm, Cn,
+                          alpha, h_A + s * lda * An, lda, h_R + s * ldc * Cn, ldc );
               }
             }
             memcpy(h_R, h_C, sizeC * batchCount * sizeof(T));
@@ -281,7 +272,6 @@ int test_Xpotrs_batch(kblas_opts& opts)
         kblas_time_1 *= 1000.0;
 
 
-        #ifdef USE_MKL
         if(opts.check || (opts.time && opts.lapack)){
           if(opts.check){
             for(int g = 0; g < ngpu; g++){
@@ -311,9 +301,7 @@ int test_Xpotrs_batch(kblas_opts& opts)
             #endif//USE_OPENMP
             for (int s=0; s < batchCount; s++)
             {
-              int locinfo = 0;
-              LAPACK_POTRF( (( opts.uplo == KBLAS_Lower ) ? "Lower" : "Upper"),
-                            &N, h_A + s * lda * N, &lda, &locinfo );
+              int locinfo = ref_potrf( opts.uplo, N, h_A + s * lda * N, lda );
               if (locinfo != 0) {
                 printf("Xpotrf matrix %d returned error %d: %s.\n",
                         (int) s, (int) locinfo, "?");
@@ -333,26 +321,22 @@ int test_Xpotrs_batch(kblas_opts& opts)
             //printf("testing dtrsm with MKL.\n");
             for (int s=0; s < batchCount; s++)
             {
-              LAPACK_TRSM( (( opts.side == KBLAS_Right ) ? "Right" : "Left"),
-                          (( opts.uplo == KBLAS_Lower ) ? "Lower" : "Upper"),
-                          "Transpose", "Non-unit",
-                           &Cm, &An, &c_one, h_A + s * lda * An, &lda, h_C + s * ldc * Cn, &ldc );
-              LAPACK_TRSM( (( opts.side == KBLAS_Right ) ? "Right" : "Left"),
-                          (( opts.uplo == KBLAS_Lower ) ? "Lower" : "Upper"),
-                          "No Transpose", "Non-unit",
-                           &Cm, &An, &c_one, h_A + s * lda * An, &lda, h_C + s * ldc * Cn, &ldc );
+              ref_trsm( opts.side, opts.uplo, 'C', 'N', Cm, An,
+                        c_one, h_A + s * lda * An, lda, h_C + s * ldc * Cn, ldc );
+              ref_trsm( opts.side, opts.uplo, 'N', 'N', Cm, An,
+                        c_one, h_A + s * lda * An, lda, h_C + s * ldc * Cn, ldc );
               if(opts.check && !opts.time){
                 // compute relative error for kblas, relative to lapack,
                 // |kblas - lapack| / |lapack|
-                LAPACK_AXPY( &sizeC, &c_neg_one, h_C + s * ldc * Cn, &ione, h_R + s * ldc * Cn, &ione );
-                double Cnorm = LAPACK_LANGE( "f", &Cm, &Cn, h_C + s * ldc * Cn, &ldc, work );
-                double err   = LAPACK_LANGE( "f", &Cm, &Cn, h_R + s * ldc * Cn, &ldc, work )
+                ref_axpy( sizeC, c_neg_one, h_C + s * ldc * Cn, h_R + s * ldc * Cn );
+                double Cnorm = ref_lange( 'F', Cm, Cn, h_C + s * ldc * Cn, ldc );
+                double err   = ref_lange( 'F', Cm, Cn, h_R + s * ldc * Cn, ldc )
                               / Cnorm;
                 /*if ( isnan(err) || isinf(err) ) {
                   ref_error = err;
                   break;
                 }*/
-                ref_error = fmax( err, ref_error );
+                ref_error = ref_max_error( ref_error, err );
                 // ref_error += Xget_max_error_matrix(h_C + s * ldc * Cn, h_R + s * ldc * Cn, Cm, Cn, ldc);
                 #ifdef DEBUG_DUMP
                 printMatrix(Cm, Cn, h_C + s * ldc * Cn, ldc, outL);
@@ -378,7 +362,6 @@ int test_Xpotrs_batch(kblas_opts& opts)
             //rec_avg_time = (rec_avg_time / nruns) * 1000.;//convert to ms
           }
         }
-        #endif//USE_MKL
 
         cudaFreeHost( h_A );
         cudaFreeHost( h_C );
@@ -423,6 +406,7 @@ int test_Xpotrs_batch(kblas_opts& opts)
   for(int g = 0; g < ngpu; g++){
     kblasDestroy(&kblas_handle[g]);
   }
+  return 0;
 }
 
 //==============================================================================================

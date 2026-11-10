@@ -19,7 +19,7 @@
 #ifndef __QR_KERNELS_H__
 #define __QR_KERNELS_H__
 
-#define OPS_PER_BLOCK  	2
+#define OPS_PER_BLOCK  	1
 #define QR_MAX_SMEM		32768
 #define ROWS_PER_BLOCK 	64
 #define MULT_REDUCTION_SMEM(warps, width) ((warps) * WARP_SIZE * (width) + (warps) * (width))
@@ -35,50 +35,6 @@ template<> struct QR_Config<double> { static const int HH_CB =  8; static const 
 template<> struct QR_Config<float>  { static const int HH_CB = 8; static const int HH_CB_PANEL = HH_CB / 2; static const int HH_MAX_ROWS = QR_MAX_SMEM / (HH_CB * sizeof(float)); };
 template<> struct QR_Config<double> { static const int HH_CB = 4; static const int HH_CB_PANEL = HH_CB / 2; static const int HH_MAX_ROWS = QR_MAX_SMEM / (HH_CB * sizeof(double)); };
 #endif
-
-template<class T, int columns, int i, int BLOCK_SIZE, int PANEL_WIDTH>
-inline __device__ void multreduction_gemv(T matrix_row[columns], T v, int threadId, int warp_tid, int warp_id, volatile T* smem)
-{
-    int thread_smem_offset = threadId * PANEL_WIDTH + (threadId * PANEL_WIDTH) / WARP_SIZE;
-    volatile T* smem_w = smem + threadId + warp_id;
-    const int warps = BLOCK_SIZE / WARP_SIZE;
-
-    // Fill in shared memory
-    #pragma unroll
-    for(int j = 0; j < PANEL_WIDTH; j++)
-        smem[j + thread_smem_offset] = v * matrix_row[i + j];
-
-    if(warps != 1) __syncthreads();
-
-    // Now do the partial reduction starting with the serial part
-    #pragma unroll
-    for(int j = 1; j < PANEL_WIDTH; j++)
-        smem_w[0] += smem_w[warps * (WARP_SIZE + 1) * j];
-
-	// Pad with zeros if the block size is not a power of two
-	if(warps != 1 && warps != 2 && warps != 4 && warps != 8 && warps != 16 && warps != 32)
-		smem_w[warps * (WARP_SIZE + 1)] = 0;
-
-    if(warps != 1) __syncthreads();
-
-    // Now the tree partial reduction
-	if(BLOCK_SIZE >= 544) { if(threadId < 512) smem_w[0] += smem_w[16 * (WARP_SIZE + 1)]; __syncthreads(); }
-	if(BLOCK_SIZE >= 288) { if(threadId < 256) smem_w[0] += smem_w[ 8 * (WARP_SIZE + 1)]; __syncthreads(); }
-	if(BLOCK_SIZE >= 160) { if(threadId < 128) smem_w[0] += smem_w[ 4 * (WARP_SIZE + 1)]; __syncthreads(); }
-    if(BLOCK_SIZE >= 96 ) { if(threadId < 64 ) smem_w[0] += smem_w[ 2 * (WARP_SIZE + 1)]; __syncthreads(); }
-    if(threadId < 32)
-    {
-        if(BLOCK_SIZE >= 64) 					  smem_w[0] += smem_w[WARP_SIZE + 1];
-        if(BLOCK_SIZE >= 32 && PANEL_WIDTH <= 16) smem_w[0] += smem_w[16];
-        if(BLOCK_SIZE >= 16 && PANEL_WIDTH <= 8 ) smem_w[0] += smem_w[8 ];
-        if(BLOCK_SIZE >=  8 && PANEL_WIDTH <= 4 ) smem_w[0] += smem_w[4 ];
-        if(BLOCK_SIZE >=  4 && PANEL_WIDTH <= 2 ) smem_w[0] += smem_w[2 ];
-        if(BLOCK_SIZE >=  2 && PANEL_WIDTH <= 1 ) smem_w[0] += smem_w[1 ];
-    }
-
-    // Synch to make sure all threads have access to the reductions
-    if(warps != 1) __syncthreads();
-}
 
 // Apply a househoulder reflector H(k) to A(k:end, k:end)
 // We will do some redundant work for the rows, to avoid branching
@@ -105,8 +61,7 @@ struct qr_apply_househoulder_unroll
             #pragma unroll
             for(int j = 0; j < PANEL_WIDTH; j++)
                 matrix_row[k + j] -= tv * smem[j];
-
-            if(BLOCK_SIZE != WARP_SIZE) __syncthreads();
+            kblas_sync_threads<BLOCK_SIZE>();
         }
 
         if(remaining < 2)
@@ -115,6 +70,7 @@ struct qr_apply_househoulder_unroll
             for(int i = limit; i < columns; i++)
             {
                 T w = blockAllReduceSum<T, BLOCK_SIZE>(v * matrix_row[i], warp_tid, warp_id, smem);
+                kblas_sync_threads<BLOCK_SIZE>();
                 matrix_row[i] -= tv * w;
             }
         }
@@ -151,13 +107,13 @@ struct dtsqrt_apply_househoulder_unroll
                 smem[threadId] += A1[A1_row + (k + threadId) * HH_CB];
                 A1[A1_row + (k + threadId) * HH_CB] -= tau * smem[threadId];
             }
-            if(BLOCK_SIZE != WARP_SIZE) __syncthreads();
+            kblas_sync_threads<BLOCK_SIZE>();
 
             #pragma unroll
             for(int j = 0; j < PANEL_WIDTH; j++)
                 matrix_row[k + j] -= tv * smem[j];
 
-            if(BLOCK_SIZE != WARP_SIZE) __syncthreads();
+            kblas_sync_threads<BLOCK_SIZE>();
         }
 
         if(remaining < 2)
@@ -165,9 +121,9 @@ struct dtsqrt_apply_househoulder_unroll
             #pragma unroll
             for(int i = limit; i < columns; i++)
             {
-                // The block reduction has a sync point so no need to sync here
                 T a1_entry = A1[A1_row + i * HH_CB];
                 T w = blockAllReduceSum<T, BLOCK_SIZE>(v * matrix_row[i], warp_tid, warp_id, smem);
+                kblas_sync_threads<BLOCK_SIZE>();
                 w += a1_entry;
                 if(threadId == 0) A1[A1_row + i * HH_CB] -= tau * w;
                 matrix_row[i] -= tv * w;
@@ -188,17 +144,18 @@ struct qr_panel_unroll
 
         qr_panel_unroll<T, k - 1, columns, BLOCK_SIZE>::call(matrix_row, tau, threadId, warp_tid, warp_id, smem, pivot);
 
-        // Save the pivot in shared memory at this point since we do a sync during
-        // the reduction for computing the norm of the vector
+        // Save the pivot in shared memory
+        // kblas_sync_threads<BLOCK_SIZE>();
         T temp_pivot = matrix_row[k];
         if(threadId == k) *pivot = temp_pivot;
-
+        
         ///////////////////////////////////////////////////
         // Get the househoulder vector for this column
         ///////////////////////////////////////////////////
         T val = (threadId >= k ? matrix_row[k] * matrix_row[k] : 0);
         T beta = sqrt(blockAllReduceSum<T, BLOCK_SIZE>(val, warp_tid, warp_id, smem));
-
+        kblas_sync_threads<BLOCK_SIZE>();
+        
 		if(beta != 0)
 		{
 			// Get the pivot by reading from another thread's registers
@@ -249,6 +206,8 @@ struct dtsqrt_panel_unroll
         ///////////////////////////////////////////////////
         T alpha = A1[k + k * HH_CB];
         T beta = sqrt(blockAllReduceSum<T, BLOCK_SIZE>(matrix_row[k] * matrix_row[k], warp_tid, warp_id, smem) + alpha * alpha);
+        kblas_sync_threads<BLOCK_SIZE>();
+        
 		if(beta != 0)
 		{
 			if(alpha >= 0) beta *= -1;

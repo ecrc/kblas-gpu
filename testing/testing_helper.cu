@@ -23,9 +23,13 @@
 #include <thrust/execution_policy.h>
 #include <thrust/system/cuda/execution_policy.h>
 #include <thrust/system/omp/execution_policy.h>
+#include <thrust/system/cuda/execution_policy.h>
+#include <thrust/for_each.h>
+#include <thrust/transform_scan.h>
 #include <thrust/random.h>
 #include <thrust/copy.h>
 #include <thrust/logical.h>
+#include <thrust/tuple.h>
 
 #include <sys/time.h>
 #include <stdarg.h>
@@ -36,7 +40,7 @@
 // Generating array of pointers from a strided array
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 template<class T>
-struct UnaryAoAAssign : public thrust::unary_function<int, T*>
+struct UnaryAoAAssign
 {
   T* original_array;
   int stride;
@@ -67,11 +71,141 @@ extern "C" void generateDArrayOfPointers(double* original_array, double** array_
 extern "C" void generateSArrayOfPointers(float* original_array, float** array_of_arrays, int stride, int num_arrays, cudaStream_t stream)
 { generateArrayOfPointersT<float>(original_array, array_of_arrays, stride, num_arrays, stream); }
 
+extern "C" void generateIArrayOfPointers(int* original_array, int** array_of_arrays, int stride, int num_arrays, cudaStream_t stream)
+{ generateArrayOfPointersT<int>(original_array, array_of_arrays, stride, num_arrays, stream); }
+
+extern "C" void generateCArrayOfPointers(std::complex<float>* original_array, std::complex<float>** array_of_arrays, int stride, int num_arrays, cudaStream_t stream)
+{ generateArrayOfPointersT<std::complex<float>>(original_array, array_of_arrays, stride, num_arrays, stream); }
+
+extern "C" void generateZArrayOfPointers(std::complex<double>* original_array, std::complex<double>** array_of_arrays, int stride, int num_arrays, cudaStream_t stream)
+{ generateArrayOfPointersT<std::complex<double>>(original_array, array_of_arrays, stride, num_arrays, stream); }
+
 extern "C" void generateDArrayOfPointersHost(double* original_array, double** array_of_arrays, int stride, int num_arrays)
 { for(int i = 0; i < num_arrays; i++) array_of_arrays[i] = original_array + i * stride; }
 
 extern "C" void generateSArrayOfPointersHost(float* original_array, float** array_of_arrays, int stride, int num_arrays)
 { for(int i = 0; i < num_arrays; i++) array_of_arrays[i] = original_array + i * stride; }
+
+extern "C" void generateIArrayOfPointersHost(int* original_array, int** array_of_arrays, int stride, int num_arrays)
+{ for(int i = 0; i < num_arrays; i++) array_of_arrays[i] = original_array + i * stride; }
+
+extern "C" void generateCArrayOfPointersHost(std::complex<float>* original_array, std::complex<float>** array_of_arrays, int stride, int num_arrays)
+{ for(int i = 0; i < num_arrays; i++) array_of_arrays[i] = original_array + i * stride; }
+
+extern "C" void generateZArrayOfPointersHost(std::complex<double>* original_array, std::complex<double>** array_of_arrays, int stride, int num_arrays)
+{ for(int i = 0; i < num_arrays; i++) array_of_arrays[i] = original_array + i * stride; }
+
+struct dim_product_functor
+{
+	__host__ __device__
+	size_t operator()(const thrust::tuple<int, int>& t) const { 
+		return (size_t)(thrust::get<0>(t) * thrust::get<1>(t));
+	}
+};
+
+template<class T>
+struct PointerScanAssign
+{
+	size_t *offsets;
+	T **ptrs, *base_ptr;
+	
+	PointerScanAssign(size_t *offsets, T **ptrs, T *base_ptr)
+	{
+		this->offsets = offsets;
+		this->ptrs = ptrs;
+		this->base_ptr = base_ptr;
+	}
+	
+	inline __host__ __device__ 
+	void operator()(size_t i)
+	{
+		ptrs[i] = base_ptr + offsets[i];
+	}
+};
+
+template<class T>
+void generateArrayOffsetPointersT(T* base_ptr, T** array_ptrs, size_t *offsets, int num_arrays, cudaStream_t stream)
+{
+	thrust::for_each(
+		thrust::cuda::par.on(stream), thrust::counting_iterator<size_t>(0),
+		thrust::counting_iterator<size_t>(num_arrays),
+		PointerScanAssign<T>(offsets, array_ptrs, base_ptr)
+	);
+}
+
+template<class T>
+void generateArrayOffsetPointersHostT(T* base_ptr, T** array_ptrs, size_t *offsets, int num_arrays)
+{
+	thrust::for_each(
+		thrust::system::omp::par, thrust::counting_iterator<size_t>(0),
+		thrust::counting_iterator<size_t>(num_arrays),
+		PointerScanAssign<T>(offsets, array_ptrs, base_ptr)
+	);
+}
+
+extern "C" void generateDimProductScanOffsets(size_t* offsets, int *m_batch, int *n_batch, int num_arrays, cudaStream_t stream)
+{
+	thrust::transform_exclusive_scan(
+		thrust::cuda::par.on(stream), 
+		thrust::make_zip_iterator(thrust::make_tuple(m_batch, n_batch)),
+		thrust::make_zip_iterator(thrust::make_tuple(m_batch, n_batch)) + num_arrays,
+		offsets, dim_product_functor(), 0, thrust::plus<size_t>() 
+	);
+}
+
+extern "C" void generateDimProductScanOffsetsHost(size_t* offsets, int *m_batch, int *n_batch, int num_arrays)
+{
+	thrust::transform_exclusive_scan(
+		thrust::system::omp::par,
+		thrust::make_zip_iterator(thrust::make_tuple(m_batch, n_batch)),
+		thrust::make_zip_iterator(thrust::make_tuple(m_batch, n_batch)) + num_arrays,
+		offsets, dim_product_functor(), 0, thrust::plus<size_t>() 
+	);
+}
+
+extern "C" size_t getDimProductEntries(int *m_batch, int *n_batch, int num_arrays, cudaStream_t stream)
+{
+	return thrust::transform_reduce(
+		thrust::cuda::par.on(stream), 
+		thrust::make_zip_iterator(thrust::make_tuple(m_batch, n_batch)),
+		thrust::make_zip_iterator(thrust::make_tuple(m_batch, n_batch)) + num_arrays,
+		dim_product_functor(), 0, thrust::plus<size_t>()
+	);
+}
+
+extern "C" size_t getDimProductEntriesHost(int *m_batch, int *n_batch, int num_arrays)
+{
+	return thrust::transform_reduce(
+		thrust::system::omp::par, 
+		thrust::make_zip_iterator(thrust::make_tuple(m_batch, n_batch)),
+		thrust::make_zip_iterator(thrust::make_tuple(m_batch, n_batch)) + num_arrays,
+		dim_product_functor(), 0, thrust::plus<size_t>()
+	);
+}
+
+extern "C" void generateSArrayOffsetPointers(float* base_ptr, float** array_ptrs, size_t *offsets, int num_arrays, cudaStream_t stream)
+{ generateArrayOffsetPointersT<float>(base_ptr, array_ptrs, offsets, num_arrays, stream); }
+
+extern "C" void generateDArrayOffsetPointers(double* base_ptr, double** array_ptrs, size_t *offsets, int num_arrays, cudaStream_t stream)
+{ generateArrayOffsetPointersT<double>(base_ptr, array_ptrs, offsets, num_arrays, stream); }
+
+extern "C" void generateCArrayOffsetPointers(std::complex<float>* base_ptr, std::complex<float>** array_ptrs, size_t *offsets, int num_arrays, cudaStream_t stream)
+{ generateArrayOffsetPointersT<std::complex<float>>(base_ptr, array_ptrs, offsets, num_arrays, stream); }
+
+extern "C" void generateZArrayOffsetPointers(std::complex<double>* base_ptr, std::complex<double>** array_ptrs, size_t *offsets, int num_arrays, cudaStream_t stream)
+{ generateArrayOffsetPointersT<std::complex<double>>(base_ptr, array_ptrs, offsets, num_arrays, stream); }
+
+extern "C" void generateSArrayOffsetPointersHost(float* base_ptr, float** array_ptrs, size_t *offsets, int num_arrays)
+{ generateArrayOffsetPointersHostT<float>(base_ptr, array_ptrs, offsets, num_arrays); }
+
+extern "C" void generateDArrayOffsetPointersHost(double* base_ptr, double** array_ptrs, size_t *offsets, int num_arrays)
+{ generateArrayOffsetPointersHostT<double>(base_ptr, array_ptrs, offsets, num_arrays); }
+
+extern "C" void generateCArrayOffsetPointersHost(std::complex<float>* base_ptr, std::complex<float>** array_ptrs, size_t *offsets, int num_arrays)
+{ generateArrayOffsetPointersHostT<std::complex<float>>(base_ptr, array_ptrs, offsets, num_arrays); }
+
+extern "C" void generateZArrayOffsetPointersHost(std::complex<double>* base_ptr, std::complex<double>** array_ptrs, size_t *offsets, int num_arrays)
+{ generateArrayOffsetPointersHostT<std::complex<double>>(base_ptr, array_ptrs, offsets, num_arrays); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Thrust reduction wrappers 
@@ -401,15 +535,19 @@ void matrix_make_hpd(int N, T* A, int lda)
 	}
 }
 
+// Hermitian positive definite: real diagonal shifted by N, upper triangle the conjugate of the lower
 template<class T>
 void matrix_make_hpd_complex(int N, T* A, int lda)
 {
 	for(int i = 0; i < N; i++)
 	{
 		A[i + i *  lda].x += N;
-		A[i + i *  lda].y += N;
+		A[i + i *  lda].y = 0;
 		for(int j = 0; j < i; j++)
-			A[j + i*lda] = A[i + j*lda];
+		{
+			A[j + i*lda].x =  A[i + j*lda].x;
+			A[j + i*lda].y = -A[i + j*lda].y;
+		}
 	}
 }
 
@@ -431,9 +569,15 @@ lapack_int LAPACKE_latms(int matrix_layout, lapack_int m, lapack_int n, char dis
 lapack_int LAPACKE_latms(int matrix_layout, lapack_int m, lapack_int n, char dist, lapack_int *iseed, char sym, double *d, lapack_int mode, double cond, double dmax, lapack_int kl, lapack_int ku, char pack, double *a, lapack_int lda)
 { return LAPACKE_dlatms(matrix_layout, m, n, dist, iseed, sym, d, mode, cond, dmax, kl, ku, pack, a, lda); }
 
-template<class Real>
+lapack_int LAPACKE_latms(int matrix_layout, lapack_int m, lapack_int n, char dist, lapack_int *iseed, char sym, float *d, lapack_int mode, float cond, float dmax, lapack_int kl, lapack_int ku, char pack, std::complex<float> *a, lapack_int lda)
+{ return LAPACKE_clatms(matrix_layout, m, n, dist, iseed, sym, d, mode, cond, dmax, kl, ku, pack, a, lda); }
+
+lapack_int LAPACKE_latms(int matrix_layout, lapack_int m, lapack_int n, char dist, lapack_int *iseed, char sym, double *d, lapack_int mode, double cond, double dmax, lapack_int kl, lapack_int ku, char pack, std::complex<double> *a, lapack_int lda)
+{ return LAPACKE_zlatms(matrix_layout, m, n, dist, iseed, sym, d, mode, cond, dmax, kl, ku, pack, a, lda); }
+
+template<class T, class Real>
 void generate_randomMatrices(
-	Real* M_strided, int stride_M, Real* svals_strided, int stride_S, int rows, int cols,
+	T* M_strided, int stride_M, Real* svals_strided, int stride_S, int rows, int cols,
 	Real cond, Real exp_decay, int seed, int num_ops, int threads
 )
 {
@@ -453,7 +597,7 @@ void generate_randomMatrices(
 		if(seeds[3] % 2 != 1) seeds[3]++;
 
 		int info;
-		Real* matrix = M_strided + stride_M * op_index;
+		T* matrix = M_strided + stride_M * op_index;
 		Real* svals  = svals_strided + stride_S * op_index;
 
 		// Sanitize input
@@ -477,9 +621,9 @@ void generate_randomMatrices(
 	}
 }
 
-template<class Real>
+template<class T, class Real>
 void generate_randomMatricesArray(
-	Real** M_ptrs, int* ldm_array, Real** svals_ptrs, int *rows_array, int *cols_array,
+	T** M_ptrs, int* ldm_array, Real** svals_ptrs, int *rows_array, int *cols_array,
 	int mode, Real cond, Real exp_decay_min, Real exp_decay_max, int seed, int num_ops, int threads
 )
 {
@@ -501,8 +645,8 @@ void generate_randomMatricesArray(
 		if(seeds[3] % 2 != 1) seeds[3]++;
 
 		int info;
-		Real* matrix = M_ptrs[op_index];
-		Real* svals  = svals_ptrs[op_index];
+		T* matrix = M_ptrs[op_index];
+		Real* svals = svals_ptrs[op_index];
 		int cols = cols_array[op_index];
 		int rows = rows_array[op_index];
 		int ldm  = ldm_array[op_index];
@@ -531,7 +675,7 @@ extern "C" void generateDrandomMatrices(
 	double cond, double exp_decay, int seed, int num_ops, int threads
   )
 {
-	generate_randomMatrices<double>(
+	generate_randomMatrices<double, double>(
 		M_strided, stride_M, svals_strided, stride_S, rows, cols,
 		cond, exp_decay, seed, num_ops, threads
    );
@@ -542,7 +686,29 @@ extern "C" void generateSrandomMatrices(
 	float cond, float exp_decay, int seed, int num_ops, int threads
   )
 {
-	generate_randomMatrices<float>(
+	generate_randomMatrices<float, float>(
+		M_strided, stride_M, svals_strided, stride_S, rows, cols,
+		cond, exp_decay, seed, num_ops, threads
+   );
+}
+
+extern "C" void generateCrandomMatrices(
+	std::complex<float>* M_strided, int stride_M, float* svals_strided, int stride_S, int rows, int cols,
+	float cond, float exp_decay, int seed, int num_ops, int threads
+  )
+{
+	generate_randomMatrices<std::complex<float>, float>(
+		M_strided, stride_M, svals_strided, stride_S, rows, cols,
+		cond, exp_decay, seed, num_ops, threads
+   );
+}
+
+extern "C" void generateZrandomMatrices(
+	std::complex<double>* M_strided, int stride_M, double* svals_strided, int stride_S, int rows, int cols,
+	double cond, double exp_decay, int seed, int num_ops, int threads
+  )
+{
+	generate_randomMatrices<std::complex<double>, double>(
 		M_strided, stride_M, svals_strided, stride_S, rows, cols,
 		cond, exp_decay, seed, num_ops, threads
    );
@@ -553,7 +719,7 @@ extern "C" void generateDrandomMatricesArray(
 	int mode, double cond, double exp_decay_min, double exp_decay_max, int seed, int num_ops, int threads
 )
 {
-	generate_randomMatricesArray<double>(
+	generate_randomMatricesArray<double, double>(
 		M_ptrs, ldm_array, svals_ptrs, rows_array, cols_array,
 		mode, cond, exp_decay_min, exp_decay_max, seed, num_ops, threads
 	);
@@ -564,7 +730,31 @@ extern "C" void generateSrandomMatricesArray(
 	int mode, float cond, float exp_decay_min, float exp_decay_max, int seed, int num_ops, int threads
 )
 {
-	generate_randomMatricesArray<float>(
+	generate_randomMatricesArray<float, float>(
+		M_ptrs, ldm_array, svals_ptrs, rows_array, cols_array,
+		mode, cond, exp_decay_min, exp_decay_max, seed, num_ops, threads
+	);
+
+}
+
+extern "C" void generateCrandomMatricesArray(
+	std::complex<float>** M_ptrs, int* ldm_array, float** svals_ptrs, int *rows_array, int *cols_array,
+	int mode, float cond, float exp_decay_min, float exp_decay_max, int seed, int num_ops, int threads
+)
+{
+	generate_randomMatricesArray<std::complex<float>, float>(
+		M_ptrs, ldm_array, svals_ptrs, rows_array, cols_array,
+		mode, cond, exp_decay_min, exp_decay_max, seed, num_ops, threads
+	);
+
+}
+
+extern "C" void generateZrandomMatricesArray(
+	std::complex<double>** M_ptrs, int* ldm_array, double** svals_ptrs, int *rows_array, int *cols_array,
+	int mode, double cond, double exp_decay_min, double exp_decay_max, int seed, int num_ops, int threads
+)
+{
+	generate_randomMatricesArray<std::complex<double>, double>(
 		M_ptrs, ldm_array, svals_ptrs, rows_array, cols_array,
 		mode, cond, exp_decay_min, exp_decay_max, seed, num_ops, threads
 	);
@@ -857,6 +1047,7 @@ extern "C" int parse_opts(int argc, char** argv, kblas_opts *opts)
   opts->strided    = 0;
   opts->btest      = 1;
   opts->rtest      = 1;
+  opts->rank[0]    = opts->rank[1] = 0;  // full rank unless --rank is given
   //opts->bd[0]      = -1;
   opts->omp_numthreads = 20;
   opts->LR = 't';
@@ -1210,6 +1401,7 @@ extern "C" int parse_opts(int argc, char** argv, kblas_opts *opts)
     else if ( strcmp("-TN", argv[i]) == 0 ) { opts->transA = KBLAS_Trans;     opts->transB = KBLAS_NoTrans;   }
     else if ( strcmp("-TT", argv[i]) == 0 ) { opts->transA = KBLAS_Trans;     opts->transB = KBLAS_Trans;     }
     else if ( strcmp("-T",  argv[i]) == 0 ) { opts->transA = KBLAS_Trans;     }
+    else if ( strcmp("-C",  argv[i]) == 0 ) { opts->transA = KBLAS_ConjTrans; }
 
     else if ( strcmp("-SL", argv[i]) == 0 ) { opts->side  = KBLAS_Left;  }
     else if ( strcmp("-SR", argv[i]) == 0 ) { opts->side  = KBLAS_Right; }

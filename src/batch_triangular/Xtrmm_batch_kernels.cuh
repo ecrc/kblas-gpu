@@ -34,12 +34,13 @@
 
 
 //==============================================================================================
+// conjA conjugates A as it is loaded, so the transposed variants multiply by the conjugate transpose
 template<typename T, bool TRANS, int TX, int TY>
 __device__ inline void
 dev_trmm_U_LLXN_reg_shared_Mfix_Nvar(const int m, const int n,
                                      const T alpha,
                                      const T* __restrict__ A, int lda,
-                                                        T* B, int ldb)
+                                                        T* B, int ldb, bool conjA)
 {
   if( TX != m ) return;//necessary condition
   const int TX1 = TX + 2;
@@ -59,7 +60,7 @@ dev_trmm_U_LLXN_reg_shared_Mfix_Nvar(const int m, const int n,
   #pragma unroll
   for(int i = 0; i < TX; i++){
     //if(tx >= i)
-    rA[ i ] = __ldg(&(A[ tx + i * lda ]));
+    rA[ i ] = conj_if(conjA, __ldg(&(A[ tx + i * lda ])));
   }
   for(bl = 0; bl < nb; bl++)
   {
@@ -177,7 +178,7 @@ template<typename T, typename T_PTR, bool TRANS, int TX, int TY>
 __global__ void  //__launch_bounds__(256)
 kernel_trmm_U_LLXN_reg_shared_Mfix_Nvar(const int m, const int n, int batchCount,
                                         const T alpha, T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
-                                                                    T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB)
+                                                                    T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB, bool conjA)
 {
   if( TX != m ) return;//necessary condition
 
@@ -200,7 +201,7 @@ kernel_trmm_U_LLXN_reg_shared_Mfix_Nvar(const int m, const int n, int batchCount
 
   dev_trmm_U_LLXN_reg_shared_Mfix_Nvar<T, TRANS, TX, TY>(m, n,
                                                          alpha, A, lda,
-                                                                B, ldb);
+                                                                B, ldb, conjA);
 }
 //==============================================================================================
 template<typename T, bool TRANS, int TX, int TY>
@@ -208,7 +209,7 @@ __device__ inline void
 dev_trmm_U_LLXN_reg_shared_MNvar(const int m, const int n,
                                  const T alpha,
                                  const T* __restrict__ A, int lda,
-                                                    T* B, int ldb)
+                                                    T* B, int ldb, bool conjA)
 {
   const int TX1 = TX + 2;
   //setup shared memory
@@ -229,7 +230,7 @@ dev_trmm_U_LLXN_reg_shared_MNvar(const int m, const int n,
     #pragma unroll
     for(int i = 0; i < TX; i++){
       if(i < m)
-        rA[ i ] = __ldg(&(A[ tx + i * lda ]));
+        rA[ i ] = conj_if(conjA, __ldg(&(A[ tx + i * lda ])));
     }
   }
   for(bl = 0; bl < nb; bl++)
@@ -365,7 +366,7 @@ template<typename T, typename T_PTR, bool TRANS, int TX, int TY>
 __global__ void  //__launch_bounds__(256)
 kernel_trmm_U_LLXN_reg_shared_MNvar(const int m, const int n, int batchCount,
                                     const T alpha, T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
-                                                                T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB)
+                                                                T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB, bool conjA)
 {
   if( TX < m ) return;//necessary condition
 
@@ -388,7 +389,7 @@ kernel_trmm_U_LLXN_reg_shared_MNvar(const int m, const int n, int batchCount,
 
   dev_trmm_U_LLXN_reg_shared_MNvar<T, TRANS, TX, TY>(m, n,
                                                      alpha, A, lda,
-                                                            B, ldb);
+                                                            B, ldb, conjA);
 }
 
 //==============================================================================================

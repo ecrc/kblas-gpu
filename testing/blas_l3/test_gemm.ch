@@ -162,6 +162,7 @@ int test_gemm(kblas_opts& opts, T alpha, T beta, cublasHandle_t cublas_handle){
 
   cudaEventDestroy(start);
   cudaEventDestroy(stop);
+  return 0;
 }
 
 

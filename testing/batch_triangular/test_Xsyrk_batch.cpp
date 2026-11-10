@@ -24,13 +24,9 @@
 #include <math.h>
 #include <sys/time.h>
 
-#if ((defined PREC_c) || (defined PREC_z)) && (defined USE_MKL)
-//TODO need to handle MKL types properly
-#undef USE_MKL
-#endif
-
 #include "testing_helper.h"
 #include "testing_prec_def.h"
+#include "testing_reference.h"
 #include "flops.h"
 
 #ifdef check_error
@@ -63,7 +59,6 @@ int test_Xsyrk_batch(kblas_opts& opts, T alpha, T beta)
   int Am, An, Cm, Cn;
   int sizeA, sizeC;
   int lda, ldc, ldda, lddc;
-  int ione     = 1;
   int ISEED[4] = {0,0,0,1};
   kblasHandle_t kblas_handle[ngpu];
 
@@ -77,7 +72,6 @@ int test_Xsyrk_batch(kblas_opts& opts, T alpha, T beta)
   double Cnorm;
   T c_one = make_one<T>(),
     c_neg_one = make_zero<T>()-make_one<T>();
-  T work[1];
   #ifdef DEBUG_DUMP
   FILE *outK, *outL, *outO;
   #endif
@@ -266,7 +260,7 @@ int test_Xsyrk_batch(kblas_opts& opts, T alpha, T beta)
             }
           }
 
-          #if (defined USE_OPENMP) && (defined USE_MKL)
+          #ifdef USE_OPENMP
           if(opts.time){
             //memcpy(h_R, h_B, sizeB * batchCount * sizeof(T));
             omp_set_num_threads(NUM_THREADS);
@@ -276,9 +270,8 @@ int test_Xsyrk_batch(kblas_opts& opts, T alpha, T beta)
               #pragma omp for //schedule(guided,10)
               for (int s=0; s < batchCount; s++)
               {
-                LAPACK_SYRK( (( opts.uplo == KBLAS_Lower ) ? "Lower" : "Upper"),
-                             (( opts.transA == KBLAS_NoTrans ) ? "No Transpose" : "Transpose"),
-                             &N, &K, &alpha, h_A + s * lda * An, &lda, &beta, h_R + s * ldc * Cn, &ldc );
+                ref_syrk( opts.uplo, opts.transA, N, K,
+                          alpha, h_A + s * lda * An, lda, beta, h_R + s * ldc * Cn, ldc );
               }
             }
             memcpy(h_R, h_C, sizeC * batchCount * sizeof(T));
@@ -348,7 +341,6 @@ int test_Xsyrk_batch(kblas_opts& opts, T alpha, T beta)
         kblas_perf = gflops / kblas_time_1;
         kblas_time_1 *= 1000.0;
 
-        #ifdef USE_MKL
         if(opts.check || (opts.time && opts.lapack)){
           if(opts.check){
             for(int g = 0; g < ngpu; g++){
@@ -385,13 +377,11 @@ int test_Xsyrk_batch(kblas_opts& opts, T alpha, T beta)
               //  printMatrix(Bm, Bn, h_B + s * ldb * Bn, ldb, outO);
 
               if(nonUniform){
-                LAPACK_SYRK( (( opts.uplo == KBLAS_Lower ) ? "Lower" : "Upper"),
-                            (( opts.transA == KBLAS_NoTrans ) ? "No Transpose" : "Transpose"),
-                            &h_N[s], &h_K[s], &alpha, h_A + s * lda * An, &lda, &beta, h_C + s * ldc * Cn, &ldc );
+                ref_syrk( opts.uplo, opts.transA, h_N[s], h_K[s],
+                          alpha, h_A + s * lda * An, lda, beta, h_C + s * ldc * Cn, ldc );
               }else{
-                LAPACK_SYRK( (( opts.uplo == KBLAS_Lower ) ? "Lower" : "Upper"),
-                            (( opts.transA == KBLAS_NoTrans ) ? "No Transpose" : "Transpose"),
-                            &N, &K, &alpha, h_A + s * lda * An, &lda, &beta, h_C + s * ldc * Cn, &ldc );
+                ref_syrk( opts.uplo, opts.transA, N, K,
+                          alpha, h_A + s * lda * An, lda, beta, h_C + s * ldc * Cn, ldc );
               }
               if(opts.check && !opts.time){
                 // compute relative error for kblas, relative to lapack,
@@ -402,19 +392,15 @@ int test_Xsyrk_batch(kblas_opts& opts, T alpha, T beta)
                 }else{
                   Cn_s = Cn;
                 }
-                LAPACK_AXPY( &sizeC, &c_neg_one, h_C + s * ldc * Cn, &ione, h_R + s * ldc * Cn, &ione );
-                double Cnorm = LAPACK_LANSY( "fro",
-                                            (( opts.uplo == KBLAS_Lower ) ? "Lower" : "Upper"),
-                                            &Cn_s, h_C + s * ldc * Cn, &ldc, work );
-                double err = LAPACK_LANSY( "fro",
-                                          (( opts.uplo == KBLAS_Lower ) ? "Lower" : "Upper"),
-                                          &Cn_s, h_R + s * ldc * Cn, &ldc, work )
+                ref_axpy( sizeC, c_neg_one, h_C + s * ldc * Cn, h_R + s * ldc * Cn );
+                double Cnorm = ref_lansy( 'F', opts.uplo, Cn_s, h_C + s * ldc * Cn, ldc );
+                double err = ref_lansy( 'F', opts.uplo, Cn_s, h_R + s * ldc * Cn, ldc )
                               / Cnorm;
                 /*if ( isnan(err) || isinf(err) ) {
                   ref_error = err;
                   break;
                 }*/
-                ref_error = fmax( err, ref_error );
+                ref_error = ref_max_error( ref_error, err );
                 // ref_error += Xget_max_error_matrix(h_C + s * ldc * Cn, h_R + s * ldc * Cn, Cm, Cn, ldc, opts.uplo);
                 #ifdef DEBUG_DUMP
                 printMatrix(Cm, Cn, h_C + s * ldc * Cn, ldc, outL);
@@ -446,7 +432,6 @@ int test_Xsyrk_batch(kblas_opts& opts, T alpha, T beta)
             //rec_avg_time = (rec_avg_time / nruns) * 1000.;//convert to ms
           }
         }
-        #endif//USE_MKL
 
         cudaFreeHost( h_A );
         cudaFreeHost( h_C );
@@ -505,6 +490,7 @@ int test_Xsyrk_batch(kblas_opts& opts, T alpha, T beta)
       magma_finalize();//TODO is this in the proper place?
     }
   #endif
+  return 0;
 }
 
 //==============================================================================================

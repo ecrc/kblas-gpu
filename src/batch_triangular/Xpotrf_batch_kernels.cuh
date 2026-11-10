@@ -33,7 +33,8 @@
 #elif (TARGET_SM >= 30)
 
 //==============================================================================================
-
+// Hermitian factorization A = L L^H: entries of L taken from other lanes are conjugated where
+// L^H uses them; conjugate is the identity for real types
 template<typename T, int N>
 __device__ inline void
 dev_potrf_U_registers_fixN(int n, T* A, int lda, int* info)
@@ -60,7 +61,7 @@ dev_potrf_U_registers_fixN(int n, T* A, int lda, int* info)
     #pragma unroll
     for(int i = 0; i < N; i++){
       if(j < i){
-        s = -shfl(rA[j], i, N);
+        s = -conjugate(shfl(rA[j], i, N));
         if(i <= tx)
           rA[i] = FMA( rA[j], s, rA[i]);
         //rA[i] -= rA[j] * s;
@@ -131,7 +132,7 @@ dev_potrf_U_registers_varN(int n, T* A, int lda, int* info)
     #pragma unroll
     for(int i = 0; i < TX; i++){
       if(j < i && i < n){
-        s = -shfl(rA[j], i, TX);
+        s = -conjugate(shfl(rA[j], i, TX));
         if(i <= tx)
           rA[i] = FMA( rA[j], s, rA[i]);
       }
@@ -201,7 +202,7 @@ dev_potrf_U_registers_fixN_blocked_2(int n, T* A, int lda, int* info)
 
       #pragma unroll
       for(int i = 0; i < BS; i++){
-        s = -shfl(rA0[j], i, BS);
+        s = -conjugate(shfl(rA0[j], i, BS));
         if(j < i)// && i <= tx)
           rA0[i] = FMA( rA0[j], s, rA0[i]);
           //rA[i] -= rA[j] * s;
@@ -230,11 +231,11 @@ dev_potrf_U_registers_fixN_blocked_2(int n, T* A, int lda, int* info)
     #pragma unroll
     for(int k = 0; k < BS; k++){
       //if(non-unit)
-      rA1[k] /= shfl(rA0[k], k, BS);
+      rA1[k] /= conjugate(shfl(rA0[k], k, BS));
       #pragma unroll
       for(int j = 0; j < BS; j++){
         if(j > k){
-          s = -shfl(rA0[k], j, BS);
+          s = -conjugate(shfl(rA0[k], j, BS));
           rA1[j] = FMA( s, rA1[k], rA1[j]);
         }
       }
@@ -261,7 +262,7 @@ dev_potrf_U_registers_fixN_blocked_2(int n, T* A, int lda, int* info)
       s = make_zero<T>();
       #pragma unroll
       for(int i = 0; i < BS; i++){
-        s = FMA(rA1[i], shfl(rA1[i], j, BS), s);
+        s = FMA(rA1[i], conjugate(shfl(rA1[i], j, BS)), s);
       }
       //if(j <= tx)
       rA0[j] -= s;
@@ -282,7 +283,7 @@ dev_potrf_U_registers_fixN_blocked_2(int n, T* A, int lda, int* info)
 
       #pragma unroll
       for(int i = 0; i < BS; i++){
-        s = -shfl(rA0[j], i, BS);
+        s = -conjugate(shfl(rA0[j], i, BS));
         if(j < i)// && i <= tx)//TODO
           rA0[i] = FMA( rA0[j], s, rA0[i]);
           //rA[i] -= rA[j] * s;
@@ -358,7 +359,7 @@ dev_potrf_U_registers_varN_blocked_2(int n, T* A, int lda, int* info)
 
       #pragma unroll
       for(int i = 0; i < BS; i++){
-        s = -shfl(rA0[j], i, BS);
+        s = -conjugate(shfl(rA0[j], i, BS));
         if(j < i)// && i <= tx)
           rA0[i] = FMA( rA0[j], s, rA0[i]);
           //rA[i] -= rA[j] * s;
@@ -388,12 +389,12 @@ dev_potrf_U_registers_varN_blocked_2(int n, T* A, int lda, int* info)
     #pragma unroll
     for(int k = 0; k < BS; k++){
       //if(non-unit)
-      s = shfl(rA0[k], k, BS);
+      s = conjugate(shfl(rA0[k], k, BS));
       rA1[k] /= s;
       #pragma unroll
       for(int j = 0; j < BS; j++){
         if(j > k){
-          s = -shfl(rA0[k], j, BS);
+          s = -conjugate(shfl(rA0[k], j, BS));
           rA1[j] = FMA( s, rA1[k], rA1[j]);
         }
       }
@@ -423,7 +424,7 @@ dev_potrf_U_registers_varN_blocked_2(int n, T* A, int lda, int* info)
       if(j+BS < n){
         #pragma unroll
         for(int i = 0; i < BS; i++){
-          s = FMA(rA1[i], shfl(rA1[i], j, BS), s);
+          s = FMA(rA1[i], conjugate(shfl(rA1[i], j, BS)), s);
         }
         //if(j <= tx)
         rA0[j] -= s;
@@ -446,7 +447,7 @@ dev_potrf_U_registers_varN_blocked_2(int n, T* A, int lda, int* info)
       }
       #pragma unroll
       for(int i = 0; i < BS; i++){
-        s = -shfl(rA0[j], i, BS);
+        s = -conjugate(shfl(rA0[j], i, BS));
         if(i+BS < n && j < i)// && i <= tx)//TODO
           rA0[i] = FMA( rA0[j], s, rA0[i]);
           //rA[i] -= rA[j] * s;

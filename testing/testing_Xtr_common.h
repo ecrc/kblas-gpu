@@ -591,6 +591,7 @@ extern "C"{
       else if ( strcmp("-TN", argv[i]) == 0 ) { opts->transA = KBLAS_Trans;     opts->transB = KBLAS_NoTrans;   }
       else if ( strcmp("-TT", argv[i]) == 0 ) { opts->transA = KBLAS_Trans;     opts->transB = KBLAS_Trans;     }
       else if ( strcmp("-T",  argv[i]) == 0 ) { opts->transA = KBLAS_Trans;     }
+      else if ( strcmp("-C",  argv[i]) == 0 ) { opts->transA = KBLAS_ConjTrans; }
 
       else if ( strcmp("-SL", argv[i]) == 0 ) { opts->side  = KBLAS_Left;  }
       else if ( strcmp("-SR", argv[i]) == 0 ) { opts->side  = KBLAS_Right; }

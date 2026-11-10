@@ -26,11 +26,6 @@
 
 // #define DEBUG_DUMP
 
-#if ((defined PREC_c) || (defined PREC_z)) && (defined USE_MKL)
-//TODO need to handle MKL types properly
-#undef USE_MKL
-#endif
-
 #include "testing_helper.h"
 
 #ifdef check_error
@@ -39,6 +34,7 @@
 
 #include "kblas_common.h" // TODO: need iset_value_1 from this
 #include "testing_prec_def.h"
+#include "testing_reference.h"
 #include "Xhelper_funcs.ch" // TODO: need Xset_pointer_2 from this
 #include "flops.h"
 
@@ -276,7 +272,7 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
                                         &alpha, d_A, ldda,
                                                 d_B, lddb,
                                         &beta,  d_C, lddc) );
-        #if (defined USE_OPENMP) && (defined USE_MKL)
+        #ifdef USE_OPENMP
         if(opts.time){
           omp_set_num_threads(NUM_THREADS);
           //omp_set_nested(true);
@@ -285,14 +281,11 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
             #pragma omp for //schedule(guided,10)
             for (int s=0; s < batchCount; s++)
             {
-              LAPACK_GEMM( CblasColMajor,
-                           (opts.transA == KBLAS_Trans ? CblasTrans : CblasNoTrans), 
-                           (opts.transB == KBLAS_Trans ? CblasTrans : CblasNoTrans),
-                           Cm, Cn, An,
-                           alpha, h_A + s * lda * An, lda,
-                                  h_B + s * ldb * Bn, ldb,
-                           beta,  h_C + s * ldc * Cn, ldc
-              );
+              ref_gemm( opts.transA, opts.transB,
+                        Cm, Cn, An,
+                        alpha, h_A + s * lda * An, lda,
+                               h_B + s * ldb * Bn, ldb,
+                        beta,  h_C + s * ldc * Cn, ldc );
             }
           }
           memcpy(h_R, h_C, h_strideC * batchCount * sizeof(T));
@@ -360,7 +353,6 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
       kblas_time *= 1000.;//convert to ms
 
 
-      #ifdef USE_MKL
       if(opts.check || opts.time){
         if(opts.check){
           check_cublas_error( cublasGetMatrixAsync( Cm, Cn * batchCount, sizeof(T), d_C, lddc, h_R, ldc, curStream ) );
@@ -384,24 +376,17 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
           {
 
             if(nonUniform){
-              LAPACK_GEMM( CblasColMajor,
-                           (opts.transA == KBLAS_Trans ? CblasTrans : CblasNoTrans), 
-                           (opts.transB == KBLAS_Trans ? CblasTrans : CblasNoTrans),
-                           h_M[s], h_N[s], h_K[s],
-                           alpha, h_A + s * lda * An, lda,
-                                  h_B + s * ldb * Bn, ldb,
-                           beta,  h_C + s * ldc * Cn, ldc
-                      );
+              ref_gemm( opts.transA, opts.transB,
+                        h_M[s], h_N[s], h_K[s],
+                        alpha, h_A + s * lda * An, lda,
+                               h_B + s * ldb * Bn, ldb,
+                        beta,  h_C + s * ldc * Cn, ldc );
             }else{
-              LAPACK_GEMM( CblasColMajor,
-                           (opts.transA == KBLAS_Trans ? CblasTrans : CblasNoTrans), 
-                           (opts.transB == KBLAS_Trans ? CblasTrans : CblasNoTrans),
-                           Cm, Cn, An,
-                           alpha, h_A + s * lda * An, lda,
-                                  h_B + s * ldb * Bn, ldb,
-                           beta,  h_C + s * ldc * Cn, ldc
-                      );
-
+              ref_gemm( opts.transA, opts.transB,
+                        Cm, Cn, An,
+                        alpha, h_A + s * lda * An, lda,
+                               h_B + s * ldb * Bn, ldb,
+                        beta,  h_C + s * ldc * Cn, ldc );
             }
             if(opts.check && !opts.time){
               if(nonUniform){
@@ -473,7 +458,6 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
           #endif
         }
       }
-      #endif//USE_MKL
 
       free( h_A );
       free( h_B );
@@ -551,6 +535,7 @@ int test_Xgemm_batch(kblas_opts& opts, T alpha, T beta){
       magma_finalize();//TODO is this in the proper place?
     }
   #endif
+  return 0;
 }
 
 

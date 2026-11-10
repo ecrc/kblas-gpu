@@ -59,6 +59,8 @@ int kblasDestroyRandState(kblasRandState_t state)
 template<class T> __device__ __forceinline__ T tcurand_normal(curandState* state);
 template<> __device__ __forceinline__  float tcurand_normal<float>(curandState* state) { return curand_normal(state); }
 template<> __device__ __forceinline__  double tcurand_normal<double>(curandState* state) { return curand_normal_double(state); }
+template<> __device__ __forceinline__  cuComplex tcurand_normal<cuComplex>(curandState* state) { return make_cuFloatComplex(curand_normal(state), curand_normal(state)); }
+template<> __device__ __forceinline__  cuDoubleComplex tcurand_normal<cuDoubleComplex>(curandState* state) { return make_cuDoubleComplex(curand_normal_double(state), curand_normal_double(state)); }
 
 template<class T, class T_ptr, class TDim>
 __global__
@@ -133,6 +135,15 @@ int kblasSrand_batch(kblasHandle_t handle, int m, int n, float** A_ptrs, int lda
 	return batch_rand_template<float, float**, int>(handle, m, n, A_ptrs, lda, 0, m, state, num_ops);
 }
 
+int kblasCrand_batch(kblasHandle_t handle, int m, int n, cuComplex** A_ptrs, int lda, kblasRandState_t state, int num_ops)
+{
+	return batch_rand_template<cuComplex, cuComplex**, int>(handle, m, n, A_ptrs, lda, 0, m, state, num_ops);
+}
+
+int kblasZrand_batch(kblasHandle_t handle, int m, int n, cuDoubleComplex** A_ptrs, int lda, kblasRandState_t state, int num_ops)
+{
+	return batch_rand_template<cuDoubleComplex, cuDoubleComplex**, int>(handle, m, n, A_ptrs, lda, 0, m, state, num_ops);
+}
 //------------------------------------------------------------------------------
 // Strided interface
 int kblasDrand_batch_strided(kblasHandle_t handle, int m, int n, double* A_strided, int lda, int stride_a, kblasRandState_t state, int num_ops)
@@ -145,6 +156,15 @@ int kblasSrand_batch_strided(kblasHandle_t handle, int m, int n, float* A_stride
 	return batch_rand_template<float, float*, int>(handle, m, n, A_strided, lda, stride_a, m, state, num_ops);
 }
 
+int kblasCrand_batch_strided(kblasHandle_t handle, int m, int n, cuComplex* A_strided, int lda, int stride_a, kblasRandState_t state, int num_ops)
+{
+	return batch_rand_template<cuComplex, cuComplex*, int>(handle, m, n, A_strided, lda, stride_a, m, state, num_ops);
+}
+
+int kblasZrand_batch_strided(kblasHandle_t handle, int m, int n, cuDoubleComplex* A_strided, int lda, int stride_a, kblasRandState_t state, int num_ops)
+{
+	return batch_rand_template<cuDoubleComplex, cuDoubleComplex*, int>(handle, m, n, A_strided, lda, stride_a, m, state, num_ops);
+}
 //------------------------------------------------------------------------------
 // Non-uniform array of pointers interface
 int kblasDrand_vbatch(kblasHandle_t handle, int* m, int* n, double** A_ptrs, int* lda, int max_m, kblasRandState_t state, int num_ops)
@@ -157,6 +177,16 @@ int kblasSrand_vbatch(kblasHandle_t handle, int* m, int* n, float** A_ptrs, int*
 	return batch_rand_template<float, float**, int*>(handle, m, n, A_ptrs, lda, 0, max_m, state, num_ops);
 }
 
+int kblasCrand_vbatch(kblasHandle_t handle, int* m, int* n, cuComplex** A_ptrs, int* lda, int max_m, kblasRandState_t state, int num_ops)
+{
+	return batch_rand_template<cuComplex, cuComplex**, int*>(handle, m, n, A_ptrs, lda, 0, max_m, state, num_ops);
+}
+
+int kblasZrand_vbatch(kblasHandle_t handle, int* m, int* n, cuDoubleComplex** A_ptrs, int* lda, int max_m, kblasRandState_t state, int num_ops)
+{
+	return batch_rand_template<cuDoubleComplex, cuDoubleComplex**, int*>(handle, m, n, A_ptrs, lda, 0, max_m, state, num_ops);
+}
+
 //------------------------------------------------------------------------------
 // Non-uniform strided interface
 int kblasDrand_vbatch_strided(kblasHandle_t handle, int* m, int* n, double* A_strided, int* lda, int stride_a, int max_m, kblasRandState_t state, int num_ops)
@@ -167,4 +197,14 @@ int kblasDrand_vbatch_strided(kblasHandle_t handle, int* m, int* n, double* A_st
 int kblasSrand_vbatch_strided(kblasHandle_t handle, int* m, int* n, float* A_strided, int* lda, int stride_a, int max_m, kblasRandState_t state, int num_ops)
 {
 	return batch_rand_template<float, float*, int*>(handle, m, n, A_strided, lda, stride_a, max_m, state, num_ops);
+}
+
+int kblasCrand_vbatch_strided(kblasHandle_t handle, int* m, int* n, cuComplex* A_strided, int* lda, int stride_a, int max_m, kblasRandState_t state, int num_ops)
+{
+	return batch_rand_template<cuComplex, cuComplex*, int*>(handle, m, n, A_strided, lda, stride_a, max_m, state, num_ops);
+}
+
+int kblasZrand_vbatch_strided(kblasHandle_t handle, int* m, int* n, cuDoubleComplex* A_strided, int* lda, int stride_a, int max_m, kblasRandState_t state, int num_ops)
+{
+	return batch_rand_template<cuDoubleComplex, cuDoubleComplex*, int*>(handle, m, n, A_strided, lda, stride_a, max_m, state, num_ops);
 }

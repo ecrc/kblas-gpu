@@ -34,6 +34,8 @@
 
 
 //==============================================================================================
+// Computes L^H L from the lower factor L; the entry of L taken from lane j is conjugated, and
+// conjugate is the identity for real types
 template<typename T, int TX>
 __device__ inline void
 dev_lauum_U_reg_shared_Nfix(int n, T* A, int lda)
@@ -63,7 +65,7 @@ dev_lauum_U_reg_shared_Nfix(int n, T* A, int lda)
     s = zero;
     #pragma unroll
     for(int i = 0; i < TX; i++){
-      a = shfl(rA[i], j, TX);
+      a = conjugate(shfl(rA[i], j, TX));
       if(j <= i && j >= tx)
         s = FMA( rA[i], a, s);
     }
@@ -127,7 +129,7 @@ dev_lauum_U_registers_Nfix(int n, T* A, int lda)
     s = zero;
     #pragma unroll
     for(int i = 0; i < TX; i++){
-      a = shfl(rA[i], j, TX);
+      a = conjugate(shfl(rA[i], j, TX));
       if(j <= i && j >= tx)
         s = FMA( rA[i], a, s);
     }
@@ -186,7 +188,7 @@ dev_lauum_U_registers_Nvar(int n, T* A, int lda)
       s = zero;
       #pragma unroll
       for(int i = 0; i < TX; i++){
-        a = shfl(rA[i], j, TX);
+        a = conjugate(shfl(rA[i], j, TX));
         if(j <= i && i < n && j >= tx)
           s = FMA( rA[i], a, s);
       }

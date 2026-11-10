@@ -195,16 +195,16 @@ int Xgemm_batch_uniform_core( kblasHandle_t handle,
     {
       int batch_size = kmin(batch_increment, batchCount - batch_start);
 #if (MAGMA_VERSION_MAJOR > 2 || (MAGMA_VERSION_MAJOR == 2 && MAGMA_VERSION_MINOR > 3))
-      magmablas_Xgemm_batched_core( (magma_trans_t)(MagmaNoTrans + (transA == KBLAS_Trans)),
-                              (magma_trans_t)(MagmaNoTrans + (transB == KBLAS_Trans)),
+      magmablas_Xgemm_batched_core( kblasToMagmaTransposeType(transA),
+                              kblasToMagmaTransposeType(transB),
                               m, n, k,
                               alpha, A, A_row_off, A_col_off, lda,
                                      B, B_row_off, B_col_off, ldb,
                               beta,  C, C_row_off, C_col_off, ldc,
                               batchCount, handle->magma_queue);
 #else
-      magmablas_Xgemm_batched_core( (magma_trans_t)(MagmaNoTrans + (transA == KBLAS_Trans)),
-                              (magma_trans_t)(MagmaNoTrans + (transB == KBLAS_Trans)),
+      magmablas_Xgemm_batched_core( kblasToMagmaTransposeType(transA),
+                              kblasToMagmaTransposeType(transB),
                               m, n, k,
                               alpha, A, lda,
                                      B, ldb,
@@ -258,8 +258,8 @@ int Xgemm_batch_uniform_core( kblasHandle_t handle,
     }
 
     check_error_ret( cublasXgemmBatched(handle->cublas_handle,
-                                        (transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
-                                        (transB == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
+                                        kblasToCublasOperation(transA),
+                                        kblasToCublasOperation(transB),
                                         m, n, k,
                                         &alpha, (const T**)A_array, lda,
                                                 (const T**)B_array, ldb,
@@ -340,8 +340,9 @@ int Xgemm_batch_nonuniform_core(kblasHandle_t handle,
     {
       int batch_size = kmin(batch_increment, batchCount - batch_start);
 
-      magmablas_Xgemm_vbatched_core((magma_trans_t)(MagmaNoTrans + (transA == KBLAS_Trans)),
-                                    (magma_trans_t)(MagmaNoTrans + (transB == KBLAS_Trans)),
+#if (MAGMA_VERSION_MAJOR < 2 || (MAGMA_VERSION_MAJOR == 2 && MAGMA_VERSION_MINOR < 6) || (MAGMA_VERSION_MAJOR == 2 && MAGMA_VERSION_MINOR == 6 && MAGMA_VERSION_MICRO < 2))
+      magmablas_Xgemm_vbatched_core(kblasToMagmaTransposeType(transA),
+                                    kblasToMagmaTransposeType(transB),
                                     (magma_int_t*)m, (magma_int_t*)n, (magma_int_t*)k,
                                     alpha, A, lda,
                                            B, ldb,
@@ -352,6 +353,16 @@ int Xgemm_batch_nonuniform_core(kblasHandle_t handle,
                                     C_row_off, C_col_off,
                                     0, 0, 0,
                                     batch_size, handle->magma_queue);
+#else 
+      magmablas_Xgemm_vbatched_core(kblasToMagmaTransposeType(transA),
+                                    kblasToMagmaTransposeType(transB),
+									max_m, max_n, max_k,
+                                    (magma_int_t*)m, (magma_int_t*)n, (magma_int_t*)k,
+                                    alpha, A, A_row_off, A_col_off, lda,
+                                           B, B_row_off, B_col_off, ldb,
+                                    beta,  C, C_row_off, C_col_off, ldc,
+                                    batch_size, handle->magma_queue);
+#endif
 
       A += batch_size;
       B += batch_size;
@@ -432,18 +443,10 @@ int Xgemm_batch_nonuniform_core(kblasHandle_t handle,
         check_error_ret( cublasGetVectorAsync( 3, sizeof(int), d_max_mnk, 1, h_max_mnk, 1, handle->stream ), KBLAS_cuBLAS_Error);
         check_error_ret( cudaStreamSynchronize(handle->stream), KBLAS_CUDA_Error );
       }
-#if (MAGMA_VERSION_MAJOR > 2 || (MAGMA_VERSION_MAJOR == 2 && MAGMA_VERSION_MINOR > 6) || (MAGMA_VERSION_MAJOR == 2 && MAGMA_VERSION_MINOR == 6 && MAGMA_VERSION_MICRO > 1))
-      magmablas_Xgemm_vbatched_core((magma_trans_t)(MagmaNoTrans + (transA == KBLAS_Trans)),
-                                    (magma_trans_t)(MagmaNoTrans + (transB == KBLAS_Trans)),
-                                    h_max_mnk[0], h_max_mnk[1], h_max_mnk[2],
-                                    (magma_int_t*)m, (magma_int_t*)n, (magma_int_t*)k,
-                                    alpha, A, A_row_off, A_col_off, lda,
-                                           B, B_row_off, B_col_off, ldb,
-                                    beta,  C, C_row_off, C_col_off, ldc,
-                                    batch_size, handle->magma_queue);
-#else
-      magmablas_Xgemm_vbatched_core((magma_trans_t)(MagmaNoTrans + (transA == KBLAS_Trans)),
-                                    (magma_trans_t)(MagmaNoTrans + (transB == KBLAS_Trans)),
+      magma_trans_t magma_ta = kblasToMagmaTransposeType(transA);
+      magma_trans_t magma_tb = kblasToMagmaTransposeType(transB);
+#if (MAGMA_VERSION_MAJOR < 2 || (MAGMA_VERSION_MAJOR == 2 && MAGMA_VERSION_MINOR < 6) || (MAGMA_VERSION_MAJOR == 2 && MAGMA_VERSION_MINOR == 6 && MAGMA_VERSION_MICRO < 2))
+      magmablas_Xgemm_vbatched_core(magma_ta, magma_tb, 
                                     (magma_int_t*)m, (magma_int_t*)n, (magma_int_t*)k,
                                     alpha, A, lda,
                                            B, ldb,
@@ -454,7 +457,16 @@ int Xgemm_batch_nonuniform_core(kblasHandle_t handle,
                                     C_row_off, C_col_off,
                                     0, 0, 0,
                                     batch_size, handle->magma_queue);
-#endif
+#else 
+      magmablas_Xgemm_vbatched_core(magma_ta, magma_tb, 
+                                    h_max_mnk[0], h_max_mnk[1], h_max_mnk[2],
+									(magma_int_t*)m, (magma_int_t*)n, (magma_int_t*)k,
+                                    alpha, A, A_row_off, A_col_off, lda,
+                                           B, B_row_off, B_col_off, ldb,
+                                    beta,  C, C_row_off, C_col_off, ldc,
+                                    batch_size, handle->magma_queue);
+#endif 
+
       A += batch_size;
       B += batch_size;
       C += batch_size;
@@ -512,8 +524,8 @@ int Xgemm_batch_uniform_core( kblasHandle_t handle,
 
   if(batchCount == 1){
     check_error_ret( cublasXgemm( handle->cublas_handle,
-                                  (transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
-                                  (transB == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
+                                  kblasToCublasOperation(transA),
+                                  kblasToCublasOperation(transB),
                                   m, n, k,
                                   &alpha, (const T*) offA, lda,
                                           (const T*) offB, ldb,
@@ -538,8 +550,8 @@ int Xgemm_batch_uniform_core( kblasHandle_t handle,
                                       batchCount, handle->stream), KBLAS_UnknownError);
 
       check_error_ret( cublasXgemmBatched(handle->cublas_handle,
-                                          (transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
-                                          (transB == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
+                                          kblasToCublasOperation(transA),
+                                          kblasToCublasOperation(transB),
                                           m, n, k,
                                           &alpha, (const T**)A_array, lda,
                                                   (const T**)B_array, ldb,
@@ -547,8 +559,8 @@ int Xgemm_batch_uniform_core( kblasHandle_t handle,
                                           batchCount), KBLAS_cuBLAS_Error);
     #else
       check_error_ret( cublasXgemmStridedBatched( handle->cublas_handle,
-                                                  (transA == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
-                                                  (transB == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N),
+                                                  kblasToCublasOperation(transA),
+                                                  kblasToCublasOperation(transB),
                                                   m, n, k,
                                                   &alpha, (const T*)offA, lda, strideA,
                                                           (const T*)offB, ldb, strideB,
@@ -573,8 +585,8 @@ int Xgemm_batch_uniform_core( kblasHandle_t handle,
     {
       int batch_size = kmin(batch_increment, batchCount - batch_start);
 
-      magmablas_Xgemm_batched((magma_trans_t)(MagmaNoTrans + (transA == KBLAS_Trans)),
-                              (magma_trans_t)(MagmaNoTrans + (transB == KBLAS_Trans)),
+      magmablas_Xgemm_batched(kblasToMagmaTransposeType(transA),
+                              kblasToMagmaTransposeType(transB),
                               m, n, k,
                               alpha, A_array, lda,
                                      B_array, ldb,
@@ -632,7 +644,6 @@ int Xgemm_batch_uniform_core( kblasHandle_t handle,
 
   return KBLAS_Success;
 }
-
 
 
 #endif//__XGEMM_BATCH__

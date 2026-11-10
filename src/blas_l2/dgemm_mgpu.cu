@@ -220,14 +220,14 @@ void kblas_dgemm_mgpu(char transa, char transb, long m, long n, long k,
 
       // compute #rows of current tiles in A and C
       for(long id = 0; id < ngpus_active; id++){
-        rc[id] = min(m - (i*ngpus+id)*tile_size , tile_size);
+        rc[id] = kmin(m - (i*ngpus+id)*tile_size , tile_size);
       }
       if(transa == 'n' || transa == 'N'){
         for(long id = 0; id < ngpus_active; id++)
-          ra[id] = min(m - (i*ngpus+id)*tile_size , tile_size);
+          ra[id] = kmin(m - (i*ngpus+id)*tile_size , tile_size);
       }else{
         for(long id = 0; id < ngpus_active; id++){
-          ca[id] = min(m - (i*ngpus+id)*tile_size , tile_size);
+          ca[id] = kmin(m - (i*ngpus+id)*tile_size , tile_size);
         }
       }
 
@@ -238,15 +238,15 @@ void kblas_dgemm_mgpu(char transa, char transb, long m, long n, long k,
 
         // compute #cols in current tiles in B and C
         for(long id = 0; id < ngpus_active; id++){
-          cc[id] = min(n - j*tile_size , tile_size);
+          cc[id] = kmin(n - j*tile_size , tile_size);
         }
         if(transb == 'n' || transb == 'N'){
           for(long id = 0; id < ngpus_active; id++){
-            cb[id] = min(n - j*tile_size , tile_size);
+            cb[id] = kmin(n - j*tile_size , tile_size);
           }
         }else{
           for(long id = 0; id < ngpus_active; id++){
-            rb[id] = min(n - j*tile_size , tile_size);
+            rb[id] = kmin(n - j*tile_size , tile_size);
           }
         }
 
@@ -305,14 +305,14 @@ void kblas_dgemm_mgpu(char transa, char transb, long m, long n, long k,
         {
           // as if p = 0 (first iteration in the inner-most loop)
           if(transa == 'n' || transa == 'N')
-            ca[id] = min(k - 0*tile_size , tile_size);
+            ca[id] = kmin(k - 0*tile_size , tile_size);
           else
-            ra[id] = min(k - 0*tile_size , tile_size);
+            ra[id] = kmin(k - 0*tile_size , tile_size);
 
           if(transb == 'n' || transb == 'N')
-            rb[id] = min(k - 0*tile_size , tile_size);
+            rb[id] = kmin(k - 0*tile_size , tile_size);
           else
-            cb[id] = min(k - 0*tile_size , tile_size);
+            cb[id] = kmin(k - 0*tile_size , tile_size);
 
 
           cudaSetDevice(gpu_id[id]);
@@ -348,14 +348,14 @@ void kblas_dgemm_mgpu(char transa, char transb, long m, long n, long k,
             if(pflag)printf("\t\t p = %ld, wait for communication\n", p);
 
             if(transa == 'n' || transa == 'N')
-              ca[id] = min(k - p*tile_size , tile_size);
+              ca[id] = kmin(k - p*tile_size , tile_size);
             else
-              ra[id] = min(k - p*tile_size , tile_size);
+              ra[id] = kmin(k - p*tile_size , tile_size);
 
             if(transb == 'n' || transb == 'N')
-              rb[id] = min(k - p*tile_size , tile_size);
+              rb[id] = kmin(k - p*tile_size , tile_size);
             else
-              cb[id] = min(k - p*tile_size , tile_size);
+              cb[id] = kmin(k - p*tile_size , tile_size);
 
 
             // wait for communication
@@ -405,22 +405,22 @@ void kblas_dgemm_mgpu(char transa, char transb, long m, long n, long k,
               {
                 A_[id] += step_a;
 
-                if(transa == 'n' || transa == 'N')ca[id] = min(k - (p+1)*tile_size, tile_size);
-                else ra[id] = min(k - (p+1)*tile_size, tile_size);
+                if(transa == 'n' || transa == 'N')ca[id] = kmin(k - (p+1)*tile_size, tile_size);
+                else ra[id] = kmin(k - (p+1)*tile_size, tile_size);
 
                 cudaStreamWaitEvent(stream[id][1], _afree_[id][p+1], 0);
                 se = cublasSetMatrixAsync(ra[id], ca[id], sizeof(double), A_[id], lda, a_[id], tile_size, stream[id][1]);
                 process_error(se, "prefetch ain");
                 cudaEventRecord(_ain_[id][p+1], stream[id][1]);
 
-                if(transa == 'n' || transa == 'N')ca[id] = min(k - (p)*tile_size, tile_size);
-                else ra[id] = min(k - (p)*tile_size, tile_size);
+                if(transa == 'n' || transa == 'N')ca[id] = kmin(k - (p)*tile_size, tile_size);
+                else ra[id] = kmin(k - (p)*tile_size, tile_size);
 
               }
               B_[id] += step_b;
 
-              if(transb == 'n' || transb == 'N') rb[id] = min(k - (p+1)*tile_size, tile_size);
-              else cb[id] = min(k - (p+1)*tile_size, tile_size);
+              if(transb == 'n' || transb == 'N') rb[id] = kmin(k - (p+1)*tile_size, tile_size);
+              else cb[id] = kmin(k - (p+1)*tile_size, tile_size);
 
               cudaStreamWaitEvent(stream[id][2], _bfree_[id][bselect[id]], 0);
               se = cublasSetMatrixAsync(rb[id], cb[id], sizeof(double), B_[id], ldb, b_[id][bselect[id]], tile_size, stream[id][2]);
@@ -428,8 +428,8 @@ void kblas_dgemm_mgpu(char transa, char transb, long m, long n, long k,
               cudaEventRecord(_bin_[id][bselect[id]], stream[id][2]);
 
 
-              if(transb == 'n' || transb == 'N') rb[id] = min(k - (p)*tile_size, tile_size);
-              else cb[id] = min(k - (p)*tile_size, tile_size);
+              if(transb == 'n' || transb == 'N') rb[id] = kmin(k - (p)*tile_size, tile_size);
+              else cb[id] = kmin(k - (p)*tile_size, tile_size);
             }
             if( p == 0)
             {
@@ -439,7 +439,7 @@ void kblas_dgemm_mgpu(char transa, char transb, long m, long n, long k,
                 double* Ctmp = C_[id] + tile_size * ldc;
                 cselect[id] = 1 - cselect[id];
                 // rc[id] is the same, but we need to compute cc
-                cc[id] = min(n - (j+1)*tile_size, tile_size);
+                cc[id] = kmin(n - (j+1)*tile_size, tile_size);
                 if(pflag)printf("\t\t cselect[%ld] = %ld \n", id, cselect[id]);
                 cudaStreamWaitEvent(stream[id][3], _cout_[id][cselect[id]], 0);
                 se = cublasSetMatrixAsync(rc[id], cc[id], sizeof(double), Ctmp, ldc, c_[id][cselect[id]], tile_size, stream[id][3]);
@@ -450,7 +450,7 @@ void kblas_dgemm_mgpu(char transa, char transb, long m, long n, long k,
                 cudaEventRecord(_cin_[id][cselect[id]], stream[id][3]);
                 cselect[id] = 1 - cselect[id];
                 // restore cc
-                cc[id] = min(n - j*tile_size, tile_size);
+                cc[id] = kmin(n - j*tile_size, tile_size);
               }
             }
             if(pflag)printf("\n");

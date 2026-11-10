@@ -74,7 +74,7 @@ int batch_transpose_template(
 	int ops
 )
 {
-	int ops_per_kernel = 32768;
+	int ops_per_kernel = MAX_GRID_DIM_Z;
 
     int block_rows = iDivUp(max_m, TRANSPOSE_TILE_DIM);
     int block_cols = iDivUp(max_n, TRANSPOSE_TILE_DIM);
@@ -109,6 +109,16 @@ extern "C" int kblasStranspose_batch_strided(kblasHandle_t handle, int m, int n,
 	return batch_transpose_template<float, float*, int>(handle, m, n, m, n, matrix_strided, ldm, stride_m, transpose_strided, ldt, stride_t, ops);
 }
 
+extern "C" int kblasZtranspose_batch_strided(kblasHandle_t handle, int m, int n, cuDoubleComplex* matrix_strided, int ldm, int stride_m, cuDoubleComplex* transpose_strided, int ldt, int stride_t, int ops)
+{
+	return batch_transpose_template<cuDoubleComplex, cuDoubleComplex*, int>(handle, m, n, m, n, matrix_strided, ldm, stride_m, transpose_strided, ldt, stride_t, ops);
+}
+
+extern "C" int kblasCtranspose_batch_strided(kblasHandle_t handle, int m, int n, cuFloatComplex* matrix_strided, int ldm, int stride_m, cuFloatComplex* transpose_strided, int ldt, int stride_t, int ops)
+{
+	return batch_transpose_template<cuFloatComplex, cuFloatComplex*, int>(handle, m, n, m, n, matrix_strided, ldm, stride_m, transpose_strided, ldt, stride_t, ops);
+}
+
 // Array of pointers interface
 extern "C" int kblasDtranspose_batch(kblasHandle_t handle, int m, int n, double** matrix_ptrs, int ldm, double** transpose_ptrs, int ldt, int ops)
 {
@@ -120,6 +130,17 @@ extern "C" int kblasStranspose_batch(kblasHandle_t handle, int m, int n, float**
 	return batch_transpose_template<float, float**, int>(handle, m, n, m, n, matrix_ptrs, ldm, 0, transpose_ptrs, ldt, 0, ops);
 }
 
+extern "C" int kblasZtranspose_batch(kblasHandle_t handle, int m, int n, cuDoubleComplex** matrix_ptrs, int ldm, cuDoubleComplex** transpose_ptrs, int ldt, int ops)
+{
+	return batch_transpose_template<cuDoubleComplex, cuDoubleComplex**, int>(handle, m, n, m, n, matrix_ptrs, ldm, 0, transpose_ptrs, ldt, 0, ops);
+}
+
+extern "C" int kblasCtranspose_batch(kblasHandle_t handle, int m, int n, cuFloatComplex** matrix_ptrs, int ldm, cuFloatComplex** transpose_ptrs, int ldt, int ops)
+{
+	return batch_transpose_template<cuFloatComplex, cuFloatComplex**, int>(handle, m, n, m, n, matrix_ptrs, ldm, 0, transpose_ptrs, ldt, 0, ops);
+}
+
+// Array of pointers non-uniform interface
 extern "C" int kblasDtranspose_vbatch(kblasHandle_t handle, int* m, int* n, int max_m, int max_n, double** matrix_ptrs, int* ldm, double** transpose_ptrs, int* ldt, int ops)
 {
 	return batch_transpose_template<double, double**, int*>(handle, m, n, max_m, max_n, matrix_ptrs, ldm, 0, transpose_ptrs, ldt, 0, ops);
@@ -128,4 +149,14 @@ extern "C" int kblasDtranspose_vbatch(kblasHandle_t handle, int* m, int* n, int 
 extern "C" int kblasStranspose_vbatch(kblasHandle_t handle, int* m, int* n, int max_m, int max_n, float** matrix_ptrs, int* ldm, float** transpose_ptrs, int* ldt, int ops)
 {
 	return batch_transpose_template<float, float**, int*>(handle, m, n, max_m, max_n, matrix_ptrs, ldm, 0, transpose_ptrs, ldt, 0, ops);
+}
+
+extern "C" int kblasZtranspose_vbatch(kblasHandle_t handle, int* m, int* n, int max_m, int max_n, cuDoubleComplex** matrix_ptrs, int* ldm, cuDoubleComplex** transpose_ptrs, int* ldt, int ops)
+{
+	return batch_transpose_template<cuDoubleComplex, cuDoubleComplex**, int*>(handle, m, n, max_m, max_n, matrix_ptrs, ldm, 0, transpose_ptrs, ldt, 0, ops);
+}
+
+extern "C" int kblasCtranspose_vbatch(kblasHandle_t handle, int* m, int* n, int max_m, int max_n, cuFloatComplex** matrix_ptrs, int* ldm, cuFloatComplex** transpose_ptrs, int* ldt, int ops)
+{
+	return batch_transpose_template<cuFloatComplex, cuFloatComplex**, int*>(handle, m, n, max_m, max_n, matrix_ptrs, ldm, 0, transpose_ptrs, ldt, 0, ops);
 }

@@ -123,23 +123,32 @@ __device__ static __inline__ double atomicAdd(double* address, double val)
   return __longlong_as_double(old);
 }
 #endif//__CUDACC_VER_MAJOR__
+
+/* Float complex is defined only where the toolkit has no built-in float2 overload; double complex always */
+#if ( __CUDACC_VER_MAJOR__ < 12 ) || ( __CUDACC_VER_MAJOR__ == 12 && __CUDACC_VER_MINOR__ < 1 ) || ( defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 900 )
 /**
 Atomic add for float complex ('C' precision)
 **/
-__device__ static __inline__ void atomicAdd(cuFloatComplex* address, cuFloatComplex val)
+__device__ static __inline__ cuFloatComplex atomicAdd(cuFloatComplex* address, cuFloatComplex val)
 {
-  atomicAdd( (float*) (&(*address).x) ,val.x);
-  atomicAdd( (float*) (&(*address).y) ,val.y);
+  cuFloatComplex old;
+  old.x = atomicAdd( (float*) (&(*address).x) ,val.x);
+  old.y = atomicAdd( (float*) (&(*address).y) ,val.y);
+  return old;
 }
+#endif
 
 /**
 Atomic add for double complex ('Z' precision)
 **/
-__device__ static __inline__ void atomicAdd(cuDoubleComplex* address, cuDoubleComplex val)
+__device__ static __inline__ cuDoubleComplex atomicAdd(cuDoubleComplex* address, cuDoubleComplex val)
 {
-  atomicAdd( (double*) (&(*address).x) ,val.x);
-  atomicAdd( (double*) (&(*address).y) ,val.y);
+  cuDoubleComplex old;
+  old.x = atomicAdd( (double*) (&(*address).x) ,val.x);
+  old.y = atomicAdd( (double*) (&(*address).y) ,val.y);
+  return old;
 }
+
 #endif//__CUDACC__
 
 /*************************************************************
@@ -227,7 +236,7 @@ operator!=(const cuDoubleComplex a, const cuDoubleComplex b)
 }
 
 __host__ __device__ static __inline__ cuDoubleComplex
-operator/(const cuDoubleComplex a, const float b)
+operator/(const cuDoubleComplex a, const double b)
 {
   //return (a * conjugate(b)) / (b * conjugate(b));
   return make_cuDoubleComplex(a.x / b, a.y / b);
@@ -255,17 +264,15 @@ __host__ __device__ static __inline__ cuDoubleComplex sqrt(cuDoubleComplex x)
 }
 
 __host__ __device__ static __inline__ void
-operator/=(cuDoubleComplex &a, const float s)
+operator/=(cuDoubleComplex &a, const double s)
 {
     a.x /= s; a.y /= s;
 }
 
 __host__ __device__ static __inline__ void
-operator/=(cuDoubleComplex a, const cuDoubleComplex b)
+operator/=(cuDoubleComplex &a, const cuDoubleComplex b)
 {
-  double d = (b.x*b.x + b.y*b.y);
-  a.x = (a.x*b.x + a.y*b.y) / d;
-  a.y = (a.y*b.x - a.x*b.y) / d;
+  a = a / b;
 }
 
 /*************************************************************
@@ -386,11 +393,34 @@ operator/=(cuFloatComplex &a, const float s)
 }
 
 __host__ __device__ static __inline__ void
-operator/=(cuFloatComplex a, const cuFloatComplex b)
+operator/=(cuFloatComplex &a, const cuFloatComplex b)
 {
-  float d = (b.x*b.x + b.y*b.y);
-  a.x = (a.x*b.x + a.y*b.y) / d;
-  a.y = (a.y*b.x - a.x*b.y) / d;
+  a = a / b;
 }
+
+#include <complex>
+
+template<class T> struct kblas_base_type;
+template<> struct kblas_base_type<float>{ typedef float device_type; typedef float mag_type;};
+template<> struct kblas_base_type<double>{ typedef double device_type; typedef double mag_type;};
+template<> struct kblas_base_type<cuFloatComplex>{ typedef cuFloatComplex device_type; typedef float mag_type;};
+template<> struct kblas_base_type<cuDoubleComplex>{ typedef cuDoubleComplex device_type; typedef double mag_type;};
+template<> struct kblas_base_type<std::complex<float>>{ typedef cuFloatComplex device_type; typedef float mag_type;};
+template<> struct kblas_base_type<std::complex<double>>{ typedef cuDoubleComplex device_type; typedef double mag_type;};
+
+__device__ inline float kblas_get_real(float& x) { return x; }
+__device__ inline double kblas_get_real(double& x) { return x; }
+__device__ inline float kblas_get_real(cuFloatComplex& x) { return x.x; }
+__device__ inline double kblas_get_real(cuDoubleComplex& x) { return x.x; }
+
+__device__ inline float kblas_get_img(float& x) { return 0; }
+__device__ inline double kblas_get_img(double& x) { return 0; }
+__device__ inline float kblas_get_img(cuFloatComplex& x) { return x.y; }
+__device__ inline double kblas_get_img(cuDoubleComplex& x) { return x.y; }
+
+__device__ inline float kblas_div(float& a, float& b) { return a / b; }
+__device__ inline double kblas_div(double& a, double& b) { return a / b; }
+__device__ inline cuFloatComplex kblas_div(cuFloatComplex& a, cuFloatComplex& b) { return cuCdivf(a, b); }
+__device__ inline cuDoubleComplex kblas_div(cuDoubleComplex& a, cuDoubleComplex& b) { return cuCdiv(a, b); }
 
 #endif  // _KBLAS_OPERATORS_

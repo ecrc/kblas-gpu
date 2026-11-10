@@ -83,7 +83,7 @@ int Xtrmm_batch_core( kblasHandle_t handle,
 
     typedef void (*trmm_kernels_type)( const int m, const int n, int batchCount,
                                        const T alpha, T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
-                                                                   T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB);
+                                                                   T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB, bool conjA);
 
     trmm_kernels_type trmm_kernels[] = {
       TRMM_kernel_variant_R(T, T_PTR,  8, BY),
@@ -114,7 +114,8 @@ int Xtrmm_batch_core( kblasHandle_t handle,
     trmm_kernels[func_idx]<<< gridDim, blockDim, blockDim.x*(blockDim.x+2)*blockDim.y*sizeof(T), handle->stream>>>
                               ( m, n, batchCount,
                                 alpha, A, A_row_off, A_col_off, lda, strideA,
-                                       B, B_row_off, B_col_off, ldb, strideB);
+                                       B, B_row_off, B_col_off, ldb, strideB,
+                                trans == KBLAS_ConjTrans);
     check_error_ret( cudaGetLastError(), KBLAS_UnknownError);
   }
   else
@@ -138,7 +139,7 @@ int Xtrmm_batch_core( kblasHandle_t handle,
       }
 
       //Right / Lower / [Conj]Trans
-      if(trans == KBLAS_Trans){
+      if(trans == KBLAS_Trans || trans == KBLAS_ConjTrans){
         //TRMM_BATCH
         check_ret_error(( Xtrmm_batch_core<T, T_PTR>(
                                           handle,
@@ -206,7 +207,7 @@ int Xtrmm_batch_core( kblasHandle_t handle,
       }
 
       //Left / Lower / [Conj]Trans
-      if(trans == KBLAS_Trans){
+      if(trans == KBLAS_Trans || trans == KBLAS_ConjTrans){
         //TRMM_BATCH
         check_ret_error(( Xtrmm_batch_core<T, T_PTR>(
                                           handle,

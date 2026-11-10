@@ -2,6 +2,8 @@ install(FILES
   batch_ara.h
   batch_block_copy.h
   batch_geqp.h
+  batch_getrf.h
+  batch_lapmt.h
   batch_pstrf.h
   batch_qr.h
   batch_rand.h
@@ -13,6 +15,7 @@ install(FILES
   kblas_l2.h
   kblas_l3.h
   kblas_operators.h
+  kblas_potrf.h
   kblas_tlr.h
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 

@@ -112,13 +112,13 @@ int Xpotrf_batch_core(kblasHandle_t handle,
                                         info_array)) );
     //TRSM_BATCH
     check_ret_error( Xtrsm_batch( handle,
-                                  KBLAS_Right, uplo, KBLAS_Trans, KBLAS_NonUnit,
+                                  KBLAS_Right, uplo, KBLAS_ConjTrans, KBLAS_NonUnit,
                                   n2, n1,
                                   one, (T_PTR)Aoff( 0,  0), lda, strideA,
                                        (T_PTR)Aoff(n1,  0), lda, strideA,
                                   batchCount) );
-    //SYRK_BATCH
-    check_ret_error( Xsyrk_batch( handle,
+    //HERK_BATCH
+    check_ret_error( Xherk_batch( handle,
                                   uplo, KBLAS_NoTrans,
                                   n2, n1,
                                   mone, (T_PTR)Aoff(n1,  0), lda, strideA,

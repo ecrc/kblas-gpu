@@ -50,6 +50,13 @@ int iset_value_5( int *output_array1, int input1,
                   int *output_array5, int input5,
                   long batchCount, cudaStream_t cuda_stream);
 
+// Transpose letter mapping: KBLAS_Trans and KBLAS_ConjTrans map to their counterparts, any other letter to no transpose
+#ifdef USE_MAGMA
+#include "magma.h"
+magma_trans_t kblasToMagmaTransposeType(char trans);
+#endif 
+cublasOperation_t kblasToCublasOperation(char trans);
+
 //==============================================================================================
 #if 1
 /*void cublasXgemm(char transa, char transb, int m, int n, int k,

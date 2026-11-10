@@ -26,13 +26,18 @@
 #include <cublas_v2.h>
 #include <kblas.h>
 #include <cusolverDn.h>
+#include <complex>
 
 #ifdef USE_MAGMA
 #include <magma_v2.h>
 #endif
 #ifdef USE_MKL
+#define MKL_Complex8 std::complex<float>
+#define MKL_Complex16 std::complex<double>
 #include <mkl.h>
 #else
+#define lapack_complex_float std::complex<float>
+#define lapack_complex_double std::complex<double>
 #include <cblas.h>		//TODO: if MKL not set we need to use other libs
 #include <lapacke.h>
 #endif
@@ -87,8 +92,26 @@ void avg_and_stdev(double* values, int num_vals, double* avg, double* std_dev, i
 ////////////////////////////////////////////////////////////
 void generateDArrayOfPointers(double* original_array, double** array_of_arrays, int stride, int num_arrays, cudaStream_t stream);
 void generateSArrayOfPointers(float* original_array, float** array_of_arrays, int stride, int num_arrays, cudaStream_t stream);
+void generateCArrayOfPointers(std::complex<float>* original_array, std::complex<float>** array_of_arrays, int stride, int num_arrays, cudaStream_t stream);
+void generateZArrayOfPointers(std::complex<double>* original_array, std::complex<double>** array_of_arrays, int stride, int num_arrays, cudaStream_t stream);
+void generateIArrayOfPointers(int* original_array, int** array_of_arrays, int stride, int num_arrays, cudaStream_t stream);
 void generateDArrayOfPointersHost(double* original_array, double** array_of_arrays, int stride, int num_arrays);
 void generateSArrayOfPointersHost(float* original_array, float** array_of_arrays, int stride, int num_arrays);
+void generateIArrayOfPointersHost(int* original_array, int** array_of_arrays, int stride, int num_arrays);
+void generateCArrayOfPointersHost(std::complex<float>* original_array, std::complex<float>** array_of_arrays, int stride, int num_arrays);
+void generateZArrayOfPointersHost(std::complex<double>* original_array, std::complex<double>** array_of_arrays, int stride, int num_arrays);
+void generateDimProductScanOffsets(size_t* offsets, int *m_batch, int *n_batch, int num_arrays, cudaStream_t stream);
+void generateDimProductScanOffsetsHost(size_t* offsets, int *m_batch, int *n_batch, int num_arrays);
+size_t getDimProductEntries(int *m_batch, int *n_batch, int num_arrays, cudaStream_t stream);
+size_t getDimProductEntriesHost(int *m_batch, int *n_batch, int num_arrays);
+void generateSArrayOffsetPointers(float* base_ptr, float** array_ptrs, size_t *offsets, int num_arrays, cudaStream_t stream);
+void generateDArrayOffsetPointers(double* base_ptr, double** array_ptrs, size_t *offsets, int num_arrays, cudaStream_t stream);
+void generateCArrayOffsetPointers(std::complex<float>* base_ptr, std::complex<float>** array_ptrs, size_t *offsets, int num_arrays, cudaStream_t stream);
+void generateZArrayOffsetPointers(std::complex<double>* base_ptr, std::complex<double>** array_ptrs, size_t *offsets, int num_arrays, cudaStream_t stream);
+void generateSArrayOffsetPointersHost(float* base_ptr, float** array_ptrs, size_t *offsets, int num_arrays);
+void generateDArrayOffsetPointersHost(double* base_ptr, double** array_ptrs, size_t *offsets, int num_arrays);
+void generateCArrayOffsetPointersHost(std::complex<float>* base_ptr, std::complex<float>** array_ptrs, size_t *offsets, int num_arrays);
+void generateZArrayOffsetPointersHost(std::complex<double>* base_ptr, std::complex<double>** array_ptrs, size_t *offsets, int num_arrays);
 
 // Reductions 
 int getMaxElement(int* a, size_t elements, cudaStream_t stream);
@@ -136,9 +159,20 @@ void generateDrandomMatrices(
 	double* M_strided, int stride_M, double* svals_strided, int stride_S, int rows, int cols,
 	double cond, double exp_decay, int seed, int num_ops, int threads
 );
+
 void generateSrandomMatrices(
 	float* M_strided, int stride_M, float* svals_strided, int stride_S, int rows, int cols,
 	float cond, float exp_decay, int seed, int num_ops, int threads
+);
+
+void generateCrandomMatrices(
+	std::complex<float>* M_strided, int stride_M, float* svals_strided, int stride_S, int rows, int cols,
+	float cond, float exp_decay, int seed, int num_ops, int threads
+);
+
+void generateZrandomMatrices(
+	std::complex<double>* M_strided, int stride_M, double* svals_strided, int stride_S, int rows, int cols,
+	double cond, double exp_decay, int seed, int num_ops, int threads
 );
 
 // Mode = 0: use provided singualr values
@@ -152,6 +186,14 @@ void generateDrandomMatricesArray(
 void generateSrandomMatricesArray(
 	float** M_ptrs, int* ldm_array, float** svals_ptrs, int *rows_array, int *cols_array,
 	int mode, float cond, float exp_decay_min, float exp_decay_max, int seed, int num_ops, int threads
+);
+void generateCrandomMatricesArray(
+	std::complex<float>** M_ptrs, int* ldm_array, float** svals_ptrs, int *rows_array, int *cols_array,
+	int mode, float cond, float exp_decay_min, float exp_decay_max, int seed, int num_ops, int threads
+);
+void generateZrandomMatricesArray(
+	std::complex<double>** M_ptrs, int* ldm_array, double** svals_ptrs, int *rows_array, int *cols_array,
+	int mode, double cond, double exp_decay_min, double exp_decay_max, int seed, int num_ops, int threads
 );
 
 void generateSsingular_values(float** svals_ptrs, int rank, float min_sval, float max_sval, int seed, int batchCount);

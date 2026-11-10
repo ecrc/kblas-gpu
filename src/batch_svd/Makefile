@@ -13,7 +13,9 @@ KBLAS_BATCH_SVD_CU_SRC=  \
 			batch_rand.cu \
 			batch_pstrf.cu \
 			batch_ara.cu \
-			batch_geqp.cu
+			batch_geqp.cu \
+			batch_getrf.cu \
+			batch_lapmt.cu
 
 ifdef _SUPPORT_SVD_
 KBLAS_BATCH_SVD_CU_SRC+=batch_svd.cu \

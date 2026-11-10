@@ -385,13 +385,12 @@ trmm_mul32_R(int M, int N, T alpha, const T* __restrict__ A, int incA, T* B, int
             if(!TRANS){
               #pragma unroll
               for(i = 0; i < 4; i++)
-                //a[i] = CONJG ? conjugate(sAA[(j + i) * WARP1]) : sAA[(j + i) * WARP1];
-                a[i] = CONJG ? conjugate(sAA[j + i]) : sAA[j + i];
+                a[i] = sAA[j + i];
             }
             else{
               #pragma unroll
               for(i = 0; i < 4; i++)
-                a[i] = sAA[(j + i) * WARP1];
+                a[i] = CONJG ? conjugate(sAA[(j + i) * WARP1]) : sAA[(j + i) * WARP1];
             }
 
             #pragma unroll
@@ -448,7 +447,7 @@ cublasStatus_t Xtrmm(cublasHandle_t handle,
   #define WARPS_PER_BLOCK 8
   #define B_COLS_PER_WARP 1
 
-  trmm_kernels_type trmm_kernels[8] = {// T, WARPS_PER_BLOCK, B_COLS_PER_WARP, LEFT, LOWER, TRANS, CONJG
+  trmm_kernels_type trmm_kernels[12] = {// T, WARPS_PER_BLOCK, B_COLS_PER_WARP, LEFT, LOWER, TRANS, CONJG
     trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true, false, false>,
     trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true,  true, false>,
     trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false, false, false>,
@@ -456,7 +455,11 @@ cublasStatus_t Xtrmm(cublasHandle_t handle,
     trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true, false, false>,
     trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true,  true, false>,
     trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false, false, false>,
-    trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false,  true, false>
+    trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false,  true, false>,
+    trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true,  true,  true>,
+    trmm_mul32_L<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false,  true,  true>,
+    trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true,  true,  true>,
+    trmm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP, false,  true,  true>
   };
 
   cudaStream_t curStream;
@@ -467,6 +470,8 @@ cublasStatus_t Xtrmm(cublasHandle_t handle,
   if( ((side == CUBLAS_SIDE_LEFT) && (m % WARP == 0)) || ((side == CUBLAS_SIDE_RIGHT) && (n % WARP == 0)))
   {
     int func_idx = 4*(side == CUBLAS_SIDE_RIGHT) + 2*(uplo == CUBLAS_FILL_MODE_UPPER) + (trans != CUBLAS_OP_N);// + (diag == CUBLAS_DIAG_UNIT);
+    // conjugate transpose uses the conjugating variants, left then right, lower then upper
+    if(trans == CUBLAS_OP_C) func_idx = 8 + 2*(side == CUBLAS_SIDE_RIGHT) + (uplo == CUBLAS_FILL_MODE_UPPER);
     dim3 blockDim( WARP, WARPS_PER_BLOCK );
     dim3 gridDim(
       (side == CUBLAS_SIDE_LEFT) * (n / (WARPS_PER_BLOCK * B_COLS_PER_WARP) + (n % (WARPS_PER_BLOCK * B_COLS_PER_WARP) > 0))
@@ -1381,7 +1386,7 @@ cublasStatus_t kblasXtrmm_cpu_m(cublasHandle_t handle,
                             alpha, h_A, ldA, d_A[g], lddA,
                                    h_B+g*(left ? Bn_gpu*ldB : Bm_gpu), ldB, d_B[g], lddB,
                             false, DO_INLINE_BOUT[g], false);
-      //TODO check this status for error
+      check_error(status[g]);
 
       //sync streams
       if(DO_INLINE_BOUT[g]){
@@ -1391,6 +1396,7 @@ cublasStatus_t kblasXtrmm_cpu_m(cublasHandle_t handle,
         cublasGetStream_v2(cub_handle[g], &compStream);
         cudaStreamSynchronize( compStream );
         status[g] = cublasGetMatrixAsync( Bm_gpu, Bn_gpu, sizeof(T), d_B[g], lddB, h_B+g*(left ? Bn_gpu*ldB : Bm_gpu), ldB, inStream[g]);
+        check_error(status[g]);
         cudaStreamSynchronize( inStream[g] );
       }
     }
@@ -1523,7 +1529,7 @@ int kblas_ztrmm_async(
   }                                                                                                       \
   cublasSideMode_t  side_v2  = (side  == KBLAS_Left  ? CUBLAS_SIDE_LEFT : CUBLAS_SIDE_RIGHT);             \
   cublasFillMode_t  uplo_v2  = (uplo  == KBLAS_Lower ? CUBLAS_FILL_MODE_LOWER : CUBLAS_FILL_MODE_UPPER);  \
-  cublasOperation_t trans_v2 = (trans == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);                        \
+  cublasOperation_t trans_v2 = kblasToCublasOperation(trans);                                             \
   cublasDiagType_t  diag_v2  = (diag  == KBLAS_Unit  ? CUBLAS_DIAG_UNIT : CUBLAS_DIAG_NON_UNIT);          \
                                                                                                           \
   check_error_ret( kblasXtrmm(cublas_handle,                                                                  \

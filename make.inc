@@ -23,6 +23,8 @@ _SUPPORT_BLAS3_?=TRUE
 _SUPPORT_BATCH_TR_?=TRUE
 _SUPPORT_TLR_?=TRUE
 _SUPPORT_SVD_?=TRUE
+_SUPPORT_LAPACK_?=TRUE
+
 
 #_DEBUG_?=TRUE
 
@@ -44,8 +46,8 @@ endif
 endif
 
 #-----------------------------------------
-#specify cuda directory
-_CUDA_ROOT_=$(CUDA_HOME)
+#specify cuda directory: CUDA_ROOT when set, otherwise CUDA_HOME
+_CUDA_ROOT_=$(or $(CUDA_ROOT),$(CUDA_HOME))
 _CUDA_ARCH_ ?= 70
 
 # specify compilers
@@ -73,7 +75,7 @@ endif
 
 #-----------------------------------------
 ifdef _SUPPORT_SVD_
-  _CUB_DIR_?=$(HOME)/scratch/codes/cub-1.8.0
+  #_CUB_DIR_?=$(HOME)/codes/cub-1.8.0
   #COPTS += -DSUPPORT_SVD -D__NO_NCCL__
   #NVOPTS += -DSUPPORT_SVD -D__NO_NCCL__
 endif
@@ -81,24 +83,13 @@ endif
 #-----------------------------------------
 ifdef _USE_MAGMA_
   COPTS += -DUSE_MAGMA
-  _MAGMA_ROOT_?=$(HOME)/scratch/codes/magma-2.5.2
+  _MAGMA_ROOT_?=$(HOME)/codes/magma-2.5.4
   NVOPTS += -DUSE_MAGMA
 endif
 
 #-----------------------------------------
 ifdef _SUPPORT_BLAS2_
-  # specify the gpu architecture for BLAS2 routines (fermi, kepler, volta)
-  GPU_ARCH_2=volta
-
-  ifeq (${GPU_ARCH_2}, volta)
-    NVOPTS_2 = -DTARGET_SM=70 -arch sm_70
-  else ifeq (${GPU_ARCH_2}, kepler)
-	NVOPTS_2 = -DTARGET_SM=35 -arch sm_35
-  else ifeq (${GPU_ARCH_2}, fermi)
-    NVOPTS_2 = -DTARGET_SM=20 -arch sm_20
-  else
-    $(error GPU_ARCH_2, currently ${GPU_TARGET_2}, must be either volta, fermi or kepler for BLAS2 routines. Please edit your make.inc file)
-  endif
+  NVOPTS_2 = -DTARGET_SM=$(_CUDA_ARCH_) -arch sm_$(_CUDA_ARCH_)
 endif #_SUPPORT_BLAS2_
 
 #-----------------------------------------
@@ -119,4 +110,6 @@ ifdef _USE_OPENBLAS_
   _OPENBLAS_ROOT_?=${OPENBLAS_ROOT}
   _OPENBLAS_INCLUDE_?=${OPENBLAS_INCLUDE}
   _OPENBLAS_LIB_?=${OPENBLAS_LIB}
+  # Libraries the tests link; add -llapacke when LAPACKE is not built into OpenBLAS
+  _OPENBLAS_LIBS_?=-lopenblas
 endif

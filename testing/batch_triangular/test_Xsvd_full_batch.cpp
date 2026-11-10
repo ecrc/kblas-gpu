@@ -534,6 +534,7 @@ int test_Xsvd_full_batch(kblas_opts& opts)
       magma_finalize();//TODO is this in the proper place?
     }
   #endif
+  return 0;
 }
 
 //==============================================================================================

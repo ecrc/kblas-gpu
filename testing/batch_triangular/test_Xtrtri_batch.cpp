@@ -24,13 +24,9 @@
 #include <math.h>
 #include <sys/time.h>
 
-#if ((defined PREC_c) || (defined PREC_z)) && (defined USE_MKL)
-//TODO need to handle MKL types properly
-#undef USE_MKL
-#endif
-
 #include "testing_helper.h"
 #include "testing_prec_def.h"
+#include "testing_reference.h"
 #include "flops.h"
 
 #include "Xhelper_funcs.ch" // TODO: need Xset_pointer_1 from this
@@ -58,7 +54,6 @@ int test_Xtrtri_batch(kblas_opts& opts)
   int Am, An;
   int sizeA;
   int lda, ldda;
-  int ione     = 1;
   int ISEED[4] = {0,0,0,1};
   kblasHandle_t kblas_handle[ngpu];
 
@@ -70,7 +65,6 @@ int test_Xtrtri_batch(kblas_opts& opts)
   double Cnorm;
   T c_one = make_one<T>(),
     c_neg_one = make_zero<T>()-make_one<T>();
-  T work[1];
   #ifdef DEBUG_DUMP
   FILE *outK, *outL, *outO;
   #endif
@@ -241,7 +235,6 @@ int test_Xtrtri_batch(kblas_opts& opts)
 
 
 
-        #ifdef USE_MKL
         if(opts.check || (opts.time && opts.lapack)){
           if(opts.check){
             memcpy(h_R, h_A, sizeA * batchCount * sizeof(T));
@@ -272,9 +265,7 @@ int test_Xtrtri_batch(kblas_opts& opts)
             #endif//USE_OPENMP
             for (int s=0; s < batchCount; s++)
             {
-              int locinfo = 0;
-              LAPACK_POTRF( (( opts.uplo == KBLAS_Lower ) ? "Lower" : "Upper"),
-                            &N, h_R + s * lda * N, &lda, &locinfo );
+              int locinfo = ref_potrf( opts.uplo, N, h_R + s * lda * N, lda );
               if (locinfo != 0) {
                 printf("Xpotrf matrix %d returned error %d: %s.\n",
                         (int) s, (int) locinfo, "?");
@@ -301,8 +292,7 @@ int test_Xtrtri_batch(kblas_opts& opts)
               #endif
               int locinfo = 0;
               // printf("N(%d), lda(%d)\n", N, lda);
-              LAPACK_TRTRI( (( opts.uplo == KBLAS_Lower ) ? "Lower" : "Upper"),
-                            "N", &N, h_R + s * lda * N, &lda, &locinfo );
+              locinfo = ref_trtri( opts.uplo, diag, N, h_R + s * lda * N, lda );
               if (locinfo != 0) {
                   printf("%s(%d): dtrtri matrix %d returned error %d: %s.\n",
                   __FILE__, __LINE__, (int) s, (int) locinfo, "?");
@@ -311,19 +301,15 @@ int test_Xtrtri_batch(kblas_opts& opts)
               if(opts.check && !opts.time){
                 // compute relative error for kblas, relative to lapack,
                 // |kblas - lapack| / |lapack|
-                LAPACK_AXPY( &sizeA, &c_neg_one, h_R + s * lda * An, &ione, h_A + s * lda * An, &ione );
-                double Cnorm = LAPACK_LANSY( "M",
-                                            (( opts.uplo == KBLAS_Lower ) ? "Lower" : "Upper"),
-                                            &An, h_R + s * lda * An, &lda, work );
-                double err = LAPACK_LANSY( "M",
-                                          (( opts.uplo == KBLAS_Lower ) ? "Lower" : "Upper"),
-                                          &An, h_A + s * lda * An, &lda, work )
+                ref_axpy( sizeA, c_neg_one, h_R + s * lda * An, h_A + s * lda * An );
+                double Cnorm = ref_lansy( 'M', opts.uplo, An, h_R + s * lda * An, lda );
+                double err = ref_lansy( 'M', opts.uplo, An, h_A + s * lda * An, lda )
                               / Cnorm;
                 /*if ( isnan(err) || isinf(err) ) {
                   ref_error = err;
                   break;
                 }*/
-                ref_error = fmax( err, ref_error );
+                ref_error = ref_max_error( ref_error, err );
                 // ref_error += Xget_max_error_matrix(h_R + s * lda * An, h_A + s * lda * An, Am, An, lda, KBLAS_Lower);
                 #ifdef DEBUG_DUMP
                 if(s == 0){
@@ -357,7 +343,6 @@ int test_Xtrtri_batch(kblas_opts& opts)
             //rec_avg_time = (rec_avg_time / nruns) * 1000.;//convert to ms
           }
         }
-        #endif//USE_MKL
 
         cudaFreeHost( h_A );
 
@@ -398,6 +383,7 @@ int test_Xtrtri_batch(kblas_opts& opts)
   for(int g = 0; g < ngpu; g++){
     kblasDestroy(&kblas_handle[g]);
   }
+  return 0;
 }
 
 //==============================================================================================

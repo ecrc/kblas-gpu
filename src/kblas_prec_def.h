@@ -21,7 +21,9 @@
 
 #if defined   PREC_s
   #define TYPE float
-
+  
+  #define kblasXpotrf               kblasSpotrf
+  
   #define kblasXtrsm                kblasStrsm
   #define kblasXtrmm                kblasStrmm
 
@@ -106,7 +108,9 @@
 
 #elif defined PREC_d
   #define TYPE double
-
+  
+  #define kblasXpotrf               kblasDpotrf
+  
   #define kblasXtrsm                kblasDtrsm
   #define kblasXtrmm                kblasDtrmm
 

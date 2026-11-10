@@ -239,12 +239,14 @@ trsm_mul32_L(int M, int N, T alpha, const T* /*__restrict__*/ A, int incA, T* B,
 
 
 //==============================================================================================
-#define TRSM_NUM_VARIANTS 4
+#define TRSM_NUM_VARIANTS 6
 #define TRSM_kernel_variants(__WPB)                  \
         trsm_mul32_L<T, __WPB,  true, false, false, false>, \
         trsm_mul32_L<T, __WPB,  true,  true, false, false>, \
         trsm_mul32_L<T, __WPB, false, false, false, false>, \
-        trsm_mul32_L<T, __WPB, false,  true, false, false>
+        trsm_mul32_L<T, __WPB, false,  true, false, false>, \
+        trsm_mul32_L<T, __WPB,  true,  true,  true, false>, \
+        trsm_mul32_L<T, __WPB, false,  true,  true, false>
         /*,TODO
         trsm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true, false, false>,
         trsm_mul32_R<T, WARPS_PER_BLOCK, B_COLS_PER_WARP,  true,  true, false>,
@@ -290,6 +292,8 @@ cublasStatus_t Xtrsm(cublasHandle_t handle,
   if( ((side == CUBLAS_SIDE_LEFT) && (m % WARP == 0)) /*|| ((side == CUBLAS_SIDE_RIGHT) && (n % WARP == 0))*/ )//TODO
   {
     int func_idx = /*4*(side == CUBLAS_SIDE_RIGHT) + */2*(uplo == CUBLAS_FILL_MODE_UPPER) + (trans != CUBLAS_OP_N);// + (diag == CUBLAS_DIAG_UNIT);TODO
+    // conjugate transpose uses the conjugating variants, lower then upper
+    if(trans == CUBLAS_OP_C) func_idx = 4 + (uplo == CUBLAS_FILL_MODE_UPPER);
     dim3 blockDim( WARP, WARPS_PER_BLOCK );
     dim3 gridDim(
       (side == CUBLAS_SIDE_LEFT) * (n / (WARPS_PER_BLOCK * B_COLS_PER_WARP) + (n % (WARPS_PER_BLOCK * B_COLS_PER_WARP) > 0))
@@ -1214,8 +1218,8 @@ cublasStatus_t kblasXtrsm_cpu_m(cublasHandle_t handle,
                             alpha, h_A, ldA, d_A[g], lddA,
                                    h_B+g*(left ? Bn_gpu*ldB : Bm_gpu), ldB, d_B[g], lddB,
                             false, DO_INLINE_BOUT[g], false);
-      //TODO check this status for error
-
+      check_error(status[g]);
+      
       //sync streams
       if(DO_INLINE_BOUT[g]){
         cudaStreamSynchronize( outStream[g] );
@@ -1224,6 +1228,7 @@ cublasStatus_t kblasXtrsm_cpu_m(cublasHandle_t handle,
         cublasGetStream_v2(cub_handle[g], &compStream);
         cudaStreamSynchronize( compStream );
         status[g] = cublasGetMatrixAsync( Bm_gpu, Bn_gpu, sizeof(T), d_B[g], lddB, h_B+g*(left ? Bn_gpu*ldB : Bm_gpu), ldB, inStream[g]);
+        check_error(status[g]);
         cudaStreamSynchronize( inStream[g] );
       }
       //cudaDeviceSynchronize();
@@ -1402,7 +1407,7 @@ cublasStatus_t kblasXtrsm_cpu_m(cublasHandle_t handle,
   }                                                                                                      \
   cublasSideMode_t  side_v2  = (side  == KBLAS_Left  ? CUBLAS_SIDE_LEFT : CUBLAS_SIDE_RIGHT);            \
   cublasFillMode_t  uplo_v2  = (uplo  == KBLAS_Lower ? CUBLAS_FILL_MODE_LOWER : CUBLAS_FILL_MODE_UPPER); \
-  cublasOperation_t trans_v2 = (trans == KBLAS_Trans ? CUBLAS_OP_T : CUBLAS_OP_N);                       \
+  cublasOperation_t trans_v2 = kblasToCublasOperation(trans);                                            \
   cublasDiagType_t  diag_v2  = (diag  == KBLAS_Unit  ? CUBLAS_DIAG_UNIT : CUBLAS_DIAG_NON_UNIT);         \
                                                                                                          \
   check_error_ret( kblasXtrsm(cublas_handle,                                                                              \

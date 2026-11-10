@@ -33,11 +33,12 @@
 #elif (TARGET_SM >= 30)
 
 //==============================================================================================
+// conjA conjugates A as it is loaded, so the transposed variants solve with the conjugate transpose
 template<typename T, bool TRANS, int TX, int TY>
 __device__ inline void
 dev_trsm_U_RLXN_registers_fixN_mulM(const int m, const int n,
                                     const T alpha, const T* __restrict__ A, int lda,
-                                                                      T* B, int ldb)
+                                                                      T* B, int ldb, bool conjA)
 {
   int Bm_start = TY * blockIdx.y,
       Bm_end = (m > (TY * (blockIdx.y+1))) ? TY * (blockIdx.y+1) : m;
@@ -51,7 +52,7 @@ dev_trsm_U_RLXN_registers_fixN_mulM(const int m, const int n,
   for(int i = 0; i < TX; i++)
   {
     //if(tx >= i)
-    rA[ i ] = __ldg(&(A[ tx + i * lda ]));
+    rA[ i ] = conj_if(conjA, __ldg(&(A[ tx + i * lda ])));
   }
   for(int b = 0; b < mb; b++)
   {
@@ -106,7 +107,7 @@ template<typename T, typename T_PTR, bool STRIDED, bool TRANS, int TX, int TY>
 __global__ void  //__launch_bounds__(256)
 kernel_trsm_U_RLXN_registers_fixN_mulM( const int m, const int n, int batchCount,
                                         const T alpha, T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
-                                                                    T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB)
+                                                                    T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB, bool conjA)
 {
   if( (TX != n) || (m % TX) ) return;//necessary condition
 
@@ -129,7 +130,7 @@ kernel_trsm_U_RLXN_registers_fixN_mulM( const int m, const int n, int batchCount
 
   dev_trsm_U_RLXN_registers_fixN_mulM<T, TRANS, TX, TY>(m, n,
                                                         alpha, A, lda,
-                                                               B, ldb);
+                                                               B, ldb, conjA);
 }
 
 //==============================================================================================
@@ -137,7 +138,7 @@ template<typename T, bool TRANS, int TX, int BY>
 __device__ inline void
 dev_trsm_U_RLXN_registers_fixN_varM(const int m, const int n,
                                     const T alpha, const T* __restrict__ A, int lda,
-                                                                      T* B, int ldb)
+                                                                      T* B, int ldb, bool conjA)
 {
   //if( (TX != n) ) return;//necessary condition
   int Bm_start = BY * blockIdx.y, Bm_end = (m > BY * (blockIdx.y+1)) ? BY * (blockIdx.y+1) : m;
@@ -151,7 +152,7 @@ dev_trsm_U_RLXN_registers_fixN_varM(const int m, const int n,
   for(int i = 0; i < TX; i++)
   {
     //if(tx >= i)
-    rA[ i ] = __ldg(&(A[ tx + i * lda ]));
+    rA[ i ] = conj_if(conjA, __ldg(&(A[ tx + i * lda ])));
   }
   for(b = 0; b < mb; b++)
   {
@@ -256,7 +257,7 @@ template<typename T, typename T_PTR, bool STRIDED, bool TRANS, int TX, int TY>
 __global__ void  //__launch_bounds__(256)
 kernel_trsm_U_RLXN_registers_fixN_varM( const int m, const int n, int batchCount,
                                         const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
-                                                                          T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB)
+                                                                          T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB, bool conjA)
 {
   unsigned int ind = blockIdx.x * blockDim.y + ty;
   //are we within bounds
@@ -276,7 +277,7 @@ kernel_trsm_U_RLXN_registers_fixN_varM( const int m, const int n, int batchCount
   B += B_row_off + B_col_off * ldb + Bm_start;
   dev_trsm_U_RLXN_registers_fixN_varM<T, TRANS, TX, TY>(m, n,
                                                         alpha, A, lda,
-                                                               B, ldb);
+                                                               B, ldb, conjA);
 }
 
 //==============================================================================================
@@ -284,7 +285,7 @@ template<typename T, bool TRANS, int TX, int TY>
 __device__ inline void
 dev_trsm_U_RLXN_registers_varN_varM(const int m, const int n,
                                     const T alpha, const T* __restrict__ A, int lda,
-                                                                      T* B, int ldb)
+                                                                      T* B, int ldb, bool conjA)
 {
   int Bm_start = TY * blockIdx.y, Bm_end = (m > (TY * (blockIdx.y+1))) ? TY * (blockIdx.y+1) : m;
 
@@ -303,7 +304,7 @@ dev_trsm_U_RLXN_registers_varN_varM(const int m, const int n,
     #pragma unroll
     for(int i = 0; i < TX; i++){
       if(i < n)
-        rA[ i ] = __ldg(&(A[ tx + i * lda ]));
+        rA[ i ] = conj_if(conjA, __ldg(&(A[ tx + i * lda ])));
     }
   }
   for(b = 0; b < mb; b++)
@@ -420,7 +421,7 @@ template<typename T, typename T_PTR, bool STRIDED, bool TRANS, int TX, int TY>
 __global__ void  //__launch_bounds__(256)
 kernel_trsm_U_RLXN_registers_varN_varM( const int m, const int n, int batchCount,
                                         const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
-                                                                          T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB)
+                                                                          T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB, bool conjA)
 {
   if( (TX < n) ) return;//necessary condition
 
@@ -442,7 +443,7 @@ kernel_trsm_U_RLXN_registers_varN_varM( const int m, const int n, int batchCount
   B += B_row_off + B_col_off * ldb + Bm_start;
   dev_trsm_U_RLXN_registers_varN_varM<T, TRANS, TX, TY>(m, n,
                                                         alpha, A, lda,
-                                                               B, ldb);
+                                                               B, ldb, conjA);
 }
 
 //==============================================================================================
@@ -450,7 +451,7 @@ template<typename T, bool TRANS, int TX, int TY>
 __device__ inline void
 dev_trsm_U_LLXN_registers_Mfix_Nmul(const int m, const int n,
                                     const T alpha, const T* __restrict__ A, int lda,
-                                                                      T* B, int ldb)
+                                                                      T* B, int ldb, bool conjA)
 {
   //TODO better grid layout can be devised here
   int Bn_start = TY * blockIdx.y, Bn_end = (n > (TY * (blockIdx.y+1))) ? TY * (blockIdx.y+1) : n;
@@ -463,7 +464,7 @@ dev_trsm_U_LLXN_registers_Mfix_Nmul(const int m, const int n,
   #pragma unroll
   for(int i = 0; i < TX; i++){
     //if(tx >= i)
-    rA[ i ] = __ldg(&(A[ tx + i * lda ]));
+    rA[ i ] = conj_if(conjA, __ldg(&(A[ tx + i * lda ])));
   }
   for(int b = 0; b < nb; b++)
   {
@@ -521,7 +522,7 @@ template<typename T, typename T_PTR, bool STRIDED, bool TRANS, int TX, int TY>
 __global__ void  //__launch_bounds__(256)
 kernel_trsm_U_LLXN_registers_Mfix_Nmul( const int m, const int n, int batchCount,
                                         const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
-                                                                          T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB)
+                                                                          T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB, bool conjA)
 {
   if( (TX != m) || (n % TX) ) return;//necessary condition
 
@@ -544,7 +545,7 @@ kernel_trsm_U_LLXN_registers_Mfix_Nmul( const int m, const int n, int batchCount
   B += B_row_off + B_col_off * ldb + Bn_start;
   dev_trsm_U_LLXN_registers_Mfix_Nmul<T, TRANS, TX, TY>(m, n,
                                                         alpha, A, lda,
-                                                               B, ldb);
+                                                               B, ldb, conjA);
 }
 
 //==============================================================================================
@@ -552,7 +553,7 @@ template<typename T, bool TRANS, int TX, int TY>
 __device__ inline void
 dev_trsm_U_LLXN_registers_Mfix_Nvar(const int m, const int n,
                                     const T alpha, const T* __restrict__ A, int lda,
-                                                                      T* B, int ldb)
+                                                                      T* B, int ldb, bool conjA)
 {
   const int TX1 = TX+1;
   //setup shared memory
@@ -573,7 +574,7 @@ dev_trsm_U_LLXN_registers_Mfix_Nvar(const int m, const int n,
   for(int i = 0; i < TX; i++){
     //if(tx >= i)
     //rA[ i ] = A[ tx + i * lda ];
-    rA[ i ] = __ldg(&(A[ tx + i * lda ]));
+    rA[ i ] = conj_if(conjA, __ldg(&(A[ tx + i * lda ])));
   }
   for(b = 0; b < nb; b++)
   {
@@ -696,7 +697,7 @@ template<typename T, typename T_PTR, bool STRIDED, bool TRANS, int TX, int TY>
 __global__ void  //__launch_bounds__(256)
 kernel_trsm_U_LLXN_registers_Mfix_Nvar( const int m, const int n, int batchCount,
                                         const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
-                                                                          T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB)
+                                                                          T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB, bool conjA)
 {
   if( TX != m ) return;//necessary condition
 
@@ -719,7 +720,7 @@ kernel_trsm_U_LLXN_registers_Mfix_Nvar( const int m, const int n, int batchCount
   B += B_row_off + B_col_off * ldb + Bn_start * ldb;
   dev_trsm_U_LLXN_registers_Mfix_Nvar<T, TRANS, TX, TY>(m, n,
                                                         alpha, A, lda,
-                                                               B, ldb);
+                                                               B, ldb, conjA);
 }
 
 //==============================================================================================
@@ -727,7 +728,7 @@ template<typename T, bool TRANS, int TX, int TY>
 __device__ inline void
 dev_trsm_U_LLXN_registers_MNvar(const int m, const int n,
                                 const T alpha, const T* __restrict__ A, int lda,
-                                                                  T* B, int ldb)
+                                                                  T* B, int ldb, bool conjA)
 {
   //TODO better grid layout can be devised here
   int Bn_start = TY * blockIdx.y;
@@ -743,7 +744,7 @@ dev_trsm_U_LLXN_registers_MNvar(const int m, const int n,
     #pragma unroll
     for(int i = 0; i < TX; i++){
       if(i < m)
-        rA[ i ] = __ldg(&(A[ tx + i * lda ]));
+        rA[ i ] = conj_if(conjA, __ldg(&(A[ tx + i * lda ])));
     }
   }
   for(b = 0; b < nb; b++)
@@ -871,7 +872,7 @@ template<typename T, typename T_PTR, bool STRIDED, bool TRANS, int TX, int TY>
 __global__ void  //__launch_bounds__(256)
 kernel_trsm_U_LLXN_registers_MNvar( const int m, const int n, int batchCount,
                                     const T alpha, const T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
-                                                                      T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB)
+                                                                      T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB, bool conjA)
 {
   if( TX < m ) return;//necessary condition
 
@@ -894,7 +895,7 @@ kernel_trsm_U_LLXN_registers_MNvar( const int m, const int n, int batchCount,
   B += B_row_off + B_col_off * ldb + Bn_start * ldb;
   dev_trsm_U_LLXN_registers_MNvar<T, TRANS, TX, TY>(m, n,
                                                     alpha, A, lda,
-                                                           B, ldb);
+                                                           B, ldb, conjA);
 }
 
 //==============================================================================================

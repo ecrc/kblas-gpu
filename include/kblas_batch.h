@@ -52,10 +52,12 @@ void kblas_gemm_batch_nonuniform_wsquery(kblasHandle_t handle);
      *                    the matrix multiplication as follows:
      *                    = KBLAS_NoTrans:   op( A ) = A.
      *                    = KBLAS_Trans:     op( A ) = A**T.
+     *                    = KBLAS_ConjTrans: op( A ) = A**H.
      * @param[in] transB  specifies the form of op( B ) to be used in
      *                    the matrix multiplication as follows:
      *                    = KBLAS_NoTrans:   op( B ) = B.
      *                    = KBLAS_Trans:     op( B ) = B**T.
+     *                    = KBLAS_ConjTrans: op( B ) = B**H.
      * @param[in] m       specifies the number of rows of the matrices
      *                    op( A ) and of the matrices C. Must be at least zero.
      * @param[in] n       specifies the number of columns of the matrices
@@ -274,10 +276,12 @@ extern "C" {
      *                    the matrix multiplication as follows:
      *                    - KBLAS_NoTrans:   op( A ) = A.
      *                    - KBLAS_Trans:     op( A ) = A**T.
+     *                    - KBLAS_ConjTrans: op( A ) = A**H.
      * @param[in] transB  Specifies the form of op( B ) to be used in
      *                    the matrix multiplication as follows:
      *                    - KBLAS_NoTrans:   op( B ) = B.
      *                    - KBLAS_Trans:     op( B ) = B**T.
+     *                    - KBLAS_ConjTrans: op( B ) = B**H.
      * @param[in] m       Specifies the number of rows of the matrices
      *                    op( A ) and of the matrices C. Must be at least zero.
      * @param[in] n       Specifies the number of columns of the matrices
@@ -370,10 +374,12 @@ extern "C" {
      *                    the matrix multiplication as follows:
      *                    - KBLAS_NoTrans:   op( A ) = A.
      *                    - KBLAS_Trans:     op( A ) = A**T.
+     *                    - KBLAS_ConjTrans: op( A ) = A**H.
      * @param[in] transB  Specifies the form of op( B ) to be used in
      *                    the matrix multiplication as follows:
      *                    - KBLAS_NoTrans:   op( B ) = B.
      *                    - KBLAS_Trans:     op( B ) = B**T.
+     *                    - KBLAS_ConjTrans: op( B ) = B**H.
      * @param[in] m       Specifies the number of rows of the matrices.
      *                    op( A )'s and C's. Must be at least zero.
      * @param[in] n       Specifies the number of columns of the matrices.
@@ -926,6 +932,7 @@ extern "C" {
      * @param[in] trans   Specifies the form of op( A ) to be used in the matrix multiplication as follows:
      *                    - KBLAS_NoTrans:    op( A ) = A.
      *                    - KBLAS_Trans:      op( A ) = A**T.
+     *                    - KBLAS_ConjTrans:  op( A ) = A**H.
      * @param[in] diag    Specifies whether or not A is unit triangular as follows:
      *                    - KBLAS_NonUnit:  A is not assumed to be unit triangular.
      *                    - KBLAS_Unit:     A is assumed to be unit triangular.
@@ -1010,6 +1017,7 @@ extern "C" {
      * @param[in] trans   Specifies the form of op( A ) to be used in the matrix multiplication as follows:
      *                    - KBLAS_NoTrans:    op( A ) = A.
      *                    - KBLAS_Trans:      op( A ) = A**T.
+     *                    - KBLAS_ConjTrans:  op( A ) = A**H.
      * @param[in] diag    Specifies whether or not A is unit triangular as follows:
      *                    - KBLAS_NonUnit:  A is not assumed to be unit triangular.
      *                    - KBLAS_Unit:     A is assumed to be unit triangular.
@@ -1210,6 +1218,7 @@ extern "C" {
      * @param[in] trans   Specifies the form of op( A ) to be used in the matrix multiplication as follows:
      *                    - KBLAS_NoTrans:    op( A ) = A.
      *                    - KBLAS_Trans:      op( A ) = A**T.
+     *                    - KBLAS_ConjTrans:  op( A ) = A**H.
      * @param[in] diag    Specifies whether or not A is unit triangular as follows:
      *                    - KBLAS_NonUnit:  A is not assumed to be unit triangular.
      *                    - KBLAS_Unit:     A is assumed to be unit triangular.
@@ -1292,6 +1301,7 @@ extern "C" {
      * @param[in] trans   Specifies the form of op( A ) to be used in the matrix multiplication as follows:
      *                    - KBLAS_NoTrans:    op( A ) = A.
      *                    - KBLAS_Trans:      op( A ) = A**T.
+     *                    - KBLAS_ConjTrans:  op( A ) = A**H.
      * @param[in] diag    Specifies whether or not A is unit triangular as follows:
      *                    - KBLAS_NonUnit:  A is not assumed to be unit triangular.
      *                    - KBLAS_Unit:     A is assumed to be unit triangular.

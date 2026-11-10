@@ -22,11 +22,6 @@
 
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
-#ifdef USE_MAGMA
-  #include "magma.h"
-  // #include <cusparse.h>
-#endif
-
 #include <assert.h>
 
 #include "kblas_error.h"
@@ -308,6 +303,25 @@ struct KBlasWorkspaceGuard
 	}
 };
 
+template<class T>
+inline size_t aligned_bytes(size_t bytes)
+{
+	return ((bytes + sizeof(T) - 1) / sizeof(T)) * sizeof(T);
+}
+
+template<class T>
+inline void setWSPtr(void* ptr, int elements, T **ws_ptr, size_t &allocated_bytes)
+{
+	// Align bytes 
+	allocated_bytes = aligned_bytes<T>(allocated_bytes);
+	// Set the pointer 
+	if(ws_ptr)
+		*ws_ptr = (ptr ? (T*)((KBlasWorkspace::WS_Byte*)ptr + allocated_bytes) : NULL);
+	// Advance the allocation 
+	allocated_bytes += elements * sizeof(T);
+}
+
+
 struct KBlasHandle
 {
   typedef unsigned char WS_Byte;
@@ -455,6 +469,12 @@ struct KBlasHandle
   }
 };
 
+// Extern to make it work with C
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 typedef struct KBlasWorkspaceState *kblasWorkspaceState_t;
 typedef struct KBlasWorkspace *kblasWorkspace_t;
 typedef struct KBlasHandle *kblasHandle_t;
@@ -462,5 +482,11 @@ typedef struct KBlasHandle *kblasHandle_t;
 
 int kblasCreate(kblasHandle_t *handle);
 int kblasDestroy(kblasHandle_t *handle);
+
+// End of extern "C"
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif //__KBLAS_STRUCT__

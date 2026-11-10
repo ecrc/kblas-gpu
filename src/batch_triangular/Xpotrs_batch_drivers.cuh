@@ -93,7 +93,7 @@ int Xpotrs_batch_core(kblasHandle_t handle,
 
     //TRSM_BATCH
     check_ret_error( Xtrsm_batch( handle,
-                                  side, uplo, KBLAS_Trans, KBLAS_NonUnit,
+                                  side, uplo, KBLAS_ConjTrans, KBLAS_NonUnit,
                                   m, n1,
                                   one, (T_PTR)Aoff(0, 0), lda, strideA,
                                        (T_PTR)Boff(0, 0), ldb, strideB,
@@ -101,7 +101,7 @@ int Xpotrs_batch_core(kblasHandle_t handle,
     //GEMM_BATCH
     if(STRIDED){
       check_error_ret (status = kblas_gemm_batch( handle,
-                                                  KBLAS_NoTrans, KBLAS_Trans,
+                                                  KBLAS_NoTrans, KBLAS_ConjTrans,
                                                   m, n2, n1,
                                                   mone, (const T*)offB( 0,  0), ldb, strideB,
                                                         (const T*)offA(n1,  0), lda, strideA,
@@ -109,7 +109,7 @@ int Xpotrs_batch_core(kblasHandle_t handle,
                                                   batchCount), status);
     }else{
       check_error_ret (status = kblas_gemm_batch( handle,
-                                                  KBLAS_NoTrans, KBLAS_Trans,
+                                                  KBLAS_NoTrans, KBLAS_ConjTrans,
                                                   m, n2, n1,
                                                   mone, (const T**)Boff( 0,  0), ldb,
                                                         (const T**)Aoff(n1,  0), lda,
@@ -120,7 +120,7 @@ int Xpotrs_batch_core(kblasHandle_t handle,
     //TODO replace by one POTRS call
     //TRSM_BATCH
     check_ret_error( Xtrsm_batch( handle,
-                                  side, uplo, KBLAS_Trans, KBLAS_NonUnit,
+                                  side, uplo, KBLAS_ConjTrans, KBLAS_NonUnit,
                                   m, n2,
                                   one, (T_PTR)Aoff(n1, n1), lda, strideA,
                                        (T_PTR)Boff( 0, n1), ldb, strideB,

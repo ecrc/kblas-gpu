@@ -109,16 +109,16 @@ int Xlauum_batch_core(kblasHandle_t handle,
                                         Aoff(0, 0), lda, strideA,
                                         batchCount,
                                         info_array)) );
-    //SYRK_BATCH
-    check_ret_error( Xsyrk_batch( handle,
-                                  uplo, KBLAS_Trans,
+    //HERK_BATCH
+    check_ret_error( Xherk_batch( handle,
+                                  uplo, KBLAS_ConjTrans,
                                   n1, n2,
                                   one, (T_PTR)Aoff(n1, 0), lda, strideA,
                                   one, (T_PTR)Aoff( 0, 0), lda, strideA,
                                   batchCount) );
     //TRMM_BATCH
     check_ret_error( Xtrmm_batch( handle,
-                                  KBLAS_Left, uplo, KBLAS_Trans, KBLAS_NonUnit,
+                                  KBLAS_Left, uplo, KBLAS_ConjTrans, KBLAS_NonUnit,
                                   n2, n1,
                                   one, (T_PTR)Aoff(n1, n1), lda, strideA,
                                        (T_PTR)Aoff(n1,  0), lda, strideA,

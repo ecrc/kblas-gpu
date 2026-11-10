@@ -69,7 +69,19 @@ int kblasSetMagma(kblasHandle_t handle, magma_queue_t queue){
     handle->SetMagma(queue);
     return KBLAS_Success;
 }
+
+magma_trans_t kblasToMagmaTransposeType(char trans) {
+    if(trans == KBLAS_Trans) return MagmaTrans;
+    if(trans == KBLAS_ConjTrans) return MagmaConjTrans;
+    return MagmaNoTrans;
+}
 #endif
+
+cublasOperation_t kblasToCublasOperation(char trans) {
+    if(trans == KBLAS_Trans) return CUBLAS_OP_T;
+    if(trans == KBLAS_ConjTrans) return CUBLAS_OP_C;
+    return CUBLAS_OP_N;
+}
 
 /**
  * Destroys a KBLAS handle and frees internal structures including: cuda stream, cublas handle, magma handle, workspace buffers.
@@ -195,7 +207,9 @@ const char* kblasGetErrorString( int error )
     case KBLAS_MAGMA_Error:
       return "MAGMA error";
     case KBLAS_SVD_NoConvergence:
-      return "SVD-gram operation did not converge.";
+      return "SVD-gram operation did not converge";
+    case KBLAS_ARA_NoConvergence:
+      return "ARA operation did not converge";
     default:
       return "unknown KBLAS error code";
   }

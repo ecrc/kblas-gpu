@@ -108,6 +108,30 @@ int kblasSgeqp2_batch(
 	kblasHandle_t handle, int m, int n, float** A_array, int lda, 
 	float** tau_ptrs, int** piv_ptrs, int* ranks, float tol, int num_ops
 );
+
+/**
+ * @brief Array of pointers variable-size double precision batched pivoted QR of matrices A: A * P = Q * R
+ * 
+ * Array of pointers interface taking similar arguments to the strided interface; however, matrices and 
+ * arrays are stored in arrays of pointers instead of strided access, so A[i] = A_array[i] and tau[i] = tau_array[i]
+ * @see kblasSgeqp2_batch_strided
+ */
+int kblasDgeqp2_vbatch(
+	kblasHandle_t handle, int* m, int* n, int max_m, int max_n, double** A_array, int *lda, 
+	double** tau_ptrs, int** piv_ptrs, int* ranks, double tol, int num_ops
+);
+
+/**
+ * @brief Array of pointers variable-size single precision batched pivoted QR of matrices A: A * P = Q * R
+ * 
+ * Array of pointers interface taking similar arguments to the strided interface; however, matrices and 
+ * arrays are stored in arrays of pointers instead of strided access, so A[i] = A_array[i] and tau[i] = tau_array[i]
+ * @see kblasSgeqp2_batch_strided
+ */
+int kblasSgeqp2_vbatch(
+	kblasHandle_t handle, int* m, int* n, int max_m, int max_n, float** A_array, int *lda, 
+	float** tau_ptrs, int** piv_ptrs, int* ranks, float tol, int num_ops
+);
 //@}
 
 #ifdef __cplusplus
@@ -155,6 +179,22 @@ inline int kblas_geqp2_batch(
 	kblasHandle_t handle, int m, int n, float** A_array, int lda, 
 	float** tau_ptrs, int** piv_ptrs, int* ranks, float tol, int num_ops
 ) { return kblasSgeqp2_batch(handle, m, n, A_array, lda, tau_ptrs, piv_ptrs, ranks, tol, num_ops); }
+
+/**
+ * @brief Array of pointers variable-size double precision batched pivoted QR of matrices A: A * P = Q * R
+ */
+inline int kblas_geqp2_vbatch(
+	kblasHandle_t handle, int* m, int* n, int max_m, int max_n, double** A_array, int *lda, 
+	double** tau_ptrs, int** piv_ptrs, int* ranks, double tol, int num_ops
+) {return kblasDgeqp2_vbatch(handle, m, n, max_m, max_n, A_array, lda, tau_ptrs, piv_ptrs, ranks, tol, num_ops); }
+
+/**
+ * @brief Array of pointers variable-size single precision batched pivoted QR of matrices A: A * P = Q * R
+ */
+inline int kblas_geqp2_vbatch(
+	kblasHandle_t handle, int* m, int* n, int max_m, int max_n, float** A_array, int *lda, 
+	float** tau_ptrs, int** piv_ptrs, int* ranks, float tol, int num_ops
+) {return kblasSgeqp2_vbatch(handle, m, n, max_m, max_n, A_array, lda, tau_ptrs, piv_ptrs, ranks, tol, num_ops); }
 //@}
 #endif
 

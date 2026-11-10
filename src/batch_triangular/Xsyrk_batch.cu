@@ -50,7 +50,7 @@ int Xsyrk_batch(kblasHandle_t handle,
   (void)strideA;
   (void)strideB;
 
-  return Xsyrk_batch_core<TYPE, TYPE**>(
+  return Xsyrk_batch_core<TYPE, TYPE**, false>(
                           handle,
                           uplo, trans,
                           m, n,
@@ -68,7 +68,7 @@ int kblas_syrk_batch(kblasHandle_t handle,
                     const TYPE beta,        TYPE** B, int ldb,
                     int batchCount)
 {
-  return Xsyrk_batch_core<TYPE, TYPE**>(
+  return Xsyrk_batch_core<TYPE, TYPE**, false>(
                           handle,
                           uplo, trans,
                           m, n,
@@ -87,7 +87,7 @@ int kblasXsyrk_batch(kblasHandle_t handle,
                     const TYPE beta,        TYPE** B, int ldb,
                     int batchCount)
 {
-  return Xsyrk_batch_core<TYPE, TYPE**>(
+  return Xsyrk_batch_core<TYPE, TYPE**, false>(
                           handle,
                           uplo, trans,
                           m, n,
@@ -141,7 +141,7 @@ int Xsyrk_batch(kblasHandle_t handle,
                 TYPE beta,  TYPE* B, int B_row_off, int B_col_off, int ldb, long strideB,
                 int batchCount)
 {
-  return Xsyrk_batch_strided_core<TYPE, TYPE*>(
+  return Xsyrk_batch_strided_core<TYPE, TYPE*, false>(
                                   handle,
                                   uplo, trans,
                                   m, n,
@@ -159,7 +159,7 @@ int kblas_syrk_batch( kblasHandle_t handle,
                       const TYPE beta,        TYPE* B, int ldb, long strideB,
                       int batchCount)
 {
-  return Xsyrk_batch_strided_core<TYPE, TYPE*>(
+  return Xsyrk_batch_strided_core<TYPE, TYPE*, false>(
                                   handle,
                                   uplo, trans,
                                   m, n,
@@ -179,7 +179,7 @@ int kblasXsyrk_batch_strided(kblasHandle_t handle,
                             const TYPE beta,        TYPE* B, int ldb, long strideB,
                             int batchCount)
 {
-  return Xsyrk_batch_strided_core<TYPE, TYPE*>(
+  return Xsyrk_batch_strided_core<TYPE, TYPE*, false>(
                                   handle,
                                   uplo, trans,
                                   m, n,
@@ -188,3 +188,51 @@ int kblasXsyrk_batch_strided(kblasHandle_t handle,
                                   batchCount);
 }
 
+//==============================================================================================
+// Hermitian rank-k update for internal use, C = alpha op(A) op(A)^H + beta C with op(A) = A or A^H
+// (trans KBLAS_NoTrans or KBLAS_ConjTrans), on the uplo triangle of C; alpha and beta are real.
+// For real types it is the symmetric update. The syrk core reads the transposed form as KBLAS_Trans
+// and applies the conjugate through its CONJ switch.
+#if (defined PREC_c) || (defined PREC_z)
+static const bool herk_conj = true;
+#else
+static const bool herk_conj = false;
+#endif
+
+// workspace needed: device pointers
+// A, B: host pointer to array of device pointers to device buffers
+int Xherk_batch(kblasHandle_t handle,
+                char uplo, char trans,
+                int m, int n,
+                TYPE alpha, TYPE** A, int A_row_off, int A_col_off, int lda, long strideA,
+                TYPE beta,  TYPE** B, int B_row_off, int B_col_off, int ldb, long strideB,
+                int batchCount)
+{
+  (void)strideA;
+  (void)strideB;
+  return Xsyrk_batch_core<TYPE, TYPE**, herk_conj>(
+                          handle,
+                          uplo, (trans == KBLAS_ConjTrans ? KBLAS_Trans : trans),
+                          m, n,
+                          alpha, (TYPE**)A, A_row_off, A_col_off, lda,
+                          beta,  (TYPE**)B, B_row_off, B_col_off, ldb,
+                          batchCount);
+}
+
+// workspace needed: device pointers
+// A, B: host pointers to device buffers
+int Xherk_batch(kblasHandle_t handle,
+                char uplo, char trans,
+                int m, int n,
+                TYPE alpha, TYPE* A, int A_row_off, int A_col_off, int lda, long strideA,
+                TYPE beta,  TYPE* B, int B_row_off, int B_col_off, int ldb, long strideB,
+                int batchCount)
+{
+  return Xsyrk_batch_strided_core<TYPE, TYPE*, herk_conj>(
+                                  handle,
+                                  uplo, (trans == KBLAS_ConjTrans ? KBLAS_Trans : trans),
+                                  m, n,
+                                  alpha, (TYPE*)(A) + A_row_off + A_col_off * lda, lda, strideA,
+                                  beta,  (TYPE*)(B) + B_row_off + B_col_off * ldb, ldb, strideB,
+                                  batchCount);
+}

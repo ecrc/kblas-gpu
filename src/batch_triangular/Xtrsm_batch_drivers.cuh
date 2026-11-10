@@ -86,7 +86,7 @@ int Xtrsm_batch_core( kblasHandle_t handle,
 
     typedef void (*trsm_kernels_type)( const int m, const int n, int batchCount,
                                        const T alpha, T_PTR __restrict__ A_array, int A_row_off, int A_col_off, int lda, long strideA,
-                                                                   T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB);
+                                                                   T_PTR B_array, int B_row_off, int B_col_off, int ldb, long strideB, bool conjA);
 
     trsm_kernels_type trsm_kernels[] = {
       TRSM_kernel_variant_R(T, T_PTR, STRIDED,  8, BY),
@@ -119,7 +119,8 @@ int Xtrsm_batch_core( kblasHandle_t handle,
     trsm_kernels[func_idx]<<< gridDim, blockDim, trsm_kernels_sharedMem[(side == KBLAS_Left)], handle->stream>>>
                               ( m, n, batchCount,
                                 alpha, A, A_row_off, A_col_off, lda, strideA,
-                                       B, B_row_off, B_col_off, ldb, strideB);
+                                       B, B_row_off, B_col_off, ldb, strideB,
+                                trans == KBLAS_ConjTrans);
     check_error_ret( cudaGetLastError(), KBLAS_UnknownError);
   }
   else
@@ -142,7 +143,7 @@ int Xtrsm_batch_core( kblasHandle_t handle,
       }
 
       //Right / Lower / [Conj]Trans
-      if(trans == KBLAS_Trans){
+      if(trans == KBLAS_Trans || trans == KBLAS_ConjTrans){
         //TRSM_BATCH
         check_ret_error( (Xtrsm_batch_core<T, T_PTR, STRIDED>(
                                           handle,
@@ -210,7 +211,7 @@ int Xtrsm_batch_core( kblasHandle_t handle,
       }
 
       //Left / Lower / [Conj]Trans
-      if(trans == KBLAS_Trans){
+      if(trans == KBLAS_Trans || trans == KBLAS_ConjTrans){
         //TRSM_BATCH
         check_ret_error( (Xtrsm_batch_core<T, T_PTR, STRIDED>(
                                           handle,
@@ -318,29 +319,29 @@ int Xtrsm_batch_nonuniform_core(kblasHandle_t handle,
         check_error_ret( cublasGetVectorAsync( 2, sizeof(int), d_max_mn, 1, h_max_mn, 1, handle->stream ), KBLAS_cuBLAS_Error);
         check_error_ret( cudaStreamSynchronize(handle->stream), KBLAS_CUDA_Error );
       }
-#if (MAGMA_VERSION_MAJOR > 2 || (MAGMA_VERSION_MAJOR == 2 && MAGMA_VERSION_MINOR > 6) || (MAGMA_VERSION_MAJOR == 2 && MAGMA_VERSION_MINOR == 6 && MAGMA_VERSION_MICRO > 1))
+	  
+#if (MAGMA_VERSION_MAJOR < 2 || (MAGMA_VERSION_MAJOR == 2 && MAGMA_VERSION_MINOR < 6) || (MAGMA_VERSION_MAJOR == 2 && MAGMA_VERSION_MINOR == 6 && MAGMA_VERSION_MICRO < 2))
       magmablas_Xtrsm_vbatched_max_nocheck(
                   (magma_side_t)(side == KBLAS_Left ? MagmaLeft : MagmaRight),
                   (magma_uplo_t)(uplo == KBLAS_Lower ? MagmaLower : MagmaUpper),
-                  (magma_trans_t)(trans == KBLAS_Trans ? MagmaTrans : MagmaNoTrans),
-                  (magma_diag_t)(diag == KBLAS_NonUnit? MagmaNonUnit : MagmaUnit),
-                  h_max_mn[0], h_max_mn[1], m, n, alpha,
-                  A, lda,
-                  B, ldb,
-                  batch_size,
-                  handle->magma_queue);
-#else
-      magmablas_Xtrsm_vbatched_max_nocheck(
-                  (magma_side_t)(side == KBLAS_Left ? MagmaLeft : MagmaRight),
-                  (magma_uplo_t)(uplo == KBLAS_Lower ? MagmaLower : MagmaUpper),
-                  (magma_trans_t)(trans == KBLAS_Trans ? MagmaTrans : MagmaNoTrans),
+                  kblasToMagmaTransposeType(trans),
                   (magma_diag_t)(diag == KBLAS_NonUnit? MagmaNonUnit : MagmaUnit),
                   m, n, alpha,
                   A, lda,
                   B, ldb,
                   batch_size,
                   h_max_mn[0], h_max_mn[1], handle->magma_queue);
-#endif
+#else 
+      magmablas_Xtrsm_vbatched_max_nocheck(
+                  (magma_side_t)(side == KBLAS_Left ? MagmaLeft : MagmaRight),
+                  (magma_uplo_t)(uplo == KBLAS_Lower ? MagmaLower : MagmaUpper),
+                  kblasToMagmaTransposeType(trans),
+                  (magma_diag_t)(diag == KBLAS_NonUnit? MagmaNonUnit : MagmaUnit),
+                  h_max_mn[0], h_max_mn[1], m, n, alpha,
+                  A, lda,
+                  B, ldb,
+                  batch_size, handle->magma_queue);
+#endif 
 
       A += batch_size;
       B += batch_size;

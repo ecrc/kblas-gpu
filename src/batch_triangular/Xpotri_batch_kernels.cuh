@@ -33,6 +33,8 @@
 #elif (TARGET_SM >= 30)
 
 //==============================================================================================
+// Inverts the lower factor L, then forms L^-H L^-1; only the second product conjugates, and
+// conjugate is the identity for real types
 template<typename T, int TX>
 __device__ inline void
 dev_potri_U_L_reg_shared_Nfix(int n, T* A, int lda)
@@ -85,7 +87,7 @@ dev_potri_U_L_reg_shared_Nfix(int n, T* A, int lda)
     s = zero;
     #pragma unroll
     for(int i = 0; i < TX; i++){
-      a = shfl(rA[i], j, TX);
+      a = conjugate(shfl(rA[i], j, TX));
       if(j <= i && j >= tx)
         s = FMA( rA[i], a, s);
     }
@@ -183,7 +185,7 @@ dev_potri_U_L_reg_shared_Nvar(int n, T* A, int lda)
     s = zero;
     #pragma unroll
     for(int i = 0; i < TX; i++){
-      a = shfl(rA[i], j, TX);
+      a = conjugate(shfl(rA[i], j, TX));
       if(j <= i && j >= tx)
         s = FMA( rA[i], a, s);
     }

@@ -39,6 +39,11 @@ KBLAS_BATCH_SVD_DIR=./batch_svd
 include $(KBLAS_BATCH_SVD_DIR)/Makefile
 endif
 
+ifdef _SUPPORT_LAPACK_
+KBLAS_LAP_DIR=./lapack
+include $(KBLAS_LAP_DIR)/Makefile
+endif
+
 KBLAS_COM_CU = kblas_common.cu workspace_queries.cu
 KBLAS_COM_CU += sblas_core.cu dblas_core.cu cblas_core.cu zblas_core.cu
 

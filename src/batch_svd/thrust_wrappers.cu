@@ -30,6 +30,7 @@
 #include <thrust/fill.h>
 #include <iostream>
 
+#include <cublas_v2.h>
 #include "thrust_wrappers.h"
 #include "kblas_gpu_util.ch"
 
@@ -97,15 +98,15 @@ float reduceSum(float* a, int elements, cudaStream_t stream)
 	return reduceSumT<float>(a, elements, stream);
 }
 
-template<class Real>
-void fillArrayT(Real* array, int num_entries, Real val, cudaStream_t stream)
+template<class T>
+void fillArrayT(T* array, int num_entries, T val, cudaStream_t stream)
 {
-	thrust::device_ptr<Real> dev_start(array);
-    thrust::device_ptr<Real> dev_end(array + num_entries);
+	thrust::device_ptr<T> dev_start(array);
+    thrust::device_ptr<T> dev_end(array + num_entries);
 	thrust::fill(
 		thrust::cuda::par.on(stream),
-		dev_start, dev_end, val)
-	;
+		dev_start, dev_end, val
+    );
 }
 
 void fillArray(float* array, int num_entries, float val, cudaStream_t stream)
@@ -118,6 +119,16 @@ void fillArray(double* array, int num_entries, double val, cudaStream_t stream)
 	fillArrayT<double>(array, num_entries, val, stream);
 }
 
+void fillArray(cuComplex* array, int num_entries, cuComplex val, cudaStream_t stream)
+{
+	fillArrayT<cuComplex>(array, num_entries, val, stream);
+}
+
+void fillArray(cuDoubleComplex* array, int num_entries, cuDoubleComplex val, cudaStream_t stream)
+{
+	fillArrayT<cuDoubleComplex>(array, num_entries, val, stream);
+}
+
 void fillArray(int* array, int num_entries, int val, cudaStream_t stream)
 {
 	fillArrayT<int>(array, num_entries, val, stream);
@@ -127,7 +138,7 @@ void fillArray(int* array, int num_entries, int val, cudaStream_t stream)
 // Generating array of pointers from either a strided array or another array of pointers
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 template<class T, class T_ptr>
-struct UnaryAoAAssign : public thrust::unary_function<int, T*>
+struct UnaryAoAAssign
 {
     T_ptr original_array;
     int stride, offset;
@@ -183,6 +194,30 @@ void generateArrayOfPointers(float** original_array, float** array_of_arrays, in
 
 void generateArrayOfPointers(float** original_array, float** array_of_arrays, int stride, int num_arrays, cudaStream_t stream)
 { generateArrayOfPointersT<float, float**>(original_array, array_of_arrays, stride, 0, num_arrays, stream); }
+
+void generateArrayOfPointers(cuDoubleComplex* original_array, cuDoubleComplex** array_of_arrays, int stride, int offset, int num_arrays, cudaStream_t stream)
+{ generateArrayOfPointersT<cuDoubleComplex, cuDoubleComplex*>(original_array, array_of_arrays, stride, offset, num_arrays, stream); }
+
+void generateArrayOfPointers(cuDoubleComplex* original_array, cuDoubleComplex** array_of_arrays, int stride, int num_arrays, cudaStream_t stream)
+{ generateArrayOfPointersT<cuDoubleComplex, cuDoubleComplex*>(original_array, array_of_arrays, stride, 0, num_arrays, stream); }
+
+void generateArrayOfPointers(cuDoubleComplex** original_array, cuDoubleComplex** array_of_arrays, int stride, int offset, int num_arrays, cudaStream_t stream)
+{ generateArrayOfPointersT<cuDoubleComplex, cuDoubleComplex**>(original_array, array_of_arrays, stride, offset, num_arrays, stream); }
+
+void generateArrayOfPointers(cuDoubleComplex** original_array, cuDoubleComplex** array_of_arrays, int stride, int num_arrays, cudaStream_t stream)
+{ generateArrayOfPointersT<cuDoubleComplex, cuDoubleComplex**>(original_array, array_of_arrays, stride, 0, num_arrays, stream); }
+
+void generateArrayOfPointers(cuComplex* original_array, cuComplex** array_of_arrays, int stride, int offset, int num_arrays, cudaStream_t stream)
+{ generateArrayOfPointersT<cuComplex, cuComplex*>(original_array, array_of_arrays, stride, offset, num_arrays, stream); }
+
+void generateArrayOfPointers(cuComplex* original_array, cuComplex** array_of_arrays, int stride, int num_arrays, cudaStream_t stream)
+{ generateArrayOfPointersT<cuComplex, cuComplex*>(original_array, array_of_arrays, stride, 0, num_arrays, stream); }
+
+void generateArrayOfPointers(cuComplex** original_array, cuComplex** array_of_arrays, int stride, int offset, int num_arrays, cudaStream_t stream)
+{ generateArrayOfPointersT<cuComplex, cuComplex**>(original_array, array_of_arrays, stride, offset, num_arrays, stream); }
+
+void generateArrayOfPointers(cuComplex** original_array, cuComplex** array_of_arrays, int stride, int num_arrays, cudaStream_t stream)
+{ generateArrayOfPointersT<cuComplex, cuComplex**>(original_array, array_of_arrays, stride, 0, num_arrays, stream); }
 
 void generateArrayOfPointers(int* original_array, int** array_of_arrays, int stride, int offset, int num_arrays, cudaStream_t stream)
 { generateArrayOfPointersT<int, int*>(original_array, array_of_arrays, stride, offset, num_arrays, stream); }

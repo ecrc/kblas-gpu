@@ -29,7 +29,7 @@
 // invoke gemm kernel on off diagonal blocks (strided case)
 // workspace needed: device pointers
 // A, B: host pointer to device buffers
-template<class T>
+template<class T, bool CONJ>
 int Xsyrk_gemm_rec_flat_strided(kblasHandle_t handle,
                                 char uplo, char trans,
                                 const int m, const int n,
@@ -51,8 +51,9 @@ int Xsyrk_gemm_rec_flat_strided(kblasHandle_t handle,
     depth++;
   }
 
-  char transA = trans,
-       transB = (transA == KBLAS_NoTrans ? KBLAS_Trans : KBLAS_NoTrans);
+  // CONJ conjugates the transposed factor, making the off-diagonal blocks Hermitian updates
+  char transA = (CONJ && trans == KBLAS_Trans) ? KBLAS_ConjTrans : trans,
+       transB = (transA == KBLAS_NoTrans ? (CONJ ? KBLAS_ConjTrans : KBLAS_Trans) : KBLAS_NoTrans);
 
   kblasWorkspace_t ws_current = &(handle->work_space);
 
@@ -122,7 +123,7 @@ int Xsyrk_gemm_rec_flat_strided(kblasHandle_t handle,
 // batch strided SYRK core routine
 // workspace needed: device pointers
 // A, B: host pointer to device buffers
-template<typename T, typename T_PTR>
+template<typename T, typename T_PTR, bool CONJ>
 int Xsyrk_batch_strided_core( kblasHandle_t handle,
                               char uplo, char trans,
                               const int m, const int n,
@@ -147,12 +148,12 @@ int Xsyrk_batch_strided_core( kblasHandle_t handle,
       return KBLAS_InsufficientWorkspace;
     }
 
-    check_error_ret(status = Xsyrk_gemm_rec_flat_strided(handle,
+    check_error_ret(status = (Xsyrk_gemm_rec_flat_strided<T, CONJ>(handle,
                                                          uplo, trans,
                                                          m, n,
                                                          alpha, A, lda, strideA,
                                                          beta,  B, ldb, strideB,
-                                                         batchCount), status);
+                                                         batchCount)), status);
   }
 
 
@@ -176,25 +177,25 @@ int Xsyrk_batch_strided_core( kblasHandle_t handle,
                                     const T beta,        T_PTR              B_array, int B_row_off, int B_col_off, int ldb, long strideB);
 
   syrk_kernels_type syrk_kernels[] = {
-    kernel_syrk_U_LN_registers_Mfix_Nmul    <T, T_PTR, true, 8, A_COLS_PTY>,
-    kernel_syrk_U_LN_registers_Mfix_Nvar    <T, T_PTR, true, 8, A_COLS_PTY>,
-    kernel_syrk_U_LN_registers_MNvar        <T, T_PTR, true, 8, A_COLS_PTY>,
-    kernel_syrk_U_LN_registers_MNvar        <T, T_PTR, true, 8, A_COLS_PTY>,
-    kernel_syrk_U_LN_registers_Mblock2_Nmul <T, T_PTR, true, 8, A_COLS_PTY>,
-    kernel_syrk_U_LN_registers_Mblock2_Nvar <T, T_PTR, true, 8, A_COLS_PTY>,
-    kernel_syrk_U_LN_registers_NMblock2var  <T, T_PTR, true, 8, A_COLS_PTY>,
-    kernel_syrk_U_LN_registers_NMblock2var  <T, T_PTR, true, 8, A_COLS_PTY>,
-    kernel_syrk_U_LT_reg_shared_Mfix_Nmul   <T, T_PTR, true, 8, A_COLS_PTY>,
-    kernel_syrk_U_LT_reg_shared_Mfix_Nvar   <T, T_PTR, true, 8, A_COLS_PTY>,
-    kernel_syrk_U_LT_reg_shared_MNvar       <T, T_PTR, true, 8, A_COLS_PTY>,
-    kernel_syrk_U_LT_reg_shared_MNvar       <T, T_PTR, true, 8, A_COLS_PTY>,
-    kernel_syrk_U_LT_reg_shared_Mblock2_Nmul<T, T_PTR, true, 8, A_COLS_PTY>,
-    kernel_syrk_U_LT_reg_shared_Mblock2_Nvar<T, T_PTR, true, 8, A_COLS_PTY>,
-    kernel_syrk_U_LT_reg_shared_NMblock2var <T, T_PTR, true, 8, A_COLS_PTY>,
-    kernel_syrk_U_LT_reg_shared_NMblock2var <T, T_PTR, true, 8, A_COLS_PTY>,
-    kernel_syrk_U_LN_registers_Mfix_Nvar_DB <T, T_PTR, true, 8, 4>,
+    kernel_syrk_U_LN_registers_Mfix_Nmul    <T, T_PTR, true, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LN_registers_Mfix_Nvar    <T, T_PTR, true, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LN_registers_MNvar        <T, T_PTR, true, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LN_registers_MNvar        <T, T_PTR, true, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LN_registers_Mblock2_Nmul <T, T_PTR, true, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LN_registers_Mblock2_Nvar <T, T_PTR, true, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LN_registers_NMblock2var  <T, T_PTR, true, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LN_registers_NMblock2var  <T, T_PTR, true, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LT_reg_shared_Mfix_Nmul   <T, T_PTR, true, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LT_reg_shared_Mfix_Nvar   <T, T_PTR, true, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LT_reg_shared_MNvar       <T, T_PTR, true, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LT_reg_shared_MNvar       <T, T_PTR, true, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LT_reg_shared_Mblock2_Nmul<T, T_PTR, true, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LT_reg_shared_Mblock2_Nvar<T, T_PTR, true, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LT_reg_shared_NMblock2var <T, T_PTR, true, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LT_reg_shared_NMblock2var <T, T_PTR, true, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LN_registers_Mfix_Nvar_DB <T, T_PTR, true, 8, 4, CONJ>,
     //kernel_syrk_LN_registers_Mblock2_Nvar<T, T_PTR, true, 8, 4>,
-    kernel_syrk_U_LN_registers_Mblock2_Nvar_DB<T, T_PTR, true, 8, 4>
+    kernel_syrk_U_LN_registers_Mblock2_Nvar_DB<T, T_PTR, true, 8, 4, CONJ>
   };
 
   // determine which kernel to launch
@@ -231,7 +232,7 @@ int Xsyrk_batch_strided_core( kblasHandle_t handle,
 // invoke gemm kernel on off diagonal blocks
 // workspace needed: device pointers
 // A, B: host pointer to array of device pointers to device buffers
-template<class T, class T_PTR>
+template<class T, class T_PTR, bool CONJ>
 int Xsyrk_gemm_rec_flat(kblasHandle_t handle,
                         char uplo, char trans,
                         const int m, const int n,
@@ -254,8 +255,9 @@ int Xsyrk_gemm_rec_flat(kblasHandle_t handle,
     depth++;
   }
 
-  char transA = trans,
-       transB = (transA == KBLAS_NoTrans ? KBLAS_Trans : KBLAS_NoTrans);
+  // CONJ conjugates the transposed factor, making the off-diagonal blocks Hermitian updates
+  char transA = (CONJ && trans == KBLAS_Trans) ? KBLAS_ConjTrans : trans,
+       transB = (transA == KBLAS_NoTrans ? (CONJ ? KBLAS_ConjTrans : KBLAS_Trans) : KBLAS_NoTrans);
 
   // use pre-allocated workspace buffers to host pointers to off-diagonal blocks
   kblasWorkspace_t ws_current = &(handle->work_space);
@@ -326,7 +328,7 @@ int Xsyrk_gemm_rec_flat(kblasHandle_t handle,
 // batch SYRK core routine
 // workspace needed: device pointers
 // A, B: host pointer to array of device pointers to device buffers
-template<typename T, typename T_PTR>
+template<typename T, typename T_PTR, bool CONJ>
 int Xsyrk_batch_core( kblasHandle_t handle,
                       char uplo, char trans,
                       const int m, const int n,
@@ -352,12 +354,12 @@ int Xsyrk_batch_core( kblasHandle_t handle,
       return KBLAS_InsufficientWorkspace;
     }
 
-    check_error_ret( status = Xsyrk_gemm_rec_flat( handle,
+    check_error_ret( status = (Xsyrk_gemm_rec_flat<T, T_PTR, CONJ>( handle,
                                                    uplo, trans,
                                                    m, n,
                                                    alpha, (T_PTR)A, A_row_off, A_col_off, lda,
                                                    beta,  (T_PTR)B, B_row_off, B_col_off, ldb,
-                                                   batchCount), status);
+                                                   batchCount)), status);
   }
 
   // handle diagonal blocks with custom CUDA kernels
@@ -381,25 +383,25 @@ int Xsyrk_batch_core( kblasHandle_t handle,
                                     const T beta,        T_PTR              B_array, int B_row_off, int B_col_off, int ldb, long strideB);
 
   syrk_kernels_type syrk_kernels[] = {
-    kernel_syrk_U_LN_registers_Mfix_Nmul    <T, T_PTR, false, 8, A_COLS_PTY>,
-    kernel_syrk_U_LN_registers_Mfix_Nvar    <T, T_PTR, false, 8, A_COLS_PTY>,
-    kernel_syrk_U_LN_registers_MNvar        <T, T_PTR, false, 8, A_COLS_PTY>,
-    kernel_syrk_U_LN_registers_MNvar        <T, T_PTR, false, 8, A_COLS_PTY>,
-    kernel_syrk_U_LN_registers_Mblock2_Nmul <T, T_PTR, false, 8, A_COLS_PTY>,
-    kernel_syrk_U_LN_registers_Mblock2_Nvar <T, T_PTR, false, 8, A_COLS_PTY>,
-    kernel_syrk_U_LN_registers_NMblock2var  <T, T_PTR, false, 8, A_COLS_PTY>,
-    kernel_syrk_U_LN_registers_NMblock2var  <T, T_PTR, false, 8, A_COLS_PTY>,
-    kernel_syrk_U_LT_reg_shared_Mfix_Nmul   <T, T_PTR, false, 8, A_COLS_PTY>,
-    kernel_syrk_U_LT_reg_shared_Mfix_Nvar   <T, T_PTR, false, 8, A_COLS_PTY>,
-    kernel_syrk_U_LT_reg_shared_MNvar       <T, T_PTR, false, 8, A_COLS_PTY>,
-    kernel_syrk_U_LT_reg_shared_MNvar       <T, T_PTR, false, 8, A_COLS_PTY>,
-    kernel_syrk_U_LT_reg_shared_Mblock2_Nmul<T, T_PTR, false, 8, A_COLS_PTY>,
-    kernel_syrk_U_LT_reg_shared_Mblock2_Nvar<T, T_PTR, false, 8, A_COLS_PTY>,
-    kernel_syrk_U_LT_reg_shared_NMblock2var <T, T_PTR, false, 8, A_COLS_PTY>,
-    kernel_syrk_U_LT_reg_shared_NMblock2var <T, T_PTR, false, 8, A_COLS_PTY>,
-    kernel_syrk_U_LN_registers_Mfix_Nvar_DB <T, T_PTR, false, 8, 4>,
+    kernel_syrk_U_LN_registers_Mfix_Nmul    <T, T_PTR, false, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LN_registers_Mfix_Nvar    <T, T_PTR, false, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LN_registers_MNvar        <T, T_PTR, false, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LN_registers_MNvar        <T, T_PTR, false, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LN_registers_Mblock2_Nmul <T, T_PTR, false, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LN_registers_Mblock2_Nvar <T, T_PTR, false, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LN_registers_NMblock2var  <T, T_PTR, false, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LN_registers_NMblock2var  <T, T_PTR, false, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LT_reg_shared_Mfix_Nmul   <T, T_PTR, false, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LT_reg_shared_Mfix_Nvar   <T, T_PTR, false, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LT_reg_shared_MNvar       <T, T_PTR, false, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LT_reg_shared_MNvar       <T, T_PTR, false, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LT_reg_shared_Mblock2_Nmul<T, T_PTR, false, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LT_reg_shared_Mblock2_Nvar<T, T_PTR, false, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LT_reg_shared_NMblock2var <T, T_PTR, false, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LT_reg_shared_NMblock2var <T, T_PTR, false, 8, A_COLS_PTY, CONJ>,
+    kernel_syrk_U_LN_registers_Mfix_Nvar_DB <T, T_PTR, false, 8, 4, CONJ>,
     //kernel_syrk_LN_registers_Mblock2_Nvar<T, T_PTR, false, 8, 4>,
-    kernel_syrk_U_LN_registers_Mblock2_Nvar_DB<T, T_PTR, false, 8, 4>
+    kernel_syrk_U_LN_registers_Mblock2_Nvar_DB<T, T_PTR, false, 8, 4, CONJ>
   };
 
   // determine which kernel to launch

@@ -10,9 +10,9 @@
  *    and LAPACK routines optimized for NVIDIA GPUs.
  * KBLAS is provided by KAUST.
  *
- * @version 3.0.0
+ * @version 4.0.0
  * @author Wajih Halim Boukaram
- * @date 2020-08-31
+ * @date 2020-12-10
  **/
  
 #ifndef __BATCH_ARA_H__
